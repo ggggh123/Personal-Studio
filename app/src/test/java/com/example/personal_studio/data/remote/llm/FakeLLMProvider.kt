@@ -13,8 +13,12 @@ class FakeLLMProvider(
         emit(LlmChunk.Done(totalTokens = textChunks.sumOf { it.length }))
     }
 
-    override fun generateMultimodal(prompt: String, images: List<ByteArray>, systemPrompt: String?): Flow<LlmChunk> =
-        generateText(prompt, systemPrompt)
+    override fun generateMultimodal(
+        prompt: String,
+        images: List<ByteArray>,
+        systemPrompt: String?,
+        temperature: Float,
+    ): Flow<LlmChunk> = generateText(prompt, systemPrompt, temperature)
 
     override suspend fun generateStructured(prompt: String, jsonSchema: String): String = "{}"
 }

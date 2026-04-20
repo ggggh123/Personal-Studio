@@ -23,6 +23,7 @@ interface LLMProvider {
         prompt: String,
         images: List<ByteArray>,
         systemPrompt: String? = null,
+        temperature: Float = 0.7f,
     ): Flow<LlmChunk>
 
     /**

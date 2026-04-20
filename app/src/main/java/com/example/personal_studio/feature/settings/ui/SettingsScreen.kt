@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -88,7 +89,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.height(8.dp))
             Text("连通性测试", style = MaterialTheme.typography.titleMedium)
             Text("点击下面按钮让 Gemini 回一句话，验证 key 与网络。", style = MaterialTheme.typography.bodySmall)
 

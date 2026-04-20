@@ -58,12 +58,17 @@ class GeminiProvider(
         emit(LlmChunk.Error(t.message ?: "Unknown LLM error", retryable = true))
     }
 
-    override fun generateMultimodal(prompt: String, images: List<ByteArray>, systemPrompt: String?): Flow<LlmChunk> = flow {
-        val model = buildModel(temperature = 0.7f) ?: run {
+    override fun generateMultimodal(
+        prompt: String,
+        images: List<ByteArray>,
+        systemPrompt: String?,
+        temperature: Float,
+    ): Flow<LlmChunk> = flow {
+        val model = buildModel(temperature) ?: run {
             emit(LlmChunk.Error("No API key configured — open Settings to add one.", retryable = false))
             return@flow
         }
-        val bitmaps = images.map { BitmapFactory.decodeByteArray(it, 0, it.size) }
+        val bitmaps = images.mapNotNull { BitmapFactory.decodeByteArray(it, 0, it.size) }
         val contentMsg = content {
             if (!systemPrompt.isNullOrBlank()) text(systemPrompt)
             bitmaps.forEach { image(it) }
