@@ -2,18 +2,21 @@ package com.example.personal_studio.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand palette — aligned with the design spec's visual companion mockups
-val BrandBlue = Color(0xFF7CC4FF)
-val BrandYellow = Color(0xFFFFDC64)
-val BrandGreen = Color(0xFF96FFB4)
-val BrandRed = Color(0xFFFF8A8A)
-val BrandPurple = Color(0xFFC89AFF)
-val BrandOrange = Color(0xFFFFB46E)
+// Terminal — base surfaces
+val Void = Color(0xFF0A0E0C)
+val Deep = Color(0xFF121815)
+val Hull = Color(0xFF1A221D)
+val Rule = Color(0xFF2A4A32)
+val Dim = Color(0xFF3D5A42)
 
-// Neutrals
-val Ink950 = Color(0xFF0F1014)
-val Ink900 = Color(0xFF141418)
-val Ink800 = Color(0xFF1A1B20)
-val Ink700 = Color(0xFF25272F)
-val Ink100 = Color(0xFFF4F5F7)
-val Ink050 = Color(0xFFFFFFFF)
+// Foreground text
+val Foam = Color(0xFFD8E5DA)
+val FoamMute = Color(0xFF8FA896)
+val FoamDim = Color(0xFF5A7260)
+
+// Accents
+val Phosphor = Color(0xFF41FF8F)
+val Amber = Color(0xFFFFB548)
+val Cyan = Color(0xFF6AC3E8)
+val Carmine = Color(0xFFFF5770)
+val Olive = Color(0xFFB6D477)

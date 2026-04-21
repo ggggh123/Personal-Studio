@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,200..900,0..100;1,9..144,200..900,0..100&family=Instrument+Serif:ital@0;1&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Noto+Serif+SC:wght@300..900&family=Noto+Sans+SC:wght@300..900&family=JetBrains+Mono:wght@300..800&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Archivo:ital,wght@0,100..900;1,100..900&family=IBM+Plex+Mono:wght@300..700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #18181a;
+    color: #e8e8e6;
+    font-family: "DM Sans", "Noto Sans SC", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+
+  .page-head {
+    text-align: center;
+    padding-bottom: 40px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid #2e2e32;
+  }
+  .page-head h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 400;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    font-size: 36px;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .page-head p {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    color: #8a8a8a;
+    font-size: 16px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+  .col {
+    border: 1px solid #2e2e32;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .col.recommended { border: 2px solid #e8a472; }
+
+  .col-head {
+    padding: 20px 24px;
+    border-bottom: 1px solid #2e2e32;
+    background: #1f1f22;
+  }
+  .col-tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #8a8a8a;
+    margin-bottom: 4px;
+  }
+  .col.recommended .col-tag { color: #e8a472; }
+  .col-title {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .col-a .col-title { font-family: "Fraunces", serif; font-variation-settings: "opsz" 48, "SOFT" 80; }
+  .col-b .col-title { font-family: "Archivo", sans-serif; letter-spacing: -0.01em; }
+  .col-c .col-title { font-family: "DM Serif Display", serif; letter-spacing: -0.01em; }
+  .col-essence {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    color: #9a9a9a;
+    font-size: 14px;
+  }
+
+  /* Palette strip */
+  .palette-strip {
+    display: grid;
+    padding: 12px 24px 0;
+    background: #18181a;
+  }
+  .palette-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+    margin-bottom: 10px;
+  }
+  .sw {
+    height: 28px;
+    display: flex;
+    align-items: flex-end;
+    padding: 3px 5px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #7a7a7a;
+    padding: 12px 24px 6px;
+    border-top: 1px dashed #2e2e32;
+    margin-top: 16px;
+  }
+
+  /* Type specimen per column */
+  .type-spec {
+    padding: 4px 24px 18px;
+    min-height: 180px;
+  }
+  .type-spec .display { font-size: 32px; line-height: 1; margin-bottom: 10px; }
+  .col-a .type-spec .display { font-family: "Fraunces", "Noto Serif SC", serif; font-variation-settings: "opsz" 96, "SOFT" 80; font-weight: 400; }
+  .col-b .type-spec .display { font-family: "Archivo", "Noto Sans SC", sans-serif; font-weight: 700; letter-spacing: -0.02em; text-transform: uppercase; }
+  .col-c .type-spec .display { font-family: "DM Serif Display", "Noto Serif SC", serif; font-style: italic; letter-spacing: -0.01em; }
+
+  .type-spec .body { font-size: 13px; margin-bottom: 8px; line-height: 1.5; color: #b4b4b0; }
+  .col-a .type-spec .body { font-family: "Instrument Sans", "Noto Sans SC", sans-serif; }
+  .col-b .type-spec .body { font-family: "Archivo", "Noto Sans SC", sans-serif; }
+  .col-c .type-spec .body { font-family: "DM Sans", "Noto Sans SC", sans-serif; }
+
+  .type-spec .mono { font-size: 11px; color: #7a7a7a; }
+  .col-a .type-spec .mono { font-family: "JetBrains Mono", monospace; }
+  .col-b .type-spec .mono { font-family: "IBM Plex Mono", monospace; letter-spacing: 0.02em; }
+  .col-c .type-spec .mono { font-family: "JetBrains Mono", monospace; }
+
+  /* Phone mockup frame */
+  .phone-wrap { padding: 20px 24px 28px; }
+  .phone {
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+    aspect-ratio: 9 / 18;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    padding: 2px;
+  }
+  .col-a .phone { background: #EBE3CE; border: 1.5px solid #16202F; }
+  .col-b .phone { background: #151515; border: 1px solid #565656; }
+  .col-c .phone { background: #0b1318; border: 1px solid #3a4d53; }
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ═══════════════════ A · FOLIO ═══════════════════ */
+  .col-a .phone-screen { background: #F5EFE0; color: #16202F; }
+  .col-a .phone-screen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.4; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .col-a .ph-top { display: flex; justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid #BCB09A; position: relative; z-index: 2; }
+  .col-a .ph-meta { font-family: "JetBrains Mono", monospace; font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; color: #6A7482; }
+  .col-a .ph-title { font-family: "Fraunces", "Noto Serif SC", serif; font-size: 14px; font-weight: 500; margin-top: 2px; }
+  .col-a .ph-body { flex: 1; padding-top: 8px; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+  .col-a .msg-user { align-self: flex-end; max-width: 82%; text-align: right; }
+  .col-a .msg-byline { font-family: "JetBrains Mono", monospace; font-size: 7px; letter-spacing: 0.18em; text-transform: uppercase; color: #C1392A; margin-bottom: 2px; }
+  .col-a .msg-ai-byline { color: #6A7482; }
+  .col-a .msg-ubody { display: inline-block; border-top: 1px solid #C1392A; border-bottom: 1px solid #C1392A; padding: 4px 8px; font-family: "Instrument Sans", "Noto Sans SC", sans-serif; font-size: 10px; text-align: left; }
+  .col-a .msg-ai { align-self: flex-start; max-width: 90%; }
+  .col-a .msg-abody { border-left: 2px solid #16202F; padding: 2px 0 2px 8px; font-family: "Instrument Sans", "Noto Sans SC", sans-serif; font-size: 10px; line-height: 1.5; }
+  .col-a .math { display: inline-block; font-family: "Fraunces", serif; font-style: italic; color: #1E3F66; font-size: 11px; padding: 2px 6px; background: rgba(30,63,102,0.08); margin: 2px 0; }
+  .col-a .stamp { display: inline-block; border: 1px solid #C1392A; color: #C1392A; padding: 2px 6px; font-family: "JetBrains Mono", monospace; font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase; margin-top: 3px; }
+  .col-a .ph-input { margin-top: auto; padding-top: 8px; border-top: 1px solid #BCB09A; display: flex; gap: 6px; align-items: baseline; position: relative; z-index: 2; }
+  .col-a .ph-input-prompt { font-family: "Instrument Serif", serif; font-style: italic; color: #C1392A; font-size: 12px; }
+  .col-a .ph-input-field { flex: 1; font-size: 10px; color: #6A7482; font-family: "Instrument Sans", sans-serif; }
+  .col-a .ph-input-btn { font-family: "JetBrains Mono", monospace; font-size: 8px; letter-spacing: 0.2em; color: #C1392A; border: 1px solid #C1392A; padding: 2px 6px; text-transform: uppercase; }
+
+  /* ═══════════════════ B · GRAPHITE ATLAS ═══════════════════ */
+  .col-b .phone-screen { background: #EFEDE5; color: #0a0a0a; font-family: "Archivo", sans-serif; }
+  .col-b .ph-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0 8px; border-bottom: 1.5px solid #0a0a0a;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .col-b .ph-top .orange { color: #E25822; font-weight: 600; }
+  .col-b .ph-body { flex: 1; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .col-b .atlas-box {
+    border: 1px solid #0a0a0a;
+    padding: 8px;
+    position: relative;
+  }
+  .col-b .atlas-box::before, .col-b .atlas-box::after {
+    content: "";
+    position: absolute;
+    background: #0a0a0a;
+  }
+  .col-b .atlas-box::before { top: -2px; left: -2px; width: 5px; height: 5px; }
+  .col-b .atlas-box::after { top: -2px; right: -2px; width: 5px; height: 5px; }
+  .col-b .atlas-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #E25822;
+    margin-bottom: 4px;
+  }
+  .col-b .atlas-title {
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    margin-bottom: 3px;
+  }
+  .col-b .atlas-body { font-family: "Archivo", sans-serif; font-size: 10px; color: #2a2a2a; line-height: 1.5; }
+  .col-b .atlas-coord {
+    position: absolute;
+    bottom: -8px; right: 4px;
+    background: #EFEDE5;
+    padding: 0 4px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 7.5px;
+    letter-spacing: 0.2em;
+    color: #0a0a0a;
+  }
+  .col-b .tick-line {
+    display: flex;
+    gap: 0;
+    margin-top: 4px;
+  }
+  .col-b .tick-line span {
+    flex: 1;
+    height: 8px;
+    border-left: 1px solid #0a0a0a;
+  }
+  .col-b .tick-line span:last-child { border-right: 1px solid #0a0a0a; }
+  .col-b .tick-line span:nth-child(5n) { border-left: 1px solid #E25822; height: 12px; }
+  .col-b .measure-row {
+    display: flex;
+    gap: 6px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 8.5px;
+    color: #0a0a0a;
+    letter-spacing: 0.1em;
+    margin-top: 3px;
+    justify-content: space-between;
+  }
+  .col-b .math-b {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: #30576B;
+    border-left: 2px solid #30576B;
+    padding-left: 6px;
+    margin: 4px 0;
+  }
+  .col-b .ph-btn {
+    margin-top: auto;
+    padding: 6px;
+    border: 1.5px solid #0a0a0a;
+    background: #E25822;
+    color: #fff;
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+
+  /* ═══════════════════ C · MIDNIGHT CODEX ═══════════════════ */
+  .col-c .phone-screen {
+    background: radial-gradient(ellipse at top, #152028 0%, #0B1318 80%);
+    color: #E8DFCB;
+  }
+  .col-c .phone-screen::after {
+    content: "";
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 30% 10%, rgba(255,146,72,0.08) 0%, transparent 50%);
+    mix-blend-mode: screen;
+  }
+  .col-c .ph-top {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(232,223,203,0.15);
+    position: relative; z-index: 2;
+  }
+  .col-c .ph-title {
+    font-family: "DM Serif Display", "Noto Serif SC", serif;
+    font-style: italic;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+  .col-c .ph-meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(232,223,203,0.45);
+    align-self: center;
+  }
+  .col-c .ph-body { flex: 1; padding-top: 10px; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 10px; }
+  .col-c .c-msg-u {
+    align-self: flex-end;
+    max-width: 82%;
+    background: rgba(232,223,203,0.06);
+    border: 1px solid rgba(232,223,203,0.2);
+    padding: 6px 10px;
+    border-radius: 10px 10px 2px 10px;
+    font-family: "DM Sans", "Noto Sans SC", sans-serif;
+    font-size: 10.5px;
+  }
+  .col-c .c-msg-a {
+    align-self: flex-start;
+    max-width: 88%;
+    color: #E8DFCB;
+  }
+  .col-c .c-byline {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 7.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #FF9248;
+    margin-bottom: 3px;
+  }
+  .col-c .c-body {
+    font-family: "DM Sans", "Noto Sans SC", sans-serif;
+    font-size: 10.5px;
+    line-height: 1.55;
+    color: #E8DFCB;
+  }
+  .col-c .c-math {
+    font-family: "DM Serif Display", serif;
+    font-style: italic;
+    font-size: 13px;
+    color: #4A96A8;
+    display: block;
+    padding: 4px 0;
+    margin: 4px 0;
+    border-bottom: 1px solid rgba(74,150,168,0.3);
+  }
+  .col-c .c-chip {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #FF9248;
+    color: #0B1318;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .col-c .ph-input {
+    margin-top: auto;
+    padding: 8px 10px;
+    background: rgba(232,223,203,0.05);
+    border: 1px solid rgba(232,223,203,0.12);
+    border-radius: 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 10px;
+    color: rgba(232,223,203,0.55);
+    position: relative; z-index: 2;
+    font-family: "DM Sans", sans-serif;
+  }
+  .col-c .ph-input .arrow {
+    margin-left: auto;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #FF9248;
+    color: #0B1318;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+
+  /* Principles row per column */
+  .principles-col {
+    padding: 8px 24px 20px;
+    font-size: 12px;
+    color: #b4b4b0;
+    line-height: 1.55;
+  }
+  .principles-col ul { list-style: none; }
+  .principles-col li { padding: 5px 0; border-bottom: 1px dashed #2e2e32; }
+  .principles-col li:last-child { border-bottom: none; }
+  .principles-col strong { color: #e8e8e6; font-weight: 500; }
+
+  /* Decision */
+  .decision {
+    margin-top: 56px;
+    text-align: center;
+    padding: 32px;
+    border: 2px solid #e8a472;
+    background: #1f1f22;
+  }
+  .decision h3 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "SOFT" 80;
+    font-weight: 400;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .decision p {
+    font-family: "Instrument Serif", serif;
+    font-style: italic;
+    color: #8a8a8a;
+    margin-bottom: 20px;
+  }
+  .choices { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .choice {
+    padding: 12px 18px;
+    border: 1px solid #565656;
+    background: #18181a;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: #e8e8e6;
+  }
+  .choice:hover { background: #2e2e32; }
+  .choice.primary { background: #e8a472; color: #18181a; border-color: #e8a472; }
+  .choice.primary:hover { background: #f4b580; }
+</style>
+</head>
+<body>
+  <main>
+    <div class="page-head">
+      <h1>三种方向 · 真正并列</h1>
+      <p>same chat conversation, three design languages</p>
+    </div>
+
+    <div class="grid">
+      <!-- ════════ A ════════ -->
+      <div class="col col-a recommended">
+        <div class="col-head">
+          <div class="col-tag">OPTION A · RECOMMENDED</div>
+          <div class="col-title">印刻 · Folio</div>
+          <div class="col-essence">a scholar's notebook, at 2 a.m.</div>
+        </div>
+
+        <div class="palette-strip">
+          <div class="palette-row">
+            <div class="sw" style="background:#F5EFE0;color:#16202F">paper</div>
+            <div class="sw" style="background:#EBE3CE;color:#16202F">deep</div>
+            <div class="sw" style="background:#16202F;color:#F5EFE0">ink</div>
+            <div class="sw" style="background:#C1392A;color:#F5EFE0">seal</div>
+            <div class="sw" style="background:#1E3F66;color:#F5EFE0">cerul.</div>
+            <div class="sw" style="background:#7A8B3D;color:#F5EFE0">olive</div>
+          </div>
+        </div>
+
+        <div class="section-label">Typography</div>
+        <div class="type-spec">
+          <div class="display">极值 · <em style="font-family:'Instrument Serif';font-style:italic;color:#C1392A">extrema</em></div>
+          <div class="body">对 f(x) = ax² + bx + c 在 a &gt; 0 时取极小值。Fraunces 变量 serif + Instrument Sans 正文。</div>
+          <div class="mono">P1/Chat · 2026-04-21 · kb.status = indexed</div>
+        </div>
+
+        <div class="section-label">Live mockup · Chat</div>
+        <div class="phone-wrap">
+          <div class="phone"><div class="phone-screen">
+            <div class="ph-top">
+              <div>
+                <div class="ph-meta">CHAPTER 02</div>
+                <div class="ph-title">高数 · 极值</div>
+              </div>
+              <div class="ph-meta">⚙</div>
+            </div>
+            <div class="ph-body">
+              <div class="msg-user">
+                <div class="msg-byline">你 · 14:31</div>
+                <div class="msg-ubody">这道题怎么解？</div>
+              </div>
+              <div class="msg-ai">
+                <div class="msg-byline msg-ai-byline">GEMINI · 回复</div>
+                <div class="msg-abody">
+                  二次函数求极值。求导：
+                  <span class="math">f′(x) = 2ax + b</span>
+                  令 f′=0，得 x = −b/2a。
+                </div>
+                <span class="stamp">◉ 存入手札</span>
+              </div>
+            </div>
+            <div class="ph-input">
+              <span class="ph-input-prompt">—</span>
+              <span class="ph-input-field">续写…</span>
+              <span class="ph-input-btn">付梓</span>
+            </div>
+          </div></div>
+        </div>
+
+        <div class="section-label">Principles</div>
+        <div class="principles-col">
+          <ul>
+            <li><strong>Warm paper + one red pen</strong>. No pure black; ink is deep navy.</li>
+            <li><strong>Horizontal rules over boxes</strong>. Typeset-page, not "card UI".</li>
+            <li><strong>Crafted serifs carry meaning</strong>. Titles, formulas, pull-quotes.</li>
+            <li><strong>"付梓 / 存入手札"</strong> — scholarly micro-copy world-builds.</li>
+            <li><strong>Subtle paper grain</strong> on every surface (~5% noise).</li>
+            <li><strong>Offset block-print shadow</strong> instead of Material soft elevation.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ════════ B ════════ -->
+      <div class="col col-b">
+        <div class="col-head">
+          <div class="col-tag">OPTION B</div>
+          <div class="col-title">GRAPHITE ATLAS</div>
+          <div class="col-essence">a technical handbook that happens to chat</div>
+        </div>
+
+        <div class="palette-strip">
+          <div class="palette-row">
+            <div class="sw" style="background:#EFEDE5;color:#0a0a0a">paper</div>
+            <div class="sw" style="background:#D8D4C6;color:#0a0a0a">deep</div>
+            <div class="sw" style="background:#0a0a0a;color:#EFEDE5">carbon</div>
+            <div class="sw" style="background:#E25822;color:#fff">signal</div>
+            <div class="sw" style="background:#30576B;color:#fff">survey</div>
+            <div class="sw" style="background:#6b8e23;color:#fff">olive</div>
+          </div>
+        </div>
+
+        <div class="section-label">Typography</div>
+        <div class="type-spec">
+          <div class="display">EXTREMA</div>
+          <div class="body" style="color: #2a2a2a;">An uppercase display face + compact sans body. Everything is sharp-cornered, label-heavy, specimen-sheet precise. No serif anywhere.</div>
+          <div class="mono" style="color: #4a4a4a;">FIG.04 · PLATE.I · 2026-04-21 · 0x7A</div>
+        </div>
+
+        <div class="section-label">Live mockup · Chat</div>
+        <div class="phone-wrap">
+          <div class="phone"><div class="phone-screen">
+            <div class="ph-top">
+              <span>FIG. 02 · 极值 <span class="orange">█</span></span>
+              <span>14:31</span>
+            </div>
+            <div class="ph-body">
+              <div class="atlas-box">
+                <div class="atlas-label">QUERY · USER</div>
+                <div class="atlas-body">这道题怎么解？</div>
+                <div class="atlas-coord">47.2°N</div>
+              </div>
+              <div class="tick-line">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="measure-row"><span>00</span><span>50</span><span>100</span></div>
+
+              <div class="atlas-box" style="margin-top: 6px;">
+                <div class="atlas-label" style="color: #30576B;">RESPONSE · GEMINI 1.5</div>
+                <div class="atlas-title">二次函数求极值</div>
+                <div class="atlas-body">对 f(x) = ax² + bx + c 求一阶导：</div>
+                <div class="math-b">f′(x) = 2ax + b</div>
+                <div class="atlas-body">令 f′(x) = 0，得 x = −b/2a。</div>
+                <div class="atlas-coord" style="color: #E25822;">§3.2</div>
+              </div>
+            </div>
+            <div class="ph-btn">ARCHIVE ENTRY ▸</div>
+          </div></div>
+        </div>
+
+        <div class="section-label">Principles</div>
+        <div class="principles-col">
+          <ul>
+            <li><strong>Everything is a drawing</strong>. Corner marks, tick rules, coordinates on every card.</li>
+            <li><strong>All-caps labels</strong>, bold geometric sans. Zero serifs.</li>
+            <li><strong>Signal orange is loud</strong>. One color does a lot of work.</li>
+            <li><strong>Hard-edged</strong>. Square corners, thick keylines, no shadows.</li>
+            <li><strong>Numeric &amp; precise</strong> UI copy — "QUERY", "RESPONSE", "ARCHIVE".</li>
+            <li><strong>Intellectual but cold</strong>. Looks like a reference manual.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ════════ C ════════ -->
+      <div class="col col-c">
+        <div class="col-head">
+          <div class="col-tag">OPTION C</div>
+          <div class="col-title">Midnight Codex</div>
+          <div class="col-essence">a reading lamp at 1 a.m., never daylight</div>
+        </div>
+
+        <div class="palette-strip">
+          <div class="palette-row">
+            <div class="sw" style="background:#0B1318;color:#E8DFCB">midnight</div>
+            <div class="sw" style="background:#152028;color:#E8DFCB">teal.d</div>
+            <div class="sw" style="background:#E8DFCB;color:#0B1318">bone</div>
+            <div class="sw" style="background:#FF9248;color:#0B1318">persimm.</div>
+            <div class="sw" style="background:#4A96A8;color:#0B1318">teal</div>
+            <div class="sw" style="background:#C69C6D;color:#0B1318">brass</div>
+          </div>
+        </div>
+
+        <div class="section-label">Typography</div>
+        <div class="type-spec">
+          <div class="display">极值 · <em>extrema</em></div>
+          <div class="body">DM Serif Display italic 作为有戏剧性的标题；DM Sans 正文简洁且现代。比 A 更流畅，比 B 更温暖，但强制深色主题。</div>
+          <div class="mono">P1 · Gemini · 2026·04·21</div>
+        </div>
+
+        <div class="section-label">Live mockup · Chat</div>
+        <div class="phone-wrap">
+          <div class="phone"><div class="phone-screen">
+            <div class="ph-top">
+              <div>
+                <div class="ph-title">极值</div>
+                <div class="ph-meta" style="margin-top:2px">高数 · CH.02</div>
+              </div>
+              <div class="ph-meta">⚙</div>
+            </div>
+            <div class="ph-body">
+              <div class="c-msg-u">
+                这道题怎么解？
+              </div>
+              <div class="c-msg-a">
+                <div class="c-byline">⟡ GEMINI</div>
+                <div class="c-body">
+                  二次函数求极值。对 f 求导：
+                  <span class="c-math">f ′(x) = 2ax + b</span>
+                  令 f ′(x) = 0，得 x = −b/2a。
+                </div>
+                <span class="c-chip">加入知识库</span>
+              </div>
+            </div>
+            <div class="ph-input">
+              <span>询问…</span>
+              <span class="arrow">↑</span>
+            </div>
+          </div></div>
+        </div>
+
+        <div class="section-label">Principles</div>
+        <div class="principles-col">
+          <ul>
+            <li><strong>Dark only</strong>, deep teal base — never pure black.</li>
+            <li><strong>Persimmon orange</strong> is the one accent (glowing, not harsh).</li>
+            <li><strong>Italic display serif</strong> vs warm geometric sans body.</li>
+            <li><strong>Rounded corners, soft glows</strong>. Modern-editorial.</li>
+            <li><strong>Chip-and-bubble UI</strong>. Still genre-standard, just elegant.</li>
+            <li><strong>Restriction: no light mode.</strong> If you take notes at noon by a window, glare.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="decision">
+      <h3>选一个</h3>
+      <p>— now you can actually compare —</p>
+      <div class="choices">
+        <div class="choice primary" data-choice="a" onclick="toggleSelect(this)">A · Folio · 推荐</div>
+        <div class="choice" data-choice="b" onclick="toggleSelect(this)">B · Graphite Atlas</div>
+        <div class="choice" data-choice="c" onclick="toggleSelect(this)">C · Midnight Codex</div>
+        <div class="choice" data-choice="tweak" onclick="toggleSelect(this)">组合 / 微调</div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

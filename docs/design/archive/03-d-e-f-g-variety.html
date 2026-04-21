@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Archivo:wght@100..900&family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=DM+Sans:wght@100..1000&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,200..900,0..100;1,9..144,200..900,0..100&family=Instrument+Sans:wght@400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300..800&family=Manrope:wght@200..800&family=Noto+Sans+SC:wght@300..900&family=Noto+Serif+SC:wght@300..900&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Young+Serif&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #1a1a1c;
+    color: #e8e8e6;
+    font-family: "DM Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 1280px; margin: 0 auto; padding: 48px 32px 100px; }
+
+  /* Page head */
+  .page-head { text-align: center; padding-bottom: 32px; margin-bottom: 48px; border-bottom: 1px solid #2e2e32; }
+  .page-head h1 { font-family: "Fraunces", serif; font-variation-settings: "opsz" 144, "SOFT" 80; font-weight: 400; font-size: 36px; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .page-head p { font-family: "Instrument Serif", serif; font-style: italic; color: #8a8a8a; font-size: 16px; }
+  .page-head p b { color: #e8a472; font-weight: 400; }
+
+  /* Direction row (full width per direction) */
+  .direction {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 32px;
+    padding: 40px;
+    margin-bottom: 28px;
+    border: 1px solid #2e2e32;
+    align-items: start;
+  }
+  @media (max-width: 980px) { .direction { grid-template-columns: 1fr; gap: 24px; padding: 24px; } }
+
+  /* Left: phone */
+  .phone-wrap { justify-self: center; }
+  .phone {
+    width: 320px;
+    aspect-ratio: 9/18.5;
+    border-radius: 22px;
+    padding: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 19px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Right side content */
+  .meta-col { display: flex; flex-direction: column; gap: 18px; }
+  .meta-head { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid #2e2e32; padding-bottom: 10px; }
+  .meta-num { font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.2em; color: #8a8a8a; }
+  .meta-name { font-size: 28px; letter-spacing: -0.015em; flex: 1; }
+  .meta-essence { font-family: "Instrument Serif", serif; font-style: italic; color: #b4b4b0; font-size: 15px; }
+
+  /* Mini palette */
+  .mini-palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+  .ps { height: 40px; display: flex; align-items: flex-end; padding: 4px 6px; font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: 0.04em; }
+
+  /* Type specimen */
+  .type-row { display: grid; grid-template-columns: 80px 1fr; gap: 14px; align-items: baseline; padding: 12px 0; border-bottom: 1px dashed #2e2e32; }
+  .type-row:last-child { border-bottom: none; }
+  .type-label { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #7a7a7a; }
+  .type-sample { color: #e8e8e6; }
+
+  /* Principles */
+  .principles { padding-top: 8px; border-top: 1px solid #2e2e32; }
+  .pr-label { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #7a7a7a; margin-bottom: 10px; }
+  .pr-list { list-style: none; font-size: 13px; color: #b4b4b0; line-height: 1.55; }
+  .pr-list li { padding: 4px 0; border-bottom: 1px dashed #2a2a2e; }
+  .pr-list li:last-child { border-bottom: none; }
+  .pr-list b { color: #e8e8e6; font-weight: 500; }
+
+  /* ══════════════════════════════════════════════════ */
+  /* D · 风滋 RISOGRAPH ZINE                             */
+  /* ══════════════════════════════════════════════════ */
+  .d-head .meta-name { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-variation-settings: "opsz" 96; }
+  .d-phone { background: #F2EDDD; border: 2px solid #1A1A1C; }
+  .d-screen { background: #F2EDDD; color: #1A1A1C; }
+  .d-screen::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence baseFrequency='2' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: multiply;
+  }
+  /* Off-register pink blob */
+  .d-screen::after {
+    content: ""; position: absolute; top: -30px; left: -30px;
+    width: 220px; height: 220px;
+    background: #FF6F91;
+    mix-blend-mode: multiply;
+    opacity: 0.85;
+    border-radius: 50%;
+    filter: blur(1px);
+    pointer-events: none;
+  }
+  .d-top {
+    position: relative; z-index: 2;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 8px;
+    border-bottom: 3px solid #1A1A1C;
+    margin-bottom: 10px;
+  }
+  .d-top-title { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -0.02em; text-transform: uppercase; }
+  .d-top-meta { font-family: "Space Mono", monospace; font-size: 9px; letter-spacing: 0.1em; }
+  .d-body { flex: 1; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+  .d-user {
+    align-self: flex-end;
+    max-width: 84%;
+    background: #1A1A1C;
+    color: #F2EDDD;
+    padding: 8px 11px;
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 0;
+    transform: rotate(-0.5deg);
+    box-shadow: 3px 3px 0 #FF6F91;
+  }
+  .d-ai {
+    align-self: flex-start;
+    max-width: 88%;
+  }
+  .d-ai-byline {
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: #32B4B5;
+    color: #1A1A1C;
+    padding: 2px 6px;
+    display: inline-block;
+    margin-bottom: 4px;
+    transform: rotate(0.5deg);
+  }
+  .d-ai-body {
+    background: #F2EDDD;
+    border: 2px solid #1A1A1C;
+    padding: 10px;
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    line-height: 1.55;
+    position: relative;
+    box-shadow: 4px 4px 0 #1A1A1C;
+  }
+  .d-ai-body .math {
+    display: block;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    background: #32B4B5;
+    color: #1A1A1C;
+    padding: 4px 8px;
+    margin: 6px 0;
+    font-size: 13px;
+    transform: rotate(-0.3deg);
+  }
+  .d-ai-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 10px;
+    background: #FF6F91;
+    color: #1A1A1C;
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 2px solid #1A1A1C;
+    transform: rotate(-1deg);
+  }
+  .d-input {
+    margin-top: auto;
+    display: flex;
+    gap: 6px;
+    padding: 10px 0 2px;
+    border-top: 3px solid #1A1A1C;
+    position: relative; z-index: 2;
+  }
+  .d-input-field {
+    flex: 1;
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    color: #5a5a5a;
+    padding: 8px 10px;
+    background: #fff;
+    border: 2px solid #1A1A1C;
+  }
+  .d-input-btn {
+    padding: 8px 14px;
+    background: #1A1A1C;
+    color: #F2EDDD;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 2px solid #1A1A1C;
+    box-shadow: 3px 3px 0 #32B4B5;
+  }
+
+  /* ══════════════════════════════════════════════════ */
+  /* E · 静谧 WHISPER                                    */
+  /* ══════════════════════════════════════════════════ */
+  .e-head .meta-name { font-family: "Manrope", sans-serif; font-weight: 300; letter-spacing: -0.02em; }
+  .e-phone { background: #f6f5f2; border: 1px solid #d8d6d0; }
+  .e-screen { background: #FAFAF7; color: #2A2A2A; }
+  .e-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 20px;
+  }
+  .e-top-title { font-family: "Manrope", sans-serif; font-weight: 300; font-size: 13px; color: #2A2A2A; letter-spacing: -0.01em; }
+  .e-top-meta { font-family: "Manrope", sans-serif; font-weight: 400; font-size: 10px; color: #9a9a9a; letter-spacing: 0.02em; }
+  .e-body { flex: 1; display: flex; flex-direction: column; gap: 28px; padding-top: 8px; }
+  .e-user {
+    align-self: flex-end;
+    max-width: 84%;
+    color: #2A2A2A;
+    text-align: right;
+    font-family: "Manrope", sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .e-user small {
+    display: block;
+    font-size: 9px;
+    color: #b4b4b0;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+    font-weight: 400;
+  }
+  .e-ai {
+    max-width: 94%;
+    font-family: "Manrope", sans-serif;
+    font-weight: 300;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #2A2A2A;
+  }
+  .e-ai small {
+    display: block;
+    font-size: 9px;
+    color: #b4b4b0;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+    font-weight: 400;
+  }
+  .e-ai .math {
+    display: block;
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 14px;
+    color: #7C9885;
+    padding: 6px 0;
+    margin: 6px 0;
+  }
+  .e-ai .chip {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 10px;
+    border: 1px solid #c0c0bc;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 400;
+    color: #2A2A2A;
+  }
+  .e-input {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid #e8e6e0;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .e-input-dot { width: 6px; height: 6px; background: #7C9885; border-radius: 50%; align-self: center; }
+  .e-input-field { flex: 1; font-family: "Manrope", sans-serif; font-size: 12px; color: #9a9a9a; }
+  .e-input-btn { font-family: "Manrope", sans-serif; font-size: 10px; color: #2A2A2A; letter-spacing: 0.05em; }
+
+  /* ══════════════════════════════════════════════════ */
+  /* F · 风物志 MONUMENT                                  */
+  /* ══════════════════════════════════════════════════ */
+  .f-head .meta-name { font-family: "Anton", sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; font-size: 34px; }
+  .f-phone { background: #F5EFE6; border: 2px solid #111; }
+  .f-screen { background: #F5EFE6; color: #111; overflow: hidden; }
+  .f-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 0 8px;
+    border-bottom: 4px solid #111;
+    margin-bottom: 10px;
+  }
+  .f-top-title { font-family: "Anton", sans-serif; font-size: 22px; letter-spacing: 0.03em; text-transform: uppercase; color: #111; }
+  .f-top-meta { font-family: "Archivo", sans-serif; font-weight: 600; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; }
+  .f-body { flex: 1; display: flex; flex-direction: column; gap: 4px; position: relative; }
+  .f-heroword {
+    font-family: "Anton", sans-serif;
+    font-size: 56px;
+    line-height: 0.88;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    margin: 4px 0;
+    color: #111;
+  }
+  .f-heroword em {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 300;
+    font-variation-settings: "opsz" 144;
+    text-transform: none;
+    color: #C72A20;
+    font-size: 44px;
+    letter-spacing: -0.01em;
+  }
+  .f-kicker {
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #C72A20;
+    margin-bottom: 4px;
+  }
+  .f-rule { height: 4px; background: #111; margin: 8px 0; }
+  .f-rule.red { background: #C72A20; height: 6px; }
+  .f-colrow { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; padding: 6px 0; }
+  .f-col-label { font-family: "Archivo", sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #666; }
+  .f-col-body { font-family: "Archivo", sans-serif; font-weight: 500; font-size: 11px; line-height: 1.45; color: #111; }
+  .f-col-body.math {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    color: #C72A20;
+    border-left: 3px solid #C72A20;
+    padding-left: 8px;
+  }
+  .f-question {
+    font-family: "Fraunces", serif;
+    font-style: italic;
+    font-size: 16px;
+    line-height: 1.2;
+    color: #111;
+    padding: 8px 0;
+    border-top: 1px solid #111;
+    border-bottom: 1px solid #111;
+    margin: 8px 0;
+  }
+  .f-input {
+    margin-top: auto;
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 10px;
+    border-top: 4px solid #111;
+    font-family: "Archivo", sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .f-input .send {
+    background: #C72A20;
+    color: #F5EFE6;
+    padding: 6px 12px;
+  }
+
+  /* Vertical rotated label F */
+  .f-rotated {
+    position: absolute;
+    top: 20px; right: -2px;
+    transform: rotate(90deg);
+    transform-origin: right top;
+    font-family: "Archivo", sans-serif;
+    font-weight: 900;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: #C72A20;
+  }
+
+  /* ══════════════════════════════════════════════════ */
+  /* G · 草木 HERBARIUM                                   */
+  /* ══════════════════════════════════════════════════ */
+  .g-head .meta-name { font-family: "Young Serif", serif; font-weight: 400; letter-spacing: -0.01em; }
+  .g-phone { background: #E8E0CE; border: 1.5px solid #3D4A2C; }
+  .g-screen {
+    background: linear-gradient(#F1E9D6, #EBE2C7);
+    color: #2E3A22;
+    position: relative;
+  }
+  .g-screen::before {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence baseFrequency='1.8' numOctaves='3'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  /* Botanical illustration corner */
+  .g-screen::after {
+    content: "";
+    position: absolute;
+    top: -10px; right: -20px;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle at 30% 30%, #A2AD6F 0%, transparent 50%);
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  .g-top {
+    position: relative; z-index: 2;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #3D4A2C;
+    margin-bottom: 14px;
+  }
+  .g-top-title { font-family: "Young Serif", "Noto Serif SC", serif; font-size: 18px; letter-spacing: -0.01em; font-weight: 400; color: #2E3A22; }
+  .g-top-meta { font-family: "Instrument Sans", sans-serif; font-size: 10px; color: #6D7458; letter-spacing: 0.04em; font-style: italic; }
+  .g-body { flex: 1; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 12px; }
+  .g-user {
+    align-self: flex-end;
+    max-width: 84%;
+    background: rgba(162, 173, 111, 0.22);
+    border: 1px solid #A2AD6F;
+    padding: 8px 11px;
+    border-radius: 16px 16px 4px 16px;
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 12px;
+    color: #2E3A22;
+  }
+  .g-ai { max-width: 92%; }
+  .g-ai-sig {
+    font-family: "Young Serif", serif;
+    font-size: 12px;
+    color: #9B6943;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+  .g-ai-body {
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #2E3A22;
+  }
+  .g-ai-body .math {
+    display: block;
+    font-family: "Young Serif", serif;
+    font-style: italic;
+    font-size: 14px;
+    color: #9B6943;
+    padding: 6px 0;
+    margin: 6px 0;
+    border-top: 1px solid #A2AD6F;
+    border-bottom: 1px solid #A2AD6F;
+    text-align: center;
+  }
+  .g-ai-chip {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    background: #9B6943;
+    color: #F1E9D6;
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    border-radius: 12px;
+  }
+  .g-ai-chip::before { content: "❋ "; }
+  .g-input {
+    margin-top: auto;
+    display: flex; gap: 10px; align-items: baseline;
+    padding-top: 12px;
+    border-top: 1px solid #A2AD6F;
+  }
+  .g-input-prompt {
+    font-family: "Young Serif", serif;
+    font-style: italic;
+    color: #9B6943;
+    font-size: 14px;
+  }
+  .g-input-field { flex: 1; font-family: "Instrument Sans", sans-serif; font-size: 12px; color: #6D7458; }
+  .g-input-btn {
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #2E3A22;
+    border-bottom: 1px solid #9B6943;
+    padding-bottom: 2px;
+  }
+
+  /* Decision */
+  .decision {
+    margin-top: 64px;
+    text-align: center;
+    padding: 36px;
+    border: 2px solid #e8a472;
+    background: #222225;
+  }
+  .decision h3 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "SOFT" 80;
+    font-weight: 400;
+    font-size: 26px;
+    margin-bottom: 10px;
+  }
+  .decision p { font-family: "Instrument Serif", serif; font-style: italic; color: #9a9a9a; margin-bottom: 22px; }
+  .choices { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .choice {
+    padding: 12px 18px;
+    border: 1px solid #565656;
+    background: #18181a;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: #e8e8e6;
+  }
+  .choice:hover { background: #2e2e32; }
+  .choice.primary { background: #e8a472; color: #18181a; border-color: #e8a472; }
+  .choice.muted { color: #8a8a8a; }
+</style>
+</head>
+<body>
+<main>
+
+  <div class="page-head">
+    <h1>再来四个 · 风格谱系</h1>
+    <p>保留 <b>A / B / C</b> 作为基线，这里是四个<b>完全不同性格</b>的方向 · 一字母对应一灵魂</p>
+  </div>
+
+  <!-- ═══════════════════════ D · RISOGRAPH ═══════════════════════ -->
+  <div class="direction d-head">
+    <div class="phone-wrap">
+      <div class="phone d-phone"><div class="phone-screen d-screen">
+        <div class="d-top">
+          <div class="d-top-title">FOLIO //</div>
+          <div class="d-top-meta">N°02<br>21·04</div>
+        </div>
+        <div class="d-body">
+          <div class="d-user">这道题怎么解？</div>
+          <div class="d-ai">
+            <div class="d-ai-byline">▲ GEMINI</div>
+            <div class="d-ai-body">
+              二次函数求极值。对 f 求导：
+              <span class="math">f′(x) = 2ax + b</span>
+              令 f′ = 0，解出 <b>x = −b/2a</b>。
+            </div>
+            <span class="d-ai-tag">◉ 加入知识库</span>
+          </div>
+        </div>
+        <div class="d-input">
+          <div class="d-input-field">续写…</div>
+          <div class="d-input-btn">发</div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="meta-col">
+      <div class="meta-head">
+        <span class="meta-num">§ D</span>
+        <span class="meta-name">风滋 · Risograph Zine</span>
+      </div>
+      <p class="meta-essence">indie print zine · loud, flat, intentionally off-register · youth-energy</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#F2EDDD; color:#1A1A1C">cream</div>
+        <div class="ps" style="background:#FF6F91; color:#1A1A1C">riso pink</div>
+        <div class="ps" style="background:#32B4B5; color:#1A1A1C">riso teal</div>
+        <div class="ps" style="background:#1A1A1C; color:#F2EDDD">carbon</div>
+        <div class="ps" style="background:#F2C94C; color:#1A1A1C">marker</div>
+        <div class="ps" style="background:#8A8A8A; color:#fff">granite</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Bricolage Grotesque'; font-weight: 800; font-size: 28px; letter-spacing: -0.02em; text-transform: uppercase;">STUDY //</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'DM Sans'; font-weight: 500; font-size: 14px;">chunky humanist sans + riso-print drop shadows</span></div>
+        <div class="type-row"><span class="type-label">mono</span><span class="type-sample" style="font-family:'Space Mono'; font-weight: 700; font-size: 12px; letter-spacing: 0.05em;">N°02 · 2026·04·21</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Two flat riso inks</b> (pink + teal) over cream. Colors slightly off-register.</li>
+          <li><b>Chunky display</b> (Bricolage Grotesque) vs clean body (DM Sans).</li>
+          <li><b>Hard shadows</b> in contrasting color. Everything slightly rotated ±1°.</li>
+          <li><b>Stamps and stickers</b> instead of subtle chips. Playful micro-interactions.</li>
+          <li><b>Best for</b> students who want energy, expression, personality.</li>
+          <li><b>Risk</b>: may feel too loud after long study sessions.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ E · WHISPER ═══════════════════════ -->
+  <div class="direction e-head">
+    <div class="phone-wrap">
+      <div class="phone e-phone"><div class="phone-screen e-screen">
+        <div class="e-top">
+          <div class="e-top-title">ch. 02 — extrema</div>
+          <div class="e-top-meta">14:31</div>
+        </div>
+        <div class="e-body">
+          <div class="e-user">
+            这道题怎么解？
+            <small>you, a moment ago</small>
+          </div>
+          <div class="e-ai">
+            <small>Gemini</small>
+            二次函数求极值。对 f 求导：
+            <span class="math">f′(x) = 2ax + b</span>
+            令 f′(x) = 0，得 x = −b/2a。
+            <span class="chip">save to notes</span>
+          </div>
+        </div>
+        <div class="e-input">
+          <span class="e-input-dot"></span>
+          <span class="e-input-field">keep going…</span>
+          <span class="e-input-btn">send</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="meta-col">
+      <div class="meta-head">
+        <span class="meta-num">§ E</span>
+        <span class="meta-name">静谧 · whisper</span>
+      </div>
+      <p class="meta-essence">muji-like restraint · lowercase · generous whitespace · silent confidence</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#FAFAF7; color:#2A2A2A; border: 1px solid #e0e0dc">paper</div>
+        <div class="ps" style="background:#F0EEE7; color:#2A2A2A">deep</div>
+        <div class="ps" style="background:#2A2A2A; color:#FAFAF7">ink</div>
+        <div class="ps" style="background:#9a9a9a; color:#fff">muted</div>
+        <div class="ps" style="background:#7C9885; color:#fff">sage</div>
+        <div class="ps" style="background:#C9A66B; color:#fff">honey</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Manrope'; font-weight: 300; font-size: 26px; letter-spacing: -0.02em;">extrema · a quiet study</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'Manrope'; font-weight: 300; font-size: 14px; color: #9a9a9a;">tiny, humanist, almost whispering — no shouting in the UI</span></div>
+        <div class="type-row"><span class="type-label">accent</span><span class="type-sample" style="font-family:'Fraunces'; font-style: italic; font-size: 18px; color: #7C9885;">f ′(x) = 2ax + b</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Lowercase everything</b>. Even buttons. "send" not "SEND".</li>
+          <li><b>No borders on bubbles</b>. Let typography and whitespace do the dividing.</li>
+          <li><b>One soft accent</b>: sage green for formulas, 1 px dot for presence.</li>
+          <li><b>Air-first layout</b>. 24–32 px gaps where others use 12.</li>
+          <li><b>Best for</b> users who find current apps visually noisy.</li>
+          <li><b>Risk</b>: can feel sterile to users who want delight.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ F · MONUMENT ═══════════════════════ -->
+  <div class="direction f-head">
+    <div class="phone-wrap">
+      <div class="phone f-phone"><div class="phone-screen f-screen">
+        <div class="f-top">
+          <div class="f-top-title">STUDY</div>
+          <div class="f-top-meta">N°02 · 极值</div>
+        </div>
+        <div class="f-rotated">P1/CHAT</div>
+        <div class="f-body">
+          <div class="f-kicker">— you, 14:31 —</div>
+          <div class="f-question">"这道题怎么解？"</div>
+
+          <div class="f-rule red"></div>
+
+          <div class="f-heroword">EXTREMA<br><em>极值</em></div>
+
+          <div class="f-kicker" style="margin-top: 10px;">— GEMINI 1.5 FLASH —</div>
+          <div class="f-colrow">
+            <div class="f-col-label">METHOD</div>
+            <div class="f-col-body">求导并令导数为零</div>
+          </div>
+          <div class="f-colrow">
+            <div class="f-col-label">DERIV.</div>
+            <div class="f-col-body math">f ′(x) = 2ax + b</div>
+          </div>
+          <div class="f-colrow">
+            <div class="f-col-label">SOLVE</div>
+            <div class="f-col-body math">x = −b/2a</div>
+          </div>
+        </div>
+        <div class="f-input">
+          <span>继续</span>
+          <span class="send">ARCHIVE ▸</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="meta-col">
+      <div class="meta-head">
+        <span class="meta-num">§ F</span>
+        <span class="meta-name">风物志 · MONUMENT</span>
+      </div>
+      <p class="meta-essence">swiss poster meets editorial · heroic type · every screen is a page-one spread</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#F5EFE6; color:#111">ivory</div>
+        <div class="ps" style="background:#E0D8C9; color:#111">deep</div>
+        <div class="ps" style="background:#111; color:#F5EFE6">carbon</div>
+        <div class="ps" style="background:#C72A20; color:#F5EFE6">ember</div>
+        <div class="ps" style="background:#3D5A80; color:#F5EFE6">blue</div>
+        <div class="ps" style="background:#B08D3A; color:#F5EFE6">brass</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Anton'; font-size: 36px; letter-spacing: 0.01em; text-transform: uppercase; line-height: 0.9;">EXTREMA</span></div>
+        <div class="type-row"><span class="type-label">italic</span><span class="type-sample" style="font-family:'Fraunces'; font-style: italic; font-size: 22px; color: #C72A20; font-variation-settings: 'opsz' 144;">a study of extrema</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'Archivo'; font-weight: 600; font-size: 12px; letter-spacing: 0.02em; text-transform: uppercase;">LABEL · DATA · DERIVATION</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Heroic condensed sans</b> (Anton) sets the emotional tone.</li>
+          <li><b>Italic Fraunces</b> for the "声" — the voice, the question.</li>
+          <li><b>4 px thick rules</b>, all-caps labels, rigorous grid.</li>
+          <li><b>Red ember</b> used like an editorial highlight, not a warning.</li>
+          <li><b>Every screen feels like a magazine spread</b>. Confidence.</li>
+          <li><b>Risk</b>: very graphic-design-forward; may overpower content.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ G · HERBARIUM ═══════════════════════ -->
+  <div class="direction g-head">
+    <div class="phone-wrap">
+      <div class="phone g-phone"><div class="phone-screen g-screen">
+        <div class="g-top">
+          <div class="g-top-title">极值 <span style="color: #9B6943; font-style: italic; font-size: 12px;">· fig. 03</span></div>
+          <div class="g-top-meta">april 21</div>
+        </div>
+        <div class="g-body">
+          <div class="g-user">这道题怎么解？</div>
+          <div class="g-ai">
+            <div class="g-ai-sig">Gemini writes —</div>
+            <div class="g-ai-body">
+              二次函数求极值。对 f 求导：
+              <span class="math">f ′(x) = 2ax + b</span>
+              令 f ′(x) = 0，解得 x = −b/2a。
+              <span class="g-ai-chip">压入植物标本册</span>
+            </div>
+          </div>
+        </div>
+        <div class="g-input">
+          <span class="g-input-prompt">—</span>
+          <span class="g-input-field">写下一些什么…</span>
+          <span class="g-input-btn">送</span>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="meta-col">
+      <div class="meta-head">
+        <span class="meta-num">§ G</span>
+        <span class="meta-name">草木 · Herbarium</span>
+      </div>
+      <p class="meta-essence">botanical study journal · pressed-flower palette · rounded serifs · unhurried</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#F1E9D6; color:#2E3A22">parchment</div>
+        <div class="ps" style="background:#E8E0CE; color:#2E3A22">deep</div>
+        <div class="ps" style="background:#2E3A22; color:#F1E9D6">forest</div>
+        <div class="ps" style="background:#A2AD6F; color:#2E3A22">sage</div>
+        <div class="ps" style="background:#9B6943; color:#F1E9D6">rust</div>
+        <div class="ps" style="background:#C9843B; color:#2E3A22">honey</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Young Serif'; font-size: 26px; letter-spacing: -0.01em; color: #2E3A22;">Extrema &amp; other flowers</span></div>
+        <div class="type-row"><span class="type-label">italic</span><span class="type-sample" style="font-family:'Young Serif'; font-style: italic; font-size: 18px; color: #9B6943;">— Gemini writes —</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'Instrument Sans'; font-size: 13px; color: #2E3A22;">calm humanist sans on pressed-paper cream</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Young Serif</b> — a distinctive botanical display face with warm terminal shapes.</li>
+          <li><b>Pressed-flower palette</b>: parchment, sage, rust, forest.</li>
+          <li><b>Rounded corners (16 px)</b>, gentle gradients, soft paper noise.</li>
+          <li><b>Micro-copy like a naturalist</b>: "fig. 03", "压入标本册", "送" for send.</li>
+          <li><b>Best for</b> students who love Studio Ghibli, stationery shops, hand-bound notebooks.</li>
+          <li><b>Risk</b>: may read as feminine or pastoral to some users.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decision -->
+  <div class="decision">
+    <h3>一共七个方向了 · 你的偏好？</h3>
+    <p>A · Folio / B · Atlas / C · Codex / D · Riso / E · Whisper / F · Monument / G · Herbarium</p>
+    <div class="choices">
+      <div class="choice primary" data-choice="a" onclick="toggleSelect(this)">A · Folio</div>
+      <div class="choice muted" data-choice="b" onclick="toggleSelect(this)">B · Atlas</div>
+      <div class="choice muted" data-choice="c" onclick="toggleSelect(this)">C · Codex</div>
+      <div class="choice" data-choice="d" onclick="toggleSelect(this)">D · Riso</div>
+      <div class="choice" data-choice="e" onclick="toggleSelect(this)">E · Whisper</div>
+      <div class="choice" data-choice="f" onclick="toggleSelect(this)">F · Monument</div>
+      <div class="choice" data-choice="g" onclick="toggleSelect(this)">G · Herbarium</div>
+      <div class="choice" data-choice="more" onclick="toggleSelect(this)">还要更多 / 再来几个</div>
+      <div class="choice" data-choice="hybrid" onclick="toggleSelect(this)">组合：从 X 拿配色 + Y 拿字体</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
