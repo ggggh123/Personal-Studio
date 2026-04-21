@@ -8,33 +8,53 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.SettingsViewModel
 import com.example.personal_studio.feature.settings.vm.TestConnectionState
+import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.theme.Amber
+import com.example.personal_studio.ui.theme.Carmine
+import com.example.personal_studio.ui.theme.Cyan
+import com.example.personal_studio.ui.theme.Foam
+import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
+import com.example.personal_studio.ui.theme.Olive
+import com.example.personal_studio.ui.theme.Phosphor
+import com.example.personal_studio.ui.theme.Rule
+import com.example.personal_studio.ui.theme.Void
+import com.example.personal_studio.ui.theme.scanLines
+import com.example.personal_studio.ui.theme.vignette
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -43,14 +63,15 @@ fun SettingsScreen(
     val state by vm.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
+        containerColor = Void,
         topBar = {
-            TopAppBar(
-                title = { Text("设置") },
-                navigationIcon = {
+            TerminalTopBar(
+                route = "settings",
+                trailing = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
                     }
-                },
+                }
             )
         },
     ) { inner ->
@@ -58,13 +79,23 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .padding(inner)
+                .scanLines()
+                .vignette()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Text("Gemini API Key", style = MaterialTheme.typography.titleMedium)
+
+            // ── Section: API key ──────────────────────────────
+            SectionHeader("## api key")
+
             Text(
-                "留空将使用构建时内置的默认 key（release 包可能未内置）。填写后优先使用你的 key。",
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = FoamDim)) {
+                        append("# empty means the app uses the key bundled at build time.\n")
+                        append("# setting a key here overrides it at runtime.")
+                    }
+                },
                 style = MaterialTheme.typography.bodySmall,
             )
 
@@ -72,54 +103,173 @@ fun SettingsScreen(
                 value = state.apiKeyDraft,
                 onValueChange = vm::onApiKeyDraftChanged,
                 placeholder = {
-                    Text(if (state.savedApiKey != null) "•••• 已设置（输入以覆盖）" else "粘贴你的 Gemini API key")
+                    Text(
+                        text = if (state.savedApiKey != null)
+                            "**** [set] — type to replace"
+                        else
+                            "paste gemini api key",
+                        color = FoamDim,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 },
-                label = { Text("API Key") },
+                label = {
+                    Text(
+                        text = "GEMINI_API_KEY",
+                        color = Cyan,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Phosphor,
+                    unfocusedBorderColor = Rule,
+                    cursorColor = Phosphor,
+                ),
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = vm::onSaveApiKey, enabled = state.apiKeyDraft.isNotBlank()) {
-                    Text("保存")
+                Button(
+                    onClick = vm::onSaveApiKey,
+                    enabled = state.apiKeyDraft.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Phosphor,
+                        contentColor = Void,
+                        disabledContainerColor = Rule,
+                        disabledContentColor = FoamDim,
+                    ),
+                ) {
+                    Text("save", style = MaterialTheme.typography.labelLarge)
                 }
-                OutlinedButton(onClick = vm::onClearApiKey, enabled = state.savedApiKey != null) {
-                    Text("清除")
+                OutlinedButton(
+                    onClick = vm::onClearApiKey,
+                    enabled = state.savedApiKey != null,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Foam),
+                ) {
+                    Text("clear", style = MaterialTheme.typography.labelLarge)
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-            Text("连通性测试", style = MaterialTheme.typography.titleMedium)
-            Text("点击下面按钮让 Gemini 回一句话，验证 key 与网络。", style = MaterialTheme.typography.bodySmall)
+            DashedDivider()
+
+            // ── Section: diagnostic ──────────────────────────────
+            SectionHeader("## diagnostic")
+
+            Text(
+                text = "ping gemini to verify key + network.",
+                style = MaterialTheme.typography.bodySmall,
+                color = FoamDim,
+            )
 
             Button(
                 onClick = vm::onTestConnection,
                 enabled = state.testConnection !is TestConnectionState.Running,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Amber,
+                    contentColor = Void,
+                ),
             ) {
                 if (state.testConnection is TestConnectionState.Running) {
-                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.width(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("测试中…")
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(14.dp),
+                        color = Void,
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text("pinging\u2026", style = MaterialTheme.typography.labelLarge)
                 } else {
-                    Text("测试 Gemini")
+                    Text("test gemini \u21b5", style = MaterialTheme.typography.labelLarge)
                 }
             }
 
             when (val tc = state.testConnection) {
-                TestConnectionState.Idle -> Unit
-                TestConnectionState.Running -> Unit
-                is TestConnectionState.Success -> Text(
-                    "✓ 成功：${tc.replyPreview}",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium,
+                TestConnectionState.Idle, TestConnectionState.Running -> Unit
+                is TestConnectionState.Success -> StatusLine(
+                    ok = true,
+                    body = tc.replyPreview,
                 )
-                is TestConnectionState.Failure -> Text(
-                    "✕ 失败：${tc.message}",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
+                is TestConnectionState.Failure -> StatusLine(
+                    ok = false,
+                    body = tc.message,
                 )
             }
+
+            DashedDivider()
+
+            // ── Section: future placeholders ──────────────────────────────
+            SectionHeader("## coming later")
+
+            KeyValueRow("MODEL", "gemini-1.5-flash", FoamMute)
+            KeyValueRow("THEME", "terminal \u00b7 phosphor (locked)", FoamMute)
+            KeyValueRow("TIMETABLE", "13 periods \u00b7 set in P4", FoamMute)
+            KeyValueRow("NOTIFICATIONS", "wired in P4", FoamMute)
         }
     }
+}
+
+// ──────────────────────────────────────────────────────────
+// Helpers
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = Phosphor,
+    )
+}
+
+@Composable
+private fun DashedDivider() {
+    Spacer(
+        Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .drawBehind {
+                drawLine(
+                    color = Rule,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f)),
+                )
+            }
+    )
+}
+
+@Composable
+private fun KeyValueRow(key: String, value: String, valueColor: Color) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = key,
+            style = MaterialTheme.typography.labelSmall,
+            color = Phosphor,
+            modifier = Modifier.width(140.dp),
+        )
+        Text(
+            text = "= ",
+            style = MaterialTheme.typography.bodyMedium,
+            color = FoamDim,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = valueColor,
+        )
+    }
+}
+
+@Composable
+private fun StatusLine(ok: Boolean, body: String) {
+    val tag = if (ok) "ok" else "err"
+    val tagColor = if (ok) Olive else Carmine
+    Text(
+        text = buildAnnotatedString {
+            withStyle(SpanStyle(color = tagColor)) { append("[$tag] ") }
+            withStyle(SpanStyle(color = Foam)) { append(body) }
+        },
+        style = MaterialTheme.typography.bodyMedium,
+    )
 }
