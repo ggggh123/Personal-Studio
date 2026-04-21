@@ -194,25 +194,50 @@ class OpenRouterProvider(
                 return@use
             }
 
-            while (!source.exhausted()) {
-                val line = source.readUtf8LineStrict()
+            var gotAnyContent = false
+
+            // readUtf8Line() is null-safe at EOF (unlike strict). Loop until the stream
+            // closes or [DONE] / error marker arrives.
+            while (true) {
+                val line = source.readUtf8Line() ?: break
+                if (line.isEmpty()) continue                 // SSE event terminator
                 if (!line.startsWith("data:")) continue
                 val payload = line.removePrefix("data:").trim()
                 if (payload.isEmpty()) continue
                 if (payload == "[DONE]") break
 
-                // Parse streaming chunk
-                val delta = try {
-                    val root = json.parseToJsonElement(payload).jsonObject
-                    root["choices"]?.jsonArray?.firstOrNull()
-                        ?.jsonObject?.get("delta")
-                        ?.jsonObject?.get("content")
-                        ?.jsonPrimitive?.content
-                } catch (t: Throwable) { null }
+                val root = try {
+                    json.parseToJsonElement(payload).jsonObject
+                } catch (t: Throwable) {
+                    continue
+                }
+
+                // OpenAI-compatible API sometimes returns errors inside the stream
+                // with HTTP 200. Handle that explicitly.
+                val errorObj = root["error"]?.let { it as? JsonObject ?: (it as? kotlinx.serialization.json.JsonElement)?.jsonObject }
+                if (errorObj != null) {
+                    val msg = errorObj["message"]?.jsonPrimitive?.content ?: "upstream error"
+                    emit(LlmChunk.Error(msg, retryable = false))
+                    return@use
+                }
+
+                val delta = root["choices"]?.jsonArray?.firstOrNull()
+                    ?.jsonObject?.get("delta")
+                    ?.jsonObject?.get("content")
+                    ?.jsonPrimitive?.content
 
                 if (!delta.isNullOrEmpty()) {
+                    gotAnyContent = true
                     emit(LlmChunk.Text(delta))
                 }
+            }
+
+            if (!gotAnyContent) {
+                emit(LlmChunk.Error(
+                    "no content received from upstream (model may be unavailable)",
+                    retryable = true,
+                ))
+                return@use
             }
             emit(LlmChunk.Done(totalTokens = null))
         }
@@ -223,6 +248,7 @@ class OpenRouterProvider(
             .url(ENDPOINT)
             .header("Authorization", "Bearer $apiKey")
             .header("Content-Type", "application/json")
+            .header("Accept", "text/event-stream")
             .header("HTTP-Referer", "https://github.com/ggggh123/Personal-Studio")
             .header("X-Title", "Personal-Studio")
             .post(json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON_MEDIA_TYPE))

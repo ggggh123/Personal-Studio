@@ -46,8 +46,20 @@
 <body>
 <div id="content"></div>
 <script>
+  var resizeObserver = null;
+
+  function reportHeight() {
+    if (window.Android) {
+      // scrollHeight reflects the final rendered content height, including any
+      // overflow from math formulas. Add a tiny bottom buffer on the Kotlin side
+      // so we don't clip sub-pixel descenders.
+      window.Android.onRendered(document.body.scrollHeight);
+    }
+  }
+
   function setContent(html) {
     document.getElementById('content').innerHTML = html;
+
     var tryRender = function() {
       if (typeof renderMathInElement === 'function') {
         renderMathInElement(document.getElementById('content'), {
@@ -60,7 +72,19 @@
           throwOnError: false,
           errorColor: '#FF5770'
         });
-        if (window.Android) window.Android.onRendered(document.body.scrollHeight);
+        reportHeight();
+
+        // KaTeX loads its math fonts asynchronously — subsequent reflows
+        // need to be reported so the WebView resizes correctly.
+        if (!resizeObserver && 'ResizeObserver' in window) {
+          resizeObserver = new ResizeObserver(function() { reportHeight(); });
+          resizeObserver.observe(document.body);
+        }
+        // Fallback for older WebViews: re-measure a few times after fonts
+        // likely finished loading.
+        setTimeout(reportHeight, 120);
+        setTimeout(reportHeight, 400);
+        setTimeout(reportHeight, 1200);
       } else {
         setTimeout(tryRender, 30);
       }

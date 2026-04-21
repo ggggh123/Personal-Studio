@@ -11,11 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect as UiRect
@@ -36,14 +31,18 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
+
+/**
+ * Identifies which corner handle is being actively dragged. Computed once per gesture
+ * in `onDragStart` and cleared on end / cancel.
+ */
+private enum class Corner { TL, TR, BL, BR, NONE }
 
 @Composable
 fun ImageCropOverlay(
@@ -68,7 +67,6 @@ fun ImageCropOverlay(
             var containerSize by remember { mutableStateOf(Size.Zero) }
             var cropRect by remember { mutableStateOf<UiRect?>(null) }
 
-            // Initialize crop rect once we know our container size
             if (cropRect == null && containerSize != Size.Zero) {
                 cropRect = UiRect(
                     left = containerSize.width * 0.125f,
@@ -78,79 +76,94 @@ fun ImageCropOverlay(
                 )
             }
 
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = null,
+            val density = LocalDensity.current
+            val handleSizePx = with(density) { 18.dp.toPx() }
+            val minSizePx = with(density) { 48.dp.toPx() }
+            val grabRadiusPx = with(density) { 36.dp.toPx() }
+
+            // Which corner is currently being dragged. Only set during a gesture.
+            var draggingCorner by remember { mutableStateOf(Corner.NONE) }
+
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(bottom = 72.dp)
-                    .drawWithContent {
-                        drawContent()
-                        containerSize = size
-                        val rect = cropRect ?: return@drawWithContent
-                        // Dim outside crop rect (even-odd fill punches a hole)
-                        val path = Path().apply {
-                            addRect(UiRect(0f, 0f, size.width, size.height))
-                            addRect(rect)
-                            fillType = PathFillType.EvenOdd
-                        }
-                        drawPath(path, color = Void.copy(alpha = 0.65f))
-                        // Crop border
-                        drawRect(
-                            color = Phosphor,
-                            topLeft = Offset(rect.left, rect.top),
-                            size = Size(rect.width, rect.height),
-                            style = Stroke(width = 2f),
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { pos ->
+                                draggingCorner = nearestCorner(pos, cropRect, grabRadiusPx)
+                            },
+                            onDragEnd = { draggingCorner = Corner.NONE },
+                            onDragCancel = { draggingCorner = Corner.NONE },
+                            onDrag = { change, drag ->
+                                val rect = cropRect ?: return@detectDragGestures
+                                val c = draggingCorner
+                                if (c == Corner.NONE) return@detectDragGestures
+                                change.consume()
+
+                                cropRect = when (c) {
+                                    Corner.TL -> rect.copy(
+                                        left = (rect.left + drag.x).coerceIn(0f, rect.right - minSizePx),
+                                        top = (rect.top + drag.y).coerceIn(0f, rect.bottom - minSizePx),
+                                    )
+                                    Corner.TR -> rect.copy(
+                                        right = (rect.right + drag.x).coerceIn(rect.left + minSizePx, containerSize.width),
+                                        top = (rect.top + drag.y).coerceIn(0f, rect.bottom - minSizePx),
+                                    )
+                                    Corner.BL -> rect.copy(
+                                        left = (rect.left + drag.x).coerceIn(0f, rect.right - minSizePx),
+                                        bottom = (rect.bottom + drag.y).coerceIn(rect.top + minSizePx, containerSize.height),
+                                    )
+                                    Corner.BR -> rect.copy(
+                                        right = (rect.right + drag.x).coerceIn(rect.left + minSizePx, containerSize.width),
+                                        bottom = (rect.bottom + drag.y).coerceIn(rect.top + minSizePx, containerSize.height),
+                                    )
+                                    Corner.NONE -> rect
+                                }
+                            },
                         )
                     },
-            )
-
-            // Drag handles — four corners
-            val density = LocalDensity.current
-            val handleSize = 18.dp
-            val handleSizePx = with(density) { handleSize.toPx() }
-
-            cropRect?.let { rect ->
-                Handle(
-                    x = rect.left - handleSizePx / 2,
-                    y = rect.top - handleSizePx / 2,
-                    size = handleSize,
-                ) { dx, dy ->
-                    cropRect = rect.copy(
-                        left = (rect.left + dx).coerceIn(0f, rect.right - 40f),
-                        top = (rect.top + dy).coerceIn(0f, rect.bottom - 40f),
-                    )
-                }
-                Handle(
-                    x = rect.right - handleSizePx / 2,
-                    y = rect.top - handleSizePx / 2,
-                    size = handleSize,
-                ) { dx, dy ->
-                    cropRect = rect.copy(
-                        right = (rect.right + dx).coerceIn(rect.left + 40f, containerSize.width),
-                        top = (rect.top + dy).coerceIn(0f, rect.bottom - 40f),
-                    )
-                }
-                Handle(
-                    x = rect.left - handleSizePx / 2,
-                    y = rect.bottom - handleSizePx / 2,
-                    size = handleSize,
-                ) { dx, dy ->
-                    cropRect = rect.copy(
-                        left = (rect.left + dx).coerceIn(0f, rect.right - 40f),
-                        bottom = (rect.bottom + dy).coerceIn(rect.top + 40f, containerSize.height),
-                    )
-                }
-                Handle(
-                    x = rect.right - handleSizePx / 2,
-                    y = rect.bottom - handleSizePx / 2,
-                    size = handleSize,
-                ) { dx, dy ->
-                    cropRect = rect.copy(
-                        right = (rect.right + dx).coerceIn(rect.left + 40f, containerSize.width),
-                        bottom = (rect.bottom + dy).coerceIn(rect.top + 40f, containerSize.height),
-                    )
-                }
+            ) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawWithContent {
+                            drawContent()
+                            containerSize = size
+                            val rect = cropRect ?: return@drawWithContent
+                            // Dim outside crop rect
+                            val path = Path().apply {
+                                addRect(UiRect(0f, 0f, size.width, size.height))
+                                addRect(rect)
+                                fillType = PathFillType.EvenOdd
+                            }
+                            drawPath(path, color = Void.copy(alpha = 0.65f))
+                            // Border
+                            drawRect(
+                                color = Phosphor,
+                                topLeft = Offset(rect.left, rect.top),
+                                size = Size(rect.width, rect.height),
+                                style = Stroke(width = 2f),
+                            )
+                            // 4 corner markers (visual only — gesture is handled by parent)
+                            val half = handleSizePx / 2f
+                            val cornerColor = if (draggingCorner == Corner.NONE) Phosphor else Phosphor
+                            listOf(
+                                Offset(rect.left, rect.top),
+                                Offset(rect.right, rect.top),
+                                Offset(rect.left, rect.bottom),
+                                Offset(rect.right, rect.bottom),
+                            ).forEach { c ->
+                                drawRect(
+                                    color = cornerColor,
+                                    topLeft = Offset(c.x - half, c.y - half),
+                                    size = Size(handleSizePx, handleSizePx),
+                                )
+                            }
+                        },
+                )
             }
 
             // Bottom action bar
@@ -192,24 +205,33 @@ fun ImageCropOverlay(
     }
 }
 
-@Composable
-private fun Handle(
-    x: Float,
-    y: Float,
-    size: Dp,
-    onDrag: (dx: Float, dy: Float) -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .offset { IntOffset(x.toInt(), y.toInt()) }
-            .size(size)
-            .clip(CircleShape)
-            .background(Phosphor)
-            .pointerInput(Unit) {
-                detectDragGestures { change, drag ->
-                    change.consume()
-                    onDrag(drag.x, drag.y)
-                }
-            }
+/**
+ * Picks the closest corner to [pos]. Returns [Corner.NONE] if no corner is within
+ * [grabRadius] pixels — a drag inside the crop rectangle with no corner nearby is
+ * ignored (rather than accidentally moving the whole box, which we don't support in P1).
+ */
+private fun nearestCorner(pos: Offset, rect: UiRect?, grabRadius: Float): Corner {
+    if (rect == null) return Corner.NONE
+    val corners = listOf(
+        Corner.TL to Offset(rect.left, rect.top),
+        Corner.TR to Offset(rect.right, rect.top),
+        Corner.BL to Offset(rect.left, rect.bottom),
+        Corner.BR to Offset(rect.right, rect.bottom),
     )
+    var best: Corner = Corner.NONE
+    var bestDist = grabRadius
+    for ((c, cornerPos) in corners) {
+        val d = distance(pos, cornerPos)
+        if (d < bestDist) {
+            bestDist = d
+            best = c
+        }
+    }
+    return best
+}
+
+private fun distance(a: Offset, b: Offset): Float {
+    val dx = a.x - b.x
+    val dy = a.y - b.y
+    return kotlin.math.sqrt(dx * dx + dy * dy)
 }

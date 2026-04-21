@@ -18,12 +18,14 @@ import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Rule
 
 /**
- * Wraps AI-response content with a `── gemini ──` header and a subtle left rule. If
- * [footer] is non-null (typically on Done), renders it beneath the content.
+ * Wraps AI-response content with a `── <header> ──` banner and a subtle left rule.
+ * The default header is the generic "llm"; callers can pass the active model id
+ * (e.g. "gemini-2.0-flash") for a more specific label. If [footer] is non-null
+ * (typically on Done), renders it beneath the content.
  */
 @Composable
 fun AiFrame(
-    header: String = "gemini",
+    header: String = "llm",
     footer: String? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,

@@ -18,10 +18,14 @@ import com.example.personal_studio.ui.theme.Phosphor
 import kotlinx.coroutines.delay
 
 /**
- * Hybrid typewriter effect:
- * - First [charByCharLimit] characters play back one-by-one at [charIntervalMs] per char.
- * - After the prefix has played, the remainder of the string appears instantly.
- * - While streaming (text still growing), a blinking cursor trails the last rendered character.
+ * Hybrid typewriter effect for streaming LLM output.
+ *
+ * Contract:
+ * - The first [charByCharLimit] characters type out one-by-one at [charIntervalMs] each.
+ * - After the prefix has played, every subsequent text growth is rendered instantly.
+ * - Count is **monotonic within a single streaming message** — it never rewinds when
+ *   [text] grows. If [text] shrinks (brand-new message / session reset), we rewind to 0.
+ * - A blinking cursor trails the last visible character while text is still growing.
  */
 @Composable
 fun TypewriterText(
@@ -32,25 +36,25 @@ fun TypewriterText(
     showCursor: Boolean = true,
     style: TextStyle = LocalTextStyle.current,
 ) {
-    // Total characters currently visible. Reset whenever text prefix shrinks (e.g. new message).
-    var visibleCount by remember(text) { mutableIntStateOf(0) }
+    // Do NOT key remember() on [text] — that resets the counter every streaming chunk,
+    // which looks like repeated "first few characters" flickering.
+    var visibleCount by remember { mutableIntStateOf(0) }
 
-    // Char-by-char phase, driven off the current text's length
     LaunchedEffect(text) {
-        val prefixGoal = minOf(charByCharLimit, text.length)
-        while (visibleCount < prefixGoal) {
+        // If [text] shrank below what we've already shown, it's a brand-new message.
+        // Rewind so the typewriter effect replays from the beginning.
+        if (text.length < visibleCount) visibleCount = 0
+
+        // Char-by-char phase for the first [charByCharLimit] characters.
+        while (visibleCount < minOf(charByCharLimit, text.length)) {
             delay(charIntervalMs)
             visibleCount = (visibleCount + 1).coerceAtMost(text.length)
         }
-        // After prefix phase, render everything instantly
-        if (visibleCount >= charByCharLimit) {
+
+        // Past the prefix — jump instantly to the tail of what's been streamed so far.
+        if (visibleCount >= charByCharLimit && visibleCount < text.length) {
             visibleCount = text.length
         }
-    }
-
-    // When text grows past the prefix (streaming chunks), jump to the new length immediately
-    LaunchedEffect(text.length) {
-        if (visibleCount >= charByCharLimit) visibleCount = text.length
     }
 
     Row(modifier = modifier) {
