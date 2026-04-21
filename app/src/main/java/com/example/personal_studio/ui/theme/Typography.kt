@@ -6,63 +6,39 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.personal_studio.R
 
-private val googleFontProvider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage = "com.google.android.gms",
-    certificates = R.array.com_google_android_gms_fonts_certs,
+// Bundled fonts in res/font/.
+//
+// Maple Mono CN is a JetBrains Mono-derived typeface that adds full CJK coverage
+// (20k+ glyphs) in matching monospace proportions. Using it as the single UI family
+// gives us consistent rendering for mixed Latin + Chinese content without CJK
+// fallback seams. Cost: +54 MB to the APK for 3 weights (Regular, SemiBold, Bold).
+// Tradeoff explicitly accepted per project preferences (no Play Services, no
+// first-launch font downloads on Chinese OEMs).
+
+val MapleMonoCnFamily = FontFamily(
+    Font(R.font.maple_mono_cn_regular, FontWeight.Normal),
+    Font(R.font.maple_mono_cn_regular, FontWeight.Medium),    // synthesize from Regular
+    Font(R.font.maple_mono_cn_semibold, FontWeight.SemiBold),
+    Font(R.font.maple_mono_cn_bold, FontWeight.Bold),
 )
 
-private val jetbrainsMono = GoogleFont("JetBrains Mono")
-private val vt323 = GoogleFont("VT323")
-private val fraunces = GoogleFont("Fraunces")
-private val notoSansSc = GoogleFont("Noto Sans SC")
-
-// Used for UI / body / almost everything
-val JetBrainsMonoFamily = FontFamily(
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.Normal),
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.Medium),
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.SemiBold),
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.Bold),
-)
-
-// Used for display titles only (CRT-bitmap feel)
 val Vt323Family = FontFamily(
-    Font(googleFont = vt323, fontProvider = googleFontProvider, weight = FontWeight.Normal),
+    Font(R.font.vt323, FontWeight.Normal),
 )
 
-// Used for math / formulas — italic serif to break the mono discipline meaningfully
 val FrauncesFamily = FontFamily(
-    Font(googleFont = fraunces, fontProvider = googleFontProvider, weight = FontWeight.Normal, style = FontStyle.Italic),
-    Font(googleFont = fraunces, fontProvider = googleFontProvider, weight = FontWeight.Medium, style = FontStyle.Italic),
+    Font(R.font.fraunces_italic, FontWeight.Normal, FontStyle.Italic),
+    Font(R.font.fraunces_italic, FontWeight.Medium, FontStyle.Italic),
 )
 
-// CJK fallback for body text
-val NotoSansScFamily = FontFamily(
-    Font(googleFont = notoSansSc, fontProvider = googleFontProvider, weight = FontWeight.Normal),
-    Font(googleFont = notoSansSc, fontProvider = googleFontProvider, weight = FontWeight.Medium),
-    Font(googleFont = notoSansSc, fontProvider = googleFontProvider, weight = FontWeight.SemiBold),
-)
-
-// Composite family that prefers JetBrains Mono for Latin and falls back to Noto Sans SC for CJK.
-// Compose resolves glyphs left-to-right through the family list.
-val PrimaryFamily = FontFamily(
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.Normal),
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.Medium),
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.SemiBold),
-    Font(googleFont = jetbrainsMono, fontProvider = googleFontProvider, weight = FontWeight.Bold),
-    Font(googleFont = notoSansSc, fontProvider = googleFontProvider, weight = FontWeight.Normal),
-    Font(googleFont = notoSansSc, fontProvider = googleFontProvider, weight = FontWeight.Medium),
-    Font(googleFont = notoSansSc, fontProvider = googleFontProvider, weight = FontWeight.SemiBold),
-)
+// Canonical UI family for everything except hero display titles and math formulas.
+val PrimaryFamily = MapleMonoCnFamily
 
 val TerminalTypography = Typography(
-    // Display uses VT323 (CRT bitmap feel) for the largest titles
     displayLarge = TextStyle(
         fontFamily = Vt323Family, fontWeight = FontWeight.Normal,
         fontSize = 40.sp, lineHeight = 44.sp, letterSpacing = 0.sp,
