@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="katex.min.css">
+<script src="katex.min.js" defer></script>
+<script src="contrib/auto-render.min.js" defer></script>
+<style>
+  :root {
+    --void:     #0A0E0C;
+    --foam:     #D8E5DA;
+    --foam-dim: #5A7260;
+    --phosphor: #41FF8F;
+    --amber:    #FFB548;
+    --cyan:     #6AC3E8;
+    --rule:     #2A4A32;
+  }
+  html, body {
+    margin: 0; padding: 0;
+    background: transparent;
+    color: var(--foam);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    word-wrap: break-word;
+  }
+  body { padding: 0 2px; }
+  /* Terminal tint overrides for KaTeX output */
+  .katex { color: var(--foam); }
+  .katex .mord { color: var(--foam); }
+  .katex .mrel, .katex .mbin, .katex .mpunct { color: var(--cyan); }
+  .katex .minner, .katex .mop { color: var(--amber); }
+  /* Block math — extra vertical room, subtle left rule */
+  .katex-display {
+    margin: 10px 0;
+    padding: 6px 10px;
+    border-left: 2px solid var(--rule);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  p { margin: 0 0 10px 0; }
+  code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<div id="content"></div>
+<script>
+  function setContent(html) {
+    document.getElementById('content').innerHTML = html;
+    var tryRender = function() {
+      if (typeof renderMathInElement === 'function') {
+        renderMathInElement(document.getElementById('content'), {
+          delimiters: [
+            { left: '$$', right: '$$', display: true  },
+            { left: '$',  right: '$',  display: false },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false }
+          ],
+          throwOnError: false,
+          errorColor: '#FF5770'
+        });
+        if (window.Android) window.Android.onRendered(document.body.scrollHeight);
+      } else {
+        setTimeout(tryRender, 30);
+      }
+    };
+    tryRender();
+  }
+</script>
+</body>
+</html>
