@@ -55,6 +55,7 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "composeMaterial3" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts" }
 
 # Navigation
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
