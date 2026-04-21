@@ -7,6 +7,9 @@ object NavRoutes {
     const val KNOWLEDGE = "knowledge"
     const val TIMELINE = "timeline"
 
-    // Non-tab destinations
+    // Sub-destinations
+    const val CHAT_DETAIL = "chat/detail/{sessionId}"
+    fun chatDetail(sessionId: Long) = "chat/detail/$sessionId"
+
     const val SETTINGS = "settings"
 }
