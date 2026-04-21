@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,100..900;1,100..900&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,200..900,0..100;1,9..144,200..900,0..100&family=Instrument+Sans:wght@400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Jost:wght@100..900&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300..900&family=Noto+Serif+SC:wght@300..900&family=Noto+Sans+Mono:wght@400..700&family=Space+Grotesk:wght@300..700&family=VT323&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background:#1a1a1c; color:#e8e8e6; font-family:"Instrument Sans","Noto Sans SC",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  main { max-width:1280px; margin:0 auto; padding:48px 32px 100px; }
+  .page-head { text-align:center; padding-bottom:32px; margin-bottom:48px; border-bottom:1px solid #2e2e32; }
+  .page-head h1 { font-family:"Fraunces",serif; font-variation-settings:"opsz" 144,"SOFT" 80; font-weight:400; font-size:36px; letter-spacing:-0.02em; margin-bottom:6px; }
+  .page-head p { font-family:"Instrument Serif",serif; font-style:italic; color:#8a8a8a; font-size:16px; }
+  .page-head p b { color:#e8a472; font-weight:400; font-style:normal; letter-spacing:0.05em; }
+
+  .direction { display:grid; grid-template-columns:340px 1fr; gap:32px; padding:40px; margin-bottom:28px; border:1px solid #2e2e32; align-items:start; }
+  @media (max-width:980px){.direction{grid-template-columns:1fr;gap:24px;padding:24px;}}
+
+  .phone-wrap { justify-self:center; }
+  .phone { width:320px; aspect-ratio:9/18.5; border-radius:22px; padding:3px; overflow:hidden; position:relative; }
+  .phone-screen { width:100%; height:100%; border-radius:19px; padding:14px; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+
+  .meta-col { display:flex; flex-direction:column; gap:18px; }
+  .meta-head { display:flex; align-items:baseline; gap:14px; border-bottom:1px solid #2e2e32; padding-bottom:10px; }
+  .meta-num { font-family:"JetBrains Mono",monospace; font-size:12px; letter-spacing:0.2em; color:#8a8a8a; }
+  .meta-name { font-size:28px; letter-spacing:-0.015em; flex:1; }
+  .meta-essence { font-family:"Instrument Serif",serif; font-style:italic; color:#b4b4b0; font-size:15px; }
+
+  .mini-palette { display:grid; grid-template-columns:repeat(6,1fr); gap:3px; }
+  .ps { height:40px; display:flex; align-items:flex-end; padding:4px 6px; font-family:"JetBrains Mono",monospace; font-size:9px; letter-spacing:0.04em; }
+
+  .type-row { display:grid; grid-template-columns:80px 1fr; gap:14px; align-items:baseline; padding:12px 0; border-bottom:1px dashed #2e2e32; }
+  .type-row:last-child { border-bottom:none; }
+  .type-label { font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a7a; }
+  .type-sample { color:#e8e8e6; }
+
+  .principles { padding-top:8px; border-top:1px solid #2e2e32; }
+  .pr-label { font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:#7a7a7a; margin-bottom:10px; }
+  .pr-list { list-style:none; font-size:13px; color:#b4b4b0; line-height:1.55; }
+  .pr-list li { padding:4px 0; border-bottom:1px dashed #2a2a2e; }
+  .pr-list li:last-child { border-bottom:none; }
+  .pr-list b { color:#e8e8e6; font-weight:500; }
+
+  /* ════════════════════ H · 墨染 Ink Wash ════════════════════ */
+  .h-head .meta-name { font-family:"Ma Shan Zheng","Noto Serif SC",serif; font-size:34px; color:#f0e8d5; }
+  .h-phone { background:#E8DDBF; border:1px solid #1a1a1a; }
+  .h-screen { background:#F3EBD8; color:#15181A; position:relative; }
+  /* Ink wash layers */
+  .h-screen::before {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 30% at 20% 15%, rgba(15,15,15,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 50% at 100% 80%, rgba(15,15,15,0.08) 0%, transparent 60%);
+  }
+  .h-screen::after {
+    content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:0.25;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence baseFrequency='2.4' numOctaves='3'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.07 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .h-top { display:flex; justify-content:space-between; align-items:baseline; padding-bottom:12px; position:relative; z-index:2; }
+  .h-top-title {
+    font-family:"Ma Shan Zheng","Noto Serif SC",serif; font-size:24px; color:#15181A;
+    letter-spacing:0.05em;
+  }
+  .h-top-meta { font-family:"Noto Serif SC",serif; font-size:10px; color:#6E7B84; letter-spacing:0.1em; writing-mode:vertical-rl; text-orientation:mixed; }
+  .h-brush-rule {
+    height:2px;
+    background:linear-gradient(to right, transparent 0%, #15181A 10%, #15181A 70%, transparent 100%);
+    margin:4px 0 14px;
+    position:relative; z-index:2;
+    opacity:0.7;
+  }
+  .h-body { flex:1; position:relative; z-index:2; display:flex; flex-direction:column; gap:16px; }
+  .h-user {
+    align-self:flex-end; max-width:82%;
+    text-align:right;
+    font-family:"Noto Serif SC",serif; font-weight:400; font-size:13px; line-height:1.5;
+    color:#15181A;
+  }
+  .h-user small { display:block; font-family:"Noto Sans SC",sans-serif; font-size:9px; color:#6E7B84; margin-bottom:2px; font-weight:300; }
+  .h-seal-stamp {
+    display:inline-block; margin-top:4px;
+    width:22px; height:22px; background:#B0392A;
+    color:#F3EBD8;
+    font-family:"Noto Serif SC",serif;
+    font-size:10px;
+    display:inline-flex; align-items:center; justify-content:center;
+    transform:rotate(-3deg);
+  }
+  .h-ai { max-width:92%; }
+  .h-ai-sig {
+    font-family:"Noto Serif SC",serif;
+    font-weight:500;
+    font-size:11px;
+    color:#6E7B84;
+    letter-spacing:0.08em;
+    margin-bottom:6px;
+    border-left:2px solid #15181A;
+    padding-left:8px;
+  }
+  .h-ai-body {
+    font-family:"Noto Serif SC",serif; font-weight:400;
+    font-size:13px; line-height:1.75; color:#15181A;
+    padding-left:10px;
+  }
+  .h-ai-body .math {
+    display:block;
+    font-family:"Fraunces",serif; font-style:italic; font-weight:400;
+    font-size:15px; color:#15181A;
+    padding:8px 0; margin:8px 0;
+    border-top:1px solid rgba(21,24,26,0.3);
+    border-bottom:1px solid rgba(21,24,26,0.3);
+    text-align:center;
+  }
+  .h-ai-stamp {
+    display:inline-flex; align-items:center; gap:6px;
+    margin-top:10px;
+    font-family:"Noto Serif SC",serif;
+    font-size:11px;
+    color:#B0392A;
+  }
+  .h-ai-stamp::before {
+    content:"";
+    width:16px; height:16px;
+    background:#B0392A;
+    display:inline-block;
+    transform:rotate(-4deg);
+  }
+  .h-input {
+    margin-top:auto; position:relative; z-index:2;
+    padding-top:12px;
+    border-top:1px solid rgba(21,24,26,0.2);
+    display:flex; gap:10px; align-items:baseline;
+  }
+  .h-input-prompt { font-family:"Noto Serif SC",serif; font-size:14px; color:#B0392A; }
+  .h-input-field { flex:1; font-family:"Noto Serif SC",serif; font-weight:300; font-size:12px; color:#6E7B84; }
+  .h-input-btn { font-family:"Noto Serif SC",serif; font-weight:500; font-size:11px; color:#15181A; border-bottom:1px solid #B0392A; padding-bottom:2px; }
+
+  /* ════════════════════ I · 夜机 Terminal ════════════════════ */
+  .i-head .meta-name { font-family:"VT323",monospace; font-size:40px; color:#41FF8F; letter-spacing:-0.01em; }
+  .i-phone { background:#000; border:1px solid #2a4a32; }
+  .i-screen {
+    background:#0A0E0C;
+    color:#B8E5C0;
+    font-family:"JetBrains Mono","Noto Sans Mono",monospace;
+    position:relative;
+    overflow:hidden;
+  }
+  /* CRT scan lines */
+  .i-screen::before {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:repeating-linear-gradient(
+      transparent 0,
+      transparent 2px,
+      rgba(65,255,143,0.02) 2px,
+      rgba(65,255,143,0.02) 3px
+    );
+    z-index:1;
+  }
+  .i-screen::after {
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%);
+    z-index:1;
+  }
+  .i-top {
+    display:flex; justify-content:space-between; padding-bottom:8px;
+    border-bottom:1px dashed #41FF8F;
+    font-size:10px; color:#41FF8F; letter-spacing:0.1em;
+    position:relative; z-index:2;
+  }
+  .i-body { flex:1; padding-top:10px; font-size:11px; line-height:1.45; color:#B8E5C0; position:relative; z-index:2; }
+  .i-line { margin-bottom:6px; }
+  .i-prompt { color:#41FF8F; }
+  .i-prompt.amber { color:#FFB548; }
+  .i-meta { color:#6A8A70; font-size:9px; letter-spacing:0.05em; }
+  .i-user-line { color:#FFB548; }
+  .i-box {
+    border:1px solid #2a4a32;
+    padding:8px 10px;
+    margin:8px 0;
+    background:rgba(65,255,143,0.02);
+  }
+  .i-box-label {
+    color:#6AC3E8;
+    font-size:9px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .i-box-content { color:#B8E5C0; font-size:11px; line-height:1.5; }
+  .i-math {
+    color:#FFB548;
+    padding:4px 0;
+    font-weight:500;
+  }
+  .i-math::before { content:">  "; color:#6A8A70; }
+  .i-btn-line {
+    color:#6A8A70;
+    font-size:10px;
+    margin-top:4px;
+  }
+  .i-btn-line .cmd { color:#41FF8F; }
+  .i-blink {
+    display:inline-block;
+    width:8px; height:13px;
+    background:#41FF8F;
+    animation:blink 1s steps(2) infinite;
+    vertical-align:middle;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .i-input {
+    margin-top:auto;
+    padding-top:10px;
+    border-top:1px dashed #41FF8F;
+    font-size:11px;
+    display:flex; gap:6px;
+    position:relative; z-index:2;
+  }
+  .i-input .p { color:#41FF8F; }
+  .i-input .f { color:#6A8A70; flex:1; }
+
+  /* ════════════════════ J · 包豪斯 Bauhaus ════════════════════ */
+  .j-head .meta-name { font-family:"Jost",sans-serif; font-weight:500; font-size:30px; letter-spacing:-0.02em; }
+  .j-phone { background:#F7F2E8; border:3px solid #0A0A0A; }
+  .j-screen {
+    background:#F7F2E8;
+    color:#0A0A0A;
+    font-family:"Jost",sans-serif;
+    position:relative;
+  }
+  /* Decorative shapes */
+  .j-circle {
+    position:absolute;
+    top:-40px; right:-40px;
+    width:140px; height:140px;
+    border-radius:50%;
+    background:#FFD900;
+    z-index:1;
+  }
+  .j-triangle {
+    position:absolute;
+    bottom:-20px; left:-20px;
+    width:0; height:0;
+    border-left:80px solid transparent;
+    border-right:80px solid transparent;
+    border-bottom:100px solid #0047AB;
+    z-index:1;
+  }
+  .j-top { display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:3px solid #0A0A0A; position:relative; z-index:3; }
+  .j-top-title { font-family:"Jost",sans-serif; font-weight:700; font-size:18px; letter-spacing:-0.01em; text-transform:uppercase; }
+  .j-top-meta { font-family:"Jost",sans-serif; font-weight:500; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; background:#E3342F; color:#F7F2E8; padding:3px 7px; }
+  .j-body { flex:1; padding-top:14px; display:flex; flex-direction:column; gap:10px; position:relative; z-index:3; }
+  .j-heroword {
+    font-family:"Jost",sans-serif; font-weight:700;
+    font-size:36px; line-height:0.95;
+    letter-spacing:-0.02em;
+    text-transform:uppercase;
+    color:#0A0A0A;
+    margin:6px 0 4px;
+  }
+  .j-heroword em {
+    font-family:"Jost",sans-serif;
+    font-style:italic; font-weight:300;
+    color:#E3342F;
+    font-size:28px;
+  }
+  .j-user {
+    align-self:flex-end; max-width:80%;
+    background:#0047AB; color:#F7F2E8;
+    padding:8px 12px;
+    font-family:"Jost",sans-serif; font-weight:500; font-size:12px;
+    border-radius:0;
+  }
+  .j-ai {
+    background:#F7F2E8;
+    border:3px solid #0A0A0A;
+    padding:12px;
+    font-family:"Jost",sans-serif; font-weight:400; font-size:12px;
+    line-height:1.55;
+    color:#0A0A0A;
+  }
+  .j-ai-label {
+    font-weight:700; font-size:9px; letter-spacing:0.16em;
+    text-transform:uppercase; color:#E3342F;
+    margin-bottom:4px;
+  }
+  .j-ai .math {
+    display:block;
+    font-family:"Jost",sans-serif; font-weight:700;
+    font-size:16px; color:#0A0A0A;
+    padding:6px 0; margin:4px 0;
+    border-top:2px solid #FFD900;
+    border-bottom:2px solid #FFD900;
+    text-align:center;
+  }
+  .j-chip {
+    display:inline-block; margin-top:6px;
+    padding:3px 10px;
+    background:#FFD900; color:#0A0A0A;
+    font-family:"Jost",sans-serif; font-weight:700;
+    font-size:10px; letter-spacing:0.1em; text-transform:uppercase;
+  }
+  .j-input {
+    margin-top:auto;
+    padding:0;
+    border-top:3px solid #0A0A0A;
+    padding-top:10px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:"Jost",sans-serif; font-weight:500; font-size:12px;
+  }
+  .j-input .send {
+    background:#0A0A0A; color:#F7F2E8;
+    padding:6px 14px;
+    font-weight:700; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+  }
+
+  /* ════════════════════ K · 历书 Almanac ════════════════════ */
+  .k-head .meta-name { font-family:"Bitter",serif; font-weight:700; font-size:30px; color:#F3E4BD; letter-spacing:-0.01em; }
+  .k-phone { background:#E5D6A4; border:2px solid #3D2818; }
+  .k-screen {
+    background:#F3E4BD;
+    color:#1F1208;
+    font-family:"Bitter",serif;
+    position:relative;
+  }
+  .k-screen::after {
+    content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:0.35;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><filter id='n'><feTurbulence baseFrequency='2.1' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .k-top {
+    padding-bottom:8px;
+    border-bottom:6px double #3D2818;
+    margin-bottom:10px;
+    text-align:center;
+    position:relative; z-index:2;
+  }
+  .k-top-no { font-family:"Fraunces",serif; font-variation-settings:"opsz" 9; font-size:9px; letter-spacing:0.24em; text-transform:uppercase; color:#8B3A1F; }
+  .k-top-title { font-family:"Bitter",serif; font-weight:700; font-size:20px; line-height:1.05; color:#1F1208; margin:2px 0; }
+  .k-top-sub { font-family:"Fraunces",serif; font-style:italic; font-size:10px; color:#8B3A1F; }
+  .k-body { flex:1; display:flex; flex-direction:column; gap:10px; position:relative; z-index:2; }
+  .k-card {
+    border:1.5px solid #3D2818;
+    padding:9px 11px;
+    background:#F8EDCF;
+    position:relative;
+  }
+  .k-card.user { background:#0D3B66; color:#F3E4BD; border-color:#0D3B66; }
+  .k-card.user .k-card-label { color:#D4A02C; }
+  .k-card-label {
+    font-family:"Fraunces",serif; font-variation-settings:"opsz" 9;
+    font-size:9px; letter-spacing:0.2em; text-transform:uppercase;
+    color:#8B3A1F;
+    margin-bottom:4px;
+  }
+  .k-card-body { font-family:"Bitter",serif; font-weight:400; font-size:12px; line-height:1.55; }
+  .k-card-body .math {
+    display:block;
+    font-family:"Fraunces",serif; font-style:italic;
+    font-size:15px; color:#BE2B2B;
+    padding:6px 0; margin:5px 0;
+    text-align:center;
+    border-bottom:2px solid #BE2B2B;
+    border-top:2px solid #BE2B2B;
+  }
+  .k-card-nav {
+    position:absolute; top:-1px; right:10px;
+    background:#F3E4BD; padding:0 4px;
+    font-family:"Fraunces",serif; font-variation-settings:"opsz" 9;
+    font-size:9px; letter-spacing:0.2em; color:#8B3A1F; text-transform:uppercase;
+  }
+  .k-date-strip {
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:6px 0;
+    border-top:1px solid #3D2818;
+    border-bottom:1px solid #3D2818;
+    font-family:"Fraunces",serif; font-variation-settings:"opsz" 9;
+    font-size:9px; letter-spacing:0.24em; text-transform:uppercase;
+    color:#3D2818;
+  }
+  .k-date-strip .big {
+    font-family:"Bitter",serif; font-weight:700;
+    font-size:17px; letter-spacing:-0.02em;
+    text-transform:none;
+    color:#BE2B2B;
+  }
+  .k-input {
+    margin-top:auto;
+    padding-top:10px;
+    border-top:3px double #3D2818;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .k-input-field { flex:1; font-family:"Bitter",serif; font-style:italic; font-size:12px; color:#8B3A1F; }
+  .k-input-btn {
+    font-family:"Fraunces",serif; font-variation-settings:"opsz" 9;
+    font-size:10px; letter-spacing:0.2em; text-transform:uppercase;
+    color:#F3E4BD; background:#BE2B2B;
+    padding:4px 10px;
+  }
+
+  /* Decision */
+  .decision {
+    margin-top:64px; text-align:center; padding:36px;
+    border:2px solid #e8a472; background:#222225;
+  }
+  .decision h3 { font-family:"Fraunces",serif; font-variation-settings:"opsz" 48,"SOFT" 80; font-weight:400; font-size:26px; margin-bottom:10px; }
+  .decision p { font-family:"Instrument Serif",serif; font-style:italic; color:#9a9a9a; margin-bottom:22px; }
+  .choices { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .choice { padding:12px 18px; border:1px solid #565656; background:#18181a; font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; color:#e8e8e6; }
+  .choice:hover { background:#2e2e32; }
+  .choice.primary { background:#e8a472; color:#18181a; border-color:#e8a472; }
+  .choice.muted { color:#8a8a8a; }
+</style>
+</head>
+<body>
+<main>
+
+  <div class="page-head">
+    <h1>再来四个 · 跨文化光谱</h1>
+    <p>水墨 <b>H</b> · 终端 <b>I</b> · 包豪斯 <b>J</b> · 历书 <b>K</b></p>
+  </div>
+
+  <!-- ═══════════════════════ H · 墨染 INK WASH ═══════════════════════ -->
+  <div class="direction h-head">
+    <div class="phone-wrap">
+      <div class="phone h-phone"><div class="phone-screen h-screen">
+        <div class="h-top">
+          <div class="h-top-title">极值</div>
+          <div class="h-top-meta">四月 廿一</div>
+        </div>
+        <div class="h-brush-rule"></div>
+        <div class="h-body">
+          <div class="h-user">
+            <small>你 · 14:31</small>
+            这道题怎么解？
+            <span class="h-seal-stamp">问</span>
+          </div>
+          <div class="h-ai">
+            <div class="h-ai-sig">Gemini · 答曰</div>
+            <div class="h-ai-body">
+              二次函数求极值。对 f 求导之：
+              <span class="math">f ′(x) = 2ax + b</span>
+              令其为零，得 x = −b ⁄ 2a。
+              <div class="h-ai-stamp">摹入册</div>
+            </div>
+          </div>
+        </div>
+        <div class="h-input">
+          <span class="h-input-prompt">—</span>
+          <span class="h-input-field">写字…</span>
+          <span class="h-input-btn">问</span>
+        </div>
+      </div></div>
+    </div>
+    <div class="meta-col">
+      <div class="meta-head"><span class="meta-num">§ H</span><span class="meta-name">墨染 · Ink Wash</span></div>
+      <p class="meta-essence">authentic Chinese sumi-e · asymmetric white space · calligraphic display · unlike any Western clone</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#F3EBD8; color:#15181A">rice paper</div>
+        <div class="ps" style="background:#E8DDBF; color:#15181A">aged</div>
+        <div class="ps" style="background:#15181A; color:#F3EBD8">sumi ink</div>
+        <div class="ps" style="background:#6E7B84; color:#F3EBD8">wash</div>
+        <div class="ps" style="background:#B0392A; color:#F3EBD8">朱砂</div>
+        <div class="ps" style="background:#C6A157; color:#15181A">金</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Ma Shan Zheng','Noto Serif SC',serif; font-size:32px; letter-spacing:0.04em;">极值 · 手札</span></div>
+        <div class="type-row"><span class="type-label">body CN</span><span class="type-sample" style="font-family:'Noto Serif SC',serif; font-weight:400; font-size:14px;">楷书质感正文 · 行气端正</span></div>
+        <div class="type-row"><span class="type-label">body EN</span><span class="type-sample" style="font-family:'Fraunces',serif; font-style:italic; font-size:13px; color:#C6A157;">italic Fraunces for Latin sits humbly beside the CJK</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Chinese-first</b>, not Chinese-translated. Noto Serif SC sets the voice.</li>
+          <li><b>Brush-stroke rules</b> instead of geometric lines. Ink wash bleeds in corners.</li>
+          <li><b>朱砂 seal stamps</b> as functional UI elements (submit, save, reply).</li>
+          <li><b>Asymmetric white space</b> — content leans right, breath on the left.</li>
+          <li><b>Vertical metadata</b> (time, page numbers) where it works. Not forced.</li>
+          <li><b>Risk</b>: strong cultural signature; may not feel "neutral" for non-Chinese users.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ I · 夜机 TERMINAL ═══════════════════════ -->
+  <div class="direction i-head">
+    <div class="phone-wrap">
+      <div class="phone i-phone"><div class="phone-screen i-screen">
+        <div class="i-top">
+          <span>▓ studio:~/chat $</span>
+          <span>14:31</span>
+        </div>
+        <div class="i-body">
+          <div class="i-line i-meta"># session: 高数/极值 · model: gemini-1.5-flash</div>
+          <div class="i-line">
+            <span class="i-user-line">user@study</span>
+            <span class="i-meta">:~$</span>
+            <span> 这道题怎么解？</span>
+          </div>
+
+          <div class="i-box">
+            <div class="i-box-label">── gemini ────────────────</div>
+            <div class="i-box-content">
+              二次函数求极值。<br>
+              对 f(x) = ax² + bx + c 求导：
+              <div class="i-math">f'(x) = 2ax + b</div>
+              令 f'(x) = 0, 解出:
+              <div class="i-math">x = -b/2a</div>
+              <div class="i-btn-line">[<span class="cmd">a</span>]rchive · [<span class="cmd">c</span>]opy · [<span class="cmd">r</span>]egen</div>
+            </div>
+          </div>
+
+          <div class="i-line i-meta">── done · 0.8s · 82 tokens ──</div>
+        </div>
+        <div class="i-input">
+          <span class="p">&gt;</span>
+          <span class="f">type command or question</span>
+          <span class="i-blink"></span>
+        </div>
+      </div></div>
+    </div>
+    <div class="meta-col">
+      <div class="meta-head"><span class="meta-num">§ I</span><span class="meta-name">夜机 · Terminal</span></div>
+      <p class="meta-essence">CRT phosphor aesthetic · monospace everywhere · power-user theatre · for the tech-forward student</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#0A0E0C; color:#41FF8F">void</div>
+        <div class="ps" style="background:#1a2a20; color:#B8E5C0">deep</div>
+        <div class="ps" style="background:#41FF8F; color:#0A0E0C">phosphor</div>
+        <div class="ps" style="background:#FFB548; color:#0A0E0C">amber</div>
+        <div class="ps" style="background:#6AC3E8; color:#0A0E0C">cyan</div>
+        <div class="ps" style="background:#B8E5C0; color:#0A0E0C">foam</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'VT323',monospace; font-size:34px; color:#41FF8F;">/extrema</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'JetBrains Mono',monospace; font-size:12px;">user@study:~$ find f'(x) = 0</span></div>
+        <div class="type-row"><span class="type-label">math</span><span class="type-sample" style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#FFB548;">&gt; f'(x) = 2ax + b</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Only monospace</b>. No proportional fonts anywhere, even in Chinese.</li>
+          <li><b>Scan lines + vignette</b> CRT effect, subtle. Not kitschy.</li>
+          <li><b>Keyboard shortcuts shown in UI</b> (<code>[a]rchive</code>). Uses real Android key bindings.</li>
+          <li><b>Sub-cultural confidence</b> — chat feels like talking to a smart REPL.</li>
+          <li><b>Best for</b>: CS/engineering students; devs who use this as a second brain.</li>
+          <li><b>Risk</b>: alienates humanities majors; no warmth.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ J · 包豪斯 BAUHAUS ═══════════════════════ -->
+  <div class="direction j-head">
+    <div class="phone-wrap">
+      <div class="phone j-phone"><div class="phone-screen j-screen">
+        <div class="j-circle"></div>
+        <div class="j-triangle"></div>
+        <div class="j-top">
+          <div class="j-top-title">STUDY <span style="color:#E3342F;">·</span> 极值</div>
+          <div class="j-top-meta">CH 02</div>
+        </div>
+        <div class="j-body">
+          <div class="j-heroword">EXTREMA<br><em>极值</em></div>
+
+          <div class="j-user">这道题怎么解？</div>
+
+          <div class="j-ai">
+            <div class="j-ai-label">▲ GEMINI</div>
+            二次函数求极值。对 f 求导：
+            <span class="math">f′(x) = 2ax + b</span>
+            令 f′ = 0，解 x = −b/2a.
+            <span class="j-chip">● ARCHIVE</span>
+          </div>
+        </div>
+        <div class="j-input">
+          <span>CONTINUE…</span>
+          <span class="send">SEND ▶</span>
+        </div>
+      </div></div>
+    </div>
+    <div class="meta-col">
+      <div class="meta-head"><span class="meta-num">§ J</span><span class="meta-name">包豪斯 · Bauhaus</span></div>
+      <p class="meta-essence">1920s modernism · primary-color geometry · circles, triangles, squares as decoration · heritage educational</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#F7F2E8; color:#0A0A0A">cream</div>
+        <div class="ps" style="background:#FFD900; color:#0A0A0A">yellow</div>
+        <div class="ps" style="background:#0047AB; color:#fff">blue</div>
+        <div class="ps" style="background:#E3342F; color:#fff">red</div>
+        <div class="ps" style="background:#0A0A0A; color:#F7F2E8">carbon</div>
+        <div class="ps" style="background:#66AA66; color:#fff">olive</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Jost',sans-serif; font-weight:700; font-size:30px; letter-spacing:-0.02em; text-transform:uppercase;">EXTREMA</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'Jost',sans-serif; font-weight:400; font-size:13px;">Jost (Futura-descended) for everything — geometric discipline.</span></div>
+        <div class="type-row"><span class="type-label">accent</span><span class="type-sample" style="font-family:'Jost',sans-serif; font-weight:700; font-size:12px; background:#FFD900; color:#0A0A0A; padding:2px 8px; text-transform:uppercase; letter-spacing:0.1em;">LABEL</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Primary palette only</b>: yellow, blue, red, black, cream. No in-betweens.</li>
+          <li><b>Geometric shapes</b> (circles, triangles) appear as decoration, not decoration — as structure.</li>
+          <li><b>3 px thick keylines</b>, square corners, no shadows, no gradients.</li>
+          <li><b>Futura-like Jost</b> is the only typeface. Discipline through restriction.</li>
+          <li><b>Chinese inline in italic Jost-style</b> — unusual but it works.</li>
+          <li><b>Risk</b>: reads as "design school homework" to some; needs careful execution.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════ K · 历书 ALMANAC ═══════════════════════ -->
+  <div class="direction k-head">
+    <div class="phone-wrap">
+      <div class="phone k-phone"><div class="phone-screen k-screen">
+        <div class="k-top">
+          <div class="k-top-no">VOL. 01 · No. 02</div>
+          <div class="k-top-title">极值论</div>
+          <div class="k-top-sub">a folio of solved problems</div>
+        </div>
+        <div class="k-body">
+          <div class="k-date-strip">
+            <span>Monday</span>
+            <span class="big">21 April</span>
+            <span>Anno 2026</span>
+          </div>
+
+          <div class="k-card user">
+            <div class="k-card-label">Question</div>
+            <div class="k-card-body">这道题怎么解？</div>
+            <div class="k-card-nav" style="color:#D4A02C; background:#0D3B66;">§ you</div>
+          </div>
+
+          <div class="k-card">
+            <div class="k-card-label">Solution · by Gemini</div>
+            <div class="k-card-body">
+              二次函数求极值。对 f 求导：
+              <span class="math">f ′(x) = 2ax + b</span>
+              令 f ′ = 0 得 x = −b ⁄ 2a。
+            </div>
+            <div class="k-card-nav">§ 3.2</div>
+          </div>
+        </div>
+        <div class="k-input">
+          <span class="k-input-field">write a new entry…</span>
+          <span class="k-input-btn">Post</span>
+        </div>
+      </div></div>
+    </div>
+    <div class="meta-col">
+      <div class="meta-head"><span class="meta-num">§ K</span><span class="meta-name">历书 · Almanac</span></div>
+      <p class="meta-essence">vintage farmer's almanac meets schoolhouse textbook · saturated red &amp; blue on oat cream · joyfully retro</p>
+
+      <div class="mini-palette">
+        <div class="ps" style="background:#F3E4BD; color:#1F1208">oat</div>
+        <div class="ps" style="background:#E5D6A4; color:#1F1208">cream dp</div>
+        <div class="ps" style="background:#0D3B66; color:#F3E4BD">navy</div>
+        <div class="ps" style="background:#BE2B2B; color:#F3E4BD">red</div>
+        <div class="ps" style="background:#D4A02C; color:#1F1208">ochre</div>
+        <div class="ps" style="background:#668D3C; color:#F3E4BD">olive</div>
+      </div>
+
+      <div>
+        <div class="type-row"><span class="type-label">display</span><span class="type-sample" style="font-family:'Bitter',serif; font-weight:700; font-size:28px; letter-spacing:-0.01em;">Extrema</span></div>
+        <div class="type-row"><span class="type-label">body</span><span class="type-sample" style="font-family:'Bitter',serif; font-weight:400; font-size:13px;">slab-serif Bitter gives schoolbook warmth</span></div>
+        <div class="type-row"><span class="type-label">label</span><span class="type-sample" style="font-family:'Fraunces',serif; font-variation-settings:'opsz' 9; font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:#8B3A1F;">VOL. 01 · No. 02</span></div>
+      </div>
+
+      <div class="principles">
+        <div class="pr-label">Principles</div>
+        <ul class="pr-list">
+          <li><b>Double-rule borders</b>, letterpress spacing, tiny ALL-CAPS labels.</li>
+          <li><b>Oat cream + saturated red &amp; navy</b>. 1960s elementary reader palette.</li>
+          <li><b>Bitter slab-serif</b> is warm and textbook-bookish, not cold like Monument.</li>
+          <li><b>Cards feel like index cards</b> or almanac pages — numbered, catalogued.</li>
+          <li><b>Micro-copy is literary</b>: "Anno 2026", "Vol. 01 No. 02", "a folio of solved problems".</li>
+          <li><b>Risk</b>: intentionally nostalgic; may feel dated rather than timeless.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3>十一个方向 · 你的现在最靠近哪个？</h3>
+    <p>A Folio / B Atlas / C Codex / D Riso / E Whisper / F Monument / G Herbarium / H Ink Wash / I Terminal / J Bauhaus / K Almanac</p>
+    <div class="choices">
+      <div class="choice muted" data-choice="a" onclick="toggleSelect(this)">A Folio</div>
+      <div class="choice muted" data-choice="b" onclick="toggleSelect(this)">B Atlas</div>
+      <div class="choice muted" data-choice="c" onclick="toggleSelect(this)">C Codex</div>
+      <div class="choice muted" data-choice="d" onclick="toggleSelect(this)">D Riso</div>
+      <div class="choice muted" data-choice="e" onclick="toggleSelect(this)">E Whisper</div>
+      <div class="choice muted" data-choice="f" onclick="toggleSelect(this)">F Monument</div>
+      <div class="choice muted" data-choice="g" onclick="toggleSelect(this)">G Herbarium</div>
+      <div class="choice primary" data-choice="h" onclick="toggleSelect(this)">H Ink Wash</div>
+      <div class="choice" data-choice="i" onclick="toggleSelect(this)">I Terminal</div>
+      <div class="choice" data-choice="j" onclick="toggleSelect(this)">J Bauhaus</div>
+      <div class="choice" data-choice="k" onclick="toggleSelect(this)">K Almanac</div>
+      <div class="choice" data-choice="hybrid" onclick="toggleSelect(this)">组合混搭</div>
+      <div class="choice" data-choice="more" onclick="toggleSelect(this)">还要更多</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
