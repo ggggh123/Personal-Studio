@@ -27,6 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -57,6 +60,7 @@ import com.example.personal_studio.ui.theme.Rule
 import com.example.personal_studio.ui.theme.Void
 import com.example.personal_studio.ui.theme.scanLines
 import com.example.personal_studio.ui.theme.vignette
+import java.io.File
 
 @Composable
 fun ChatDetailScreen(
@@ -69,7 +73,10 @@ fun ChatDetailScreen(
     val state by vm.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
-    // Auto-scroll to bottom when messages arrive or streaming text grows
+    // Attachment sheet + crop overlay local UI state
+    var showAttachmentSheet by remember { mutableStateOf(false) }
+    var pickedForCrop by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(state.messages.size, state.streamingText?.length) {
         val lastIndex = state.messages.size + (if (state.streamingText != null) 1 else 0)
         if (lastIndex > 0) listState.animateScrollToItem(lastIndex - 1)
@@ -95,7 +102,6 @@ fun ChatDetailScreen(
                 .scanLines()
                 .vignette(),
         ) {
-            // Transcript
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -149,6 +155,29 @@ fun ChatDetailScreen(
                 }
             }
 
+            // Attached image preview row
+            if (state.attachedImagePath != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "[img] ${File(state.attachedImagePath!!).name}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Cyan,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "[x]",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Carmine,
+                        modifier = Modifier.clickableNoRipple { vm.onAttachImage(null) }
+                    )
+                }
+            }
+
             // Input line
             Row(
                 modifier = Modifier
@@ -189,15 +218,37 @@ fun ChatDetailScreen(
                     modifier = Modifier.clickableNoRipple { vm.onSend() }
                 )
                 Spacer(Modifier.width(8.dp))
-                IconButton(onClick = { /* Phase F wires attachment sheet */ }) {
+                IconButton(onClick = { showAttachmentSheet = true }) {
                     Icon(Icons.Filled.Add, contentDescription = "attach", tint = Cyan)
                 }
             }
         }
+
+        // Attachment sheet
+        if (showAttachmentSheet) {
+            AttachmentSheet(
+                onDismiss = { showAttachmentSheet = false },
+                onImagePicked = { path ->
+                    pickedForCrop = path
+                    showAttachmentSheet = false
+                },
+            )
+        }
+        // Crop overlay
+        val toCrop = pickedForCrop
+        if (toCrop != null) {
+            ImageCropOverlay(
+                imagePath = toCrop,
+                onDismiss = { pickedForCrop = null },
+                onConfirm = { croppedPath ->
+                    pickedForCrop = null
+                    vm.onAttachImage(croppedPath)
+                },
+            )
+        }
     }
 }
 
-// avoid Material3 ripple on text buttons
 private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
     this.then(Modifier.clickable(
         interactionSource = MutableInteractionSource(),
