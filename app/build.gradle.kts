@@ -9,12 +9,19 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-// Read optional default Gemini API key from local.properties (never commit it)
+// Read optional default OpenRouter API key + default model from local.properties
+// (never commit these). Keys shape:
+//   OPENROUTER_API_KEY=sk-or-v1-...
+//   DEFAULT_LLM_MODEL=google/gemini-2.0-flash-exp:free
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) load(f.inputStream())
 }
-val defaultGeminiKey: String = localProps.getProperty("GEMINI_API_KEY", "")
+val defaultOpenRouterKey: String = localProps.getProperty("OPENROUTER_API_KEY", "")
+val defaultLlmModel: String = localProps.getProperty(
+    "DEFAULT_LLM_MODEL",
+    "google/gemini-2.0-flash-exp:free",
+)
 
 android {
     namespace = "com.example.personal_studio"
@@ -29,7 +36,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "DEFAULT_GEMINI_KEY", "\"$defaultGeminiKey\"")
+        buildConfigField("String", "DEFAULT_OPENROUTER_KEY", "\"$defaultOpenRouterKey\"")
+        buildConfigField("String", "DEFAULT_LLM_MODEL", "\"$defaultLlmModel\"")
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
@@ -104,8 +112,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
-    // LLM
-    implementation(libs.google.generative.ai)
+    // HTTP (OpenRouter API client)
+    implementation(libs.okhttp)
 
     // Unit tests
     testImplementation(libs.junit)

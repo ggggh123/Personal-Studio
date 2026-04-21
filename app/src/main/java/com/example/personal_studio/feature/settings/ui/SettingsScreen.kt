@@ -39,6 +39,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.BuildConfig
 import com.example.personal_studio.feature.settings.vm.SettingsViewModel
 import com.example.personal_studio.feature.settings.vm.TestConnectionState
 import com.example.personal_studio.ui.components.TerminalTopBar
@@ -92,8 +93,8 @@ fun SettingsScreen(
             Text(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = FoamDim)) {
-                        append("# empty means the app uses the key bundled at build time.\n")
-                        append("# setting a key here overrides it at runtime.")
+                        append("# openrouter.ai gives you one key for many models.\n")
+                        append("# empty means use the key bundled at build time.")
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -107,14 +108,14 @@ fun SettingsScreen(
                         text = if (state.savedApiKey != null)
                             "**** [set] — type to replace"
                         else
-                            "paste gemini api key",
+                            "paste openrouter api key (sk-or-v1-...)",
                         color = FoamDim,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 },
                 label = {
                     Text(
-                        text = "GEMINI_API_KEY",
+                        text = "OPENROUTER_API_KEY",
                         color = Cyan,
                         style = MaterialTheme.typography.labelSmall,
                     )
@@ -154,11 +155,84 @@ fun SettingsScreen(
 
             DashedDivider()
 
+            // ── Section: Model ──────────────────────────────
+            SectionHeader("## model")
+
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = FoamDim)) {
+                        append("# openrouter model id, e.g.\n")
+                        append("#   google/gemini-2.0-flash-exp:free   (multimodal, free)\n")
+                        append("#   anthropic/claude-3.5-sonnet         (strong reasoning)\n")
+                        append("#   openai/gpt-4o-mini                   (cheap multimodal)")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            val activeModel = state.savedModel ?: BuildConfig.DEFAULT_LLM_MODEL
+            KeyValueRow(
+                key = "ACTIVE",
+                value = activeModel + if (state.savedModel == null) "  (default)" else "",
+                valueColor = if (state.savedModel == null) FoamMute else Foam,
+            )
+
+            OutlinedTextField(
+                value = state.modelDraft,
+                onValueChange = vm::onModelDraftChanged,
+                placeholder = {
+                    Text(
+                        text = "vendor/model-id",
+                        color = FoamDim,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                label = {
+                    Text(
+                        text = "LLM_MODEL",
+                        color = Cyan,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Phosphor,
+                    unfocusedBorderColor = Rule,
+                    cursorColor = Phosphor,
+                ),
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = vm::onSaveModel,
+                    enabled = state.modelDraft.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Phosphor,
+                        contentColor = Void,
+                        disabledContainerColor = Rule,
+                        disabledContentColor = FoamDim,
+                    ),
+                ) {
+                    Text("save", style = MaterialTheme.typography.labelLarge)
+                }
+                OutlinedButton(
+                    onClick = vm::onResetModel,
+                    enabled = state.savedModel != null,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Foam),
+                ) {
+                    Text("reset to default", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+
+            DashedDivider()
+
             // ── Section: diagnostic ──────────────────────────────
             SectionHeader("## diagnostic")
 
             Text(
-                text = "ping gemini to verify key + network.",
+                text = "ping the active model to verify key + network.",
                 style = MaterialTheme.typography.bodySmall,
                 color = FoamDim,
             )
@@ -178,9 +252,9 @@ fun SettingsScreen(
                         color = Void,
                     )
                     Spacer(Modifier.size(8.dp))
-                    Text("pinging\u2026", style = MaterialTheme.typography.labelLarge)
+                    Text("pinging…", style = MaterialTheme.typography.labelLarge)
                 } else {
-                    Text("test gemini \u21b5", style = MaterialTheme.typography.labelLarge)
+                    Text("test llm ↵", style = MaterialTheme.typography.labelLarge)
                 }
             }
 
@@ -201,9 +275,8 @@ fun SettingsScreen(
             // ── Section: future placeholders ──────────────────────────────
             SectionHeader("## coming later")
 
-            KeyValueRow("MODEL", "gemini-1.5-flash", FoamMute)
-            KeyValueRow("THEME", "terminal \u00b7 phosphor (locked)", FoamMute)
-            KeyValueRow("TIMETABLE", "13 periods \u00b7 set in P4", FoamMute)
+            KeyValueRow("THEME", "terminal · phosphor (locked)", FoamMute)
+            KeyValueRow("TIMETABLE", "13 periods · set in P4", FoamMute)
             KeyValueRow("NOTIFICATIONS", "wired in P4", FoamMute)
         }
     }

@@ -7,21 +7,36 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 interface UserPreferencesRepository {
-    val geminiApiKey: Flow<String?>
-    suspend fun setGeminiApiKey(key: String?)
+    /** OpenRouter API key. Null means "use bundled default from BuildConfig". */
+    val openRouterApiKey: Flow<String?>
+    suspend fun setOpenRouterApiKey(key: String?)
+
+    /** LLM model identifier (e.g. `google/gemini-2.0-flash-exp:free`). Null means use default. */
+    val modelName: Flow<String?>
+    suspend fun setModelName(name: String?)
 }
 
 class UserPreferencesRepositoryImpl(
     private val dataStore: DataStore<Preferences>,
 ) : UserPreferencesRepository {
 
-    override val geminiApiKey: Flow<String?> =
-        dataStore.data.map { it[UserPreferencesKeys.GEMINI_API_KEY]?.takeIf { v -> v.isNotBlank() } }
+    override val openRouterApiKey: Flow<String?> =
+        dataStore.data.map { it[UserPreferencesKeys.OPENROUTER_API_KEY]?.takeIf { v -> v.isNotBlank() } }
 
-    override suspend fun setGeminiApiKey(key: String?) {
+    override suspend fun setOpenRouterApiKey(key: String?) {
         dataStore.edit { prefs ->
-            if (key.isNullOrBlank()) prefs.remove(UserPreferencesKeys.GEMINI_API_KEY)
-            else prefs[UserPreferencesKeys.GEMINI_API_KEY] = key
+            if (key.isNullOrBlank()) prefs.remove(UserPreferencesKeys.OPENROUTER_API_KEY)
+            else prefs[UserPreferencesKeys.OPENROUTER_API_KEY] = key
+        }
+    }
+
+    override val modelName: Flow<String?> =
+        dataStore.data.map { it[UserPreferencesKeys.LLM_MODEL]?.takeIf { v -> v.isNotBlank() } }
+
+    override suspend fun setModelName(name: String?) {
+        dataStore.edit { prefs ->
+            if (name.isNullOrBlank()) prefs.remove(UserPreferencesKeys.LLM_MODEL)
+            else prefs[UserPreferencesKeys.LLM_MODEL] = name
         }
     }
 }

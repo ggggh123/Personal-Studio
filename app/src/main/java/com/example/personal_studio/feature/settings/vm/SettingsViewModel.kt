@@ -18,6 +18,8 @@ import javax.inject.Inject
 data class SettingsUiState(
     val apiKeyDraft: String = "",
     val savedApiKey: String? = null,
+    val modelDraft: String = "",
+    val savedModel: String? = null,
     val testConnection: TestConnectionState = TestConnectionState.Idle,
 )
 
@@ -38,12 +40,16 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        prefs.geminiApiKey
-            .onEach { saved ->
-                _uiState.update { it.copy(savedApiKey = saved) }
-            }
+        prefs.openRouterApiKey
+            .onEach { saved -> _uiState.update { it.copy(savedApiKey = saved) } }
+            .launchIn(viewModelScope)
+
+        prefs.modelName
+            .onEach { saved -> _uiState.update { it.copy(savedModel = saved) } }
             .launchIn(viewModelScope)
     }
+
+    // API key ----------------------------------------------------------------
 
     fun onApiKeyDraftChanged(value: String) {
         _uiState.update { it.copy(apiKeyDraft = value) }
@@ -52,16 +58,40 @@ class SettingsViewModel @Inject constructor(
     fun onSaveApiKey() {
         val key = _uiState.value.apiKeyDraft
         viewModelScope.launch {
-            prefs.setGeminiApiKey(key)
+            prefs.setOpenRouterApiKey(key)
+            _uiState.update { it.copy(apiKeyDraft = "") }
         }
     }
 
     fun onClearApiKey() {
         viewModelScope.launch {
-            prefs.setGeminiApiKey(null)
+            prefs.setOpenRouterApiKey(null)
             _uiState.update { it.copy(apiKeyDraft = "") }
         }
     }
+
+    // Model ------------------------------------------------------------------
+
+    fun onModelDraftChanged(value: String) {
+        _uiState.update { it.copy(modelDraft = value) }
+    }
+
+    fun onSaveModel() {
+        val name = _uiState.value.modelDraft.trim()
+        viewModelScope.launch {
+            prefs.setModelName(name)
+            _uiState.update { it.copy(modelDraft = "") }
+        }
+    }
+
+    fun onResetModel() {
+        viewModelScope.launch {
+            prefs.setModelName(null)
+            _uiState.update { it.copy(modelDraft = "") }
+        }
+    }
+
+    // Test connection --------------------------------------------------------
 
     fun onTestConnection() {
         _uiState.update { it.copy(testConnection = TestConnectionState.Running) }
@@ -74,7 +104,7 @@ class SettingsViewModel @Inject constructor(
                         is LlmChunk.Done -> _uiState.update {
                             it.copy(
                                 testConnection = TestConnectionState.Success(
-                                    replyPreview = accumulator.toString().take(200)
+                                    replyPreview = accumulator.toString().take(200),
                                 )
                             )
                         }
