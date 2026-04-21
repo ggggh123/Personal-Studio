@@ -28,4 +28,12 @@ object DatabaseModule {
 
     @Provides
     fun provideChatMessageDao(db: AppDatabase): ChatMessageDao = db.chatMessageDao()
+
+    @Provides
+    @Singleton
+    fun provideChatRepository(
+        sessionDao: ChatSessionDao,
+        messageDao: ChatMessageDao,
+    ): com.example.personal_studio.data.repository.ChatRepository =
+        com.example.personal_studio.data.repository.ChatRepositoryImpl(sessionDao, messageDao)
 }
