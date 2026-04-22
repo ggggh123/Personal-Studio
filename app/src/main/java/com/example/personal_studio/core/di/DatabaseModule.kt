@@ -5,6 +5,8 @@ import androidx.room.Room
 import com.example.personal_studio.data.local.db.AppDatabase
 import com.example.personal_studio.data.local.db.dao.ChatMessageDao
 import com.example.personal_studio.data.local.db.dao.ChatSessionDao
+import com.example.personal_studio.data.local.db.dao.ScanDocumentDao
+import com.example.personal_studio.data.local.db.dao.ScanPageDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,7 +22,6 @@ object DatabaseModule {
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(AppDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -29,6 +30,12 @@ object DatabaseModule {
 
     @Provides
     fun provideChatMessageDao(db: AppDatabase): ChatMessageDao = db.chatMessageDao()
+
+    @Provides
+    fun scanDocumentDao(db: AppDatabase): ScanDocumentDao = db.scanDocumentDao()
+
+    @Provides
+    fun scanPageDao(db: AppDatabase): ScanPageDao = db.scanPageDao()
 
     @Provides
     @Singleton
