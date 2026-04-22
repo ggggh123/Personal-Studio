@@ -48,6 +48,10 @@ android {
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildFeatures {
@@ -120,6 +124,13 @@ dependencies {
 
     // HTTP (OpenRouter API client)
     implementation(libs.okhttp)
+
+    // Camera (CameraX + OpenCV)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.opencv.android)
 
     // Unit tests
     testImplementation(libs.junit)

@@ -29,6 +29,10 @@ serialization = "1.7.1"
 # HTTP (used for OpenRouter API)
 okhttp = "4.12.0"
 
+# Camera
+camerax = "1.4.1"
+opencv = "4.10.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -83,6 +87,13 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # HTTP (OpenRouter API client)
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+
+# Camera (CameraX)
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+opencv-android = { module = "org.opencv:opencv", version.ref = "opencv" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
