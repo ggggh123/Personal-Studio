@@ -46,6 +46,8 @@ import com.example.personal_studio.domain.model.MessageRole
 import com.example.personal_studio.feature.chat.vm.ChatDetailViewModel
 import com.example.personal_studio.ui.components.AiFrame
 import com.example.personal_studio.ui.components.BlinkingCursor
+import com.example.personal_studio.ui.components.ChatImageThumbnail
+import com.example.personal_studio.ui.components.ChatImageThumbnailSmall
 import com.example.personal_studio.ui.components.MathMarkdownView
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.TypewriterText
@@ -112,7 +114,15 @@ fun ChatDetailScreen(
             ) {
                 items(state.messages, key = { it.id }) { m ->
                     when (m.role) {
-                        MessageRole.USER -> UserPromptLine(text = m.contentMarkdown)
+                        MessageRole.USER -> {
+                            val imagePath = m.attachedImagePath
+                            UserPromptLine(
+                                text = m.contentMarkdown,
+                                imageThumb = if (imagePath != null) {
+                                    { ChatImageThumbnail(path = imagePath) }
+                                } else null,
+                            )
+                        }
                         MessageRole.AI -> AiFrame(footer = "── done ──") {
                             MathMarkdownView(markdown = m.contentMarkdown)
                         }
@@ -157,14 +167,17 @@ fun ChatDetailScreen(
 
             // Attached image preview row
             if (state.attachedImagePath != null) {
+                val attachedPath = state.attachedImagePath!!
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    ChatImageThumbnailSmall(path = attachedPath)
+                    Spacer(Modifier.width(10.dp))
                     Text(
-                        text = "[img] ${File(state.attachedImagePath!!).name}",
+                        text = "[img] ${File(attachedPath).name}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Cyan,
                         modifier = Modifier.weight(1f),
