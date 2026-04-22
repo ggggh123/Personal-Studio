@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlin.math.hypot
 
 /**
  * Adds a faint static CRT scan-line pattern over the content it wraps.
@@ -35,18 +36,44 @@ fun Modifier.scanLines(spacingDp: Float = 3f, alpha: Float = 0.025f): Modifier =
     }
 
 /**
- * Adds a soft radial vignette (darker at corners). Call AFTER scanLines in the modifier chain
- * to layer correctly (scan lines are beneath the vignette so both are visible).
+ * CRT vignette: a subtle phosphor-tinted glow lifts the center and a corner-heavy
+ * radial dim pulls the edges down. Both layers are applied on top of content so the
+ * effect reads as "screen has a hot spot," not "content is faded." Call AFTER [scanLines]
+ * in the modifier chain to layer correctly.
+ *
+ * - [cornerDim]: how dark the far corners become (0.0 off, 0.6 very pronounced).
+ * - [centerGlow]: how much phosphor lift the center gets (0.0 off, 0.08 noticeable).
  */
-fun Modifier.vignette(strength: Float = 0.35f): Modifier =
+fun Modifier.vignette(
+    cornerDim: Float = 0.55f,
+    centerGlow: Float = 0.05f,
+): Modifier =
     this.drawWithCache {
-        val brush = Brush.radialGradient(
-            colors = listOf(Color.Transparent, Color.Black.copy(alpha = strength)),
-            radius = maxOf(size.width, size.height),
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val halfDiag = hypot(size.width, size.height) / 2f
+        // Corner dim: transparent up to ~40% of the diagonal, then ramps to black at
+        // the far corners. Covers past the rect bounds so corner alpha is fully realized.
+        val cornerBrush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.40f to Color.Transparent,
+                1.0f to Color.Black.copy(alpha = cornerDim),
+            ),
+            center = center,
+            radius = halfDiag * 1.05f,
+        )
+        // Center glow: tight phosphor-tinted spot that softens before ~60% of the diagonal.
+        val glowBrush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.0f to Phosphor.copy(alpha = centerGlow),
+                1.0f to Color.Transparent,
+            ),
+            center = center,
+            radius = halfDiag * 0.55f,
         )
         onDrawWithContent {
             drawContent()
-            drawRect(brush)
+            drawRect(glowBrush)
+            drawRect(cornerBrush)
         }
     }
 

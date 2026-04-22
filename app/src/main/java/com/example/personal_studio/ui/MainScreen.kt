@@ -2,13 +2,14 @@ package com.example.personal_studio.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,23 +39,36 @@ private val tabs = listOf(
 fun MainScreen(navController: NavHostController = rememberNavController()) {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    val isTabRoute = tabs.any { it.route == currentRoute }
     val currentTab = tabs.firstOrNull { it.route == currentRoute }
 
+    // Sub-routes (chat detail, settings) render their own top bar — we only show
+    // the shell's chrome on tab destinations. `contentWindowInsets = WindowInsets(0)`
+    // lets each screen own its safe-area padding (via TerminalTopBar / input row),
+    // avoiding doubled status/navigation bar gaps.
     Scaffold(
         containerColor = Void,
+        contentWindowInsets = WindowInsets(0),
         topBar = {
-            TerminalTopBar(
-                route = currentTab?.route ?: (currentRoute ?: "home"),
-                trailing = {
-                    IconButton(onClick = { navController.navigate(NavRoutes.SETTINGS) }) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "settings")
+            if (isTabRoute) {
+                TerminalTopBar(
+                    route = currentTab?.route ?: "home",
+                    trailing = {
+                        IconButton(
+                            onClick = {
+                                navController.navigate(NavRoutes.SETTINGS) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Outlined.Settings, contentDescription = "settings")
+                        }
                     }
-                }
-            )
+                )
+            }
         },
         bottomBar = {
-            // Hide bottom bar on non-tab destinations (e.g. Settings)
-            if (tabs.any { it.route == currentRoute }) {
+            if (isTabRoute) {
                 TerminalBottomBar(
                     tabs = tabs,
                     selectedRoute = currentRoute,

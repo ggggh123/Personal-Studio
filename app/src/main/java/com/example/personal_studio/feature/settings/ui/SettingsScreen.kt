@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +39,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.BuildConfig
 import com.example.personal_studio.feature.settings.vm.SettingsViewModel
 import com.example.personal_studio.feature.settings.vm.TestConnectionState
 import com.example.personal_studio.ui.components.TerminalTopBar
@@ -52,8 +53,6 @@ import com.example.personal_studio.ui.theme.Olive
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Rule
 import com.example.personal_studio.ui.theme.Void
-import com.example.personal_studio.ui.theme.scanLines
-import com.example.personal_studio.ui.theme.vignette
 
 @Composable
 fun SettingsScreen(
@@ -61,28 +60,27 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val activeModel = state.savedModel ?: BuildConfig.DEFAULT_LLM_MODEL
 
-    Scaffold(
-        containerColor = Void,
-        topBar = {
-            TerminalTopBar(
-                route = "settings",
-                trailing = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-                    }
+    // No inner Scaffold: MainScreen owns the backdrop (scanLines + vignette) and safe-area
+    // insets for sub-routes. We render our own TerminalTopBar and a scrollable body.
+    Column(Modifier.fillMaxSize()) {
+        TerminalTopBar(
+            route = "settings",
+            subtitle = "# configure: api key · base url · model=$activeModel",
+            trailing = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
                 }
-            )
-        },
-    ) { inner ->
+            }
+        )
         Column(
             Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .scanLines()
-                .vignette()
+                .weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
+                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
 
@@ -92,8 +90,8 @@ fun SettingsScreen(
             Text(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = FoamDim)) {
-                        append("# empty means the app uses the key bundled at build time.\n")
-                        append("# setting a key here overrides it at runtime.")
+                        append("# bearer token for any OpenAI-compatible endpoint.\n")
+                        append("# empty means use the key bundled at build time.")
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -107,14 +105,14 @@ fun SettingsScreen(
                         text = if (state.savedApiKey != null)
                             "**** [set] — type to replace"
                         else
-                            "paste gemini api key",
+                            "paste api key (sk-...)",
                         color = FoamDim,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 },
                 label = {
                     Text(
-                        text = "GEMINI_API_KEY",
+                        text = "API_KEY",
                         color = Cyan,
                         style = MaterialTheme.typography.labelSmall,
                     )
@@ -123,23 +121,14 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Phosphor,
-                    unfocusedBorderColor = Rule,
-                    cursorColor = Phosphor,
-                ),
+                colors = terminalFieldColors(),
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = vm::onSaveApiKey,
                     enabled = state.apiKeyDraft.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Phosphor,
-                        contentColor = Void,
-                        disabledContainerColor = Rule,
-                        disabledContentColor = FoamDim,
-                    ),
+                    colors = terminalPrimaryButton(),
                 ) {
                     Text("save", style = MaterialTheme.typography.labelLarge)
                 }
@@ -154,11 +143,141 @@ fun SettingsScreen(
 
             DashedDivider()
 
+            // ── Section: API base URL ──────────────────────────────
+            SectionHeader("## api base url")
+
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = FoamDim)) {
+                        append("# point at any OpenAI-compatible server. Examples:\n")
+                        append("#   https://api.openai.com/v1         (OpenAI)\n")
+                        append("#   https://openrouter.ai/api/v1      (OpenRouter — default)\n")
+                        append("#   http://<host>:11434/v1            (Ollama)\n")
+                        append("#   http://<host>:1234/v1             (LM Studio)\n")
+                        append("# /chat/completions is appended automatically.")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            val activeBaseUrl = state.savedBaseUrl ?: BuildConfig.DEFAULT_API_BASE_URL
+            KeyValueRow(
+                key = "ACTIVE",
+                value = activeBaseUrl + if (state.savedBaseUrl == null) "  (default)" else "",
+                valueColor = if (state.savedBaseUrl == null) FoamMute else Foam,
+            )
+
+            OutlinedTextField(
+                value = state.baseUrlDraft,
+                onValueChange = vm::onBaseUrlDraftChanged,
+                placeholder = {
+                    Text(
+                        text = "https://.../v1",
+                        color = FoamDim,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                label = {
+                    Text(
+                        text = "API_BASE_URL",
+                        color = Cyan,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                colors = terminalFieldColors(),
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = vm::onSaveBaseUrl,
+                    enabled = state.baseUrlDraft.isNotBlank(),
+                    colors = terminalPrimaryButton(),
+                ) {
+                    Text("save", style = MaterialTheme.typography.labelLarge)
+                }
+                OutlinedButton(
+                    onClick = vm::onResetBaseUrl,
+                    enabled = state.savedBaseUrl != null,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Foam),
+                ) {
+                    Text("reset to default", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+
+            DashedDivider()
+
+            // ── Section: Model ──────────────────────────────
+            SectionHeader("## model")
+
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = FoamDim)) {
+                        append("# model id understood by the active endpoint. Examples:\n")
+                        append("#   google/gemini-2.0-flash-exp:free     (OpenRouter, free, multimodal)\n")
+                        append("#   openai/gpt-4o-mini                    (OpenAI / OpenRouter, cheap multimodal)\n")
+                        append("#   anthropic/claude-3.5-sonnet           (strong reasoning)\n")
+                        append("#   llama3.1:8b                           (Ollama local)")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            KeyValueRow(
+                key = "ACTIVE",
+                value = activeModel + if (state.savedModel == null) "  (default)" else "",
+                valueColor = if (state.savedModel == null) FoamMute else Foam,
+            )
+
+            OutlinedTextField(
+                value = state.modelDraft,
+                onValueChange = vm::onModelDraftChanged,
+                placeholder = {
+                    Text(
+                        text = "vendor/model-id",
+                        color = FoamDim,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                label = {
+                    Text(
+                        text = "LLM_MODEL",
+                        color = Cyan,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                colors = terminalFieldColors(),
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = vm::onSaveModel,
+                    enabled = state.modelDraft.isNotBlank(),
+                    colors = terminalPrimaryButton(),
+                ) {
+                    Text("save", style = MaterialTheme.typography.labelLarge)
+                }
+                OutlinedButton(
+                    onClick = vm::onResetModel,
+                    enabled = state.savedModel != null,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Foam),
+                ) {
+                    Text("reset to default", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+
+            DashedDivider()
+
             // ── Section: diagnostic ──────────────────────────────
             SectionHeader("## diagnostic")
 
             Text(
-                text = "ping gemini to verify key + network.",
+                text = "ping the active endpoint + model to verify key + network.",
                 style = MaterialTheme.typography.bodySmall,
                 color = FoamDim,
             )
@@ -178,22 +297,16 @@ fun SettingsScreen(
                         color = Void,
                     )
                     Spacer(Modifier.size(8.dp))
-                    Text("pinging\u2026", style = MaterialTheme.typography.labelLarge)
+                    Text("pinging…", style = MaterialTheme.typography.labelLarge)
                 } else {
-                    Text("test gemini \u21b5", style = MaterialTheme.typography.labelLarge)
+                    Text("test llm ↵", style = MaterialTheme.typography.labelLarge)
                 }
             }
 
             when (val tc = state.testConnection) {
                 TestConnectionState.Idle, TestConnectionState.Running -> Unit
-                is TestConnectionState.Success -> StatusLine(
-                    ok = true,
-                    body = tc.replyPreview,
-                )
-                is TestConnectionState.Failure -> StatusLine(
-                    ok = false,
-                    body = tc.message,
-                )
+                is TestConnectionState.Success -> StatusLine(ok = true, body = tc.replyPreview)
+                is TestConnectionState.Failure -> StatusLine(ok = false, body = tc.message)
             }
 
             DashedDivider()
@@ -201,9 +314,8 @@ fun SettingsScreen(
             // ── Section: future placeholders ──────────────────────────────
             SectionHeader("## coming later")
 
-            KeyValueRow("MODEL", "gemini-1.5-flash", FoamMute)
-            KeyValueRow("THEME", "terminal \u00b7 phosphor (locked)", FoamMute)
-            KeyValueRow("TIMETABLE", "13 periods \u00b7 set in P4", FoamMute)
+            KeyValueRow("THEME", "terminal · phosphor (locked)", FoamMute)
+            KeyValueRow("TIMETABLE", "13 periods · set in P4", FoamMute)
             KeyValueRow("NOTIFICATIONS", "wired in P4", FoamMute)
         }
     }
@@ -248,16 +360,8 @@ private fun KeyValueRow(key: String, value: String, valueColor: Color) {
             color = Phosphor,
             modifier = Modifier.width(140.dp),
         )
-        Text(
-            text = "= ",
-            style = MaterialTheme.typography.bodyMedium,
-            color = FoamDim,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = valueColor,
-        )
+        Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium, color = valueColor)
     }
 }
 
@@ -273,3 +377,18 @@ private fun StatusLine(ok: Boolean, body: String) {
         style = MaterialTheme.typography.bodyMedium,
     )
 }
+
+@Composable
+private fun terminalFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Phosphor,
+    unfocusedBorderColor = Rule,
+    cursorColor = Phosphor,
+)
+
+@Composable
+private fun terminalPrimaryButton() = ButtonDefaults.buttonColors(
+    containerColor = Phosphor,
+    contentColor = Void,
+    disabledContainerColor = Rule,
+    disabledContentColor = FoamDim,
+)

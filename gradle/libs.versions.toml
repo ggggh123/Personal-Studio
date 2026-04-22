@@ -26,8 +26,8 @@ hiltNavCompose = "1.2.0"
 coroutines = "1.8.1"
 serialization = "1.7.1"
 
-# LLM
-googleGenAi = "0.9.0"
+# HTTP (used for OpenRouter API)
+okhttp = "4.12.0"
 
 # Testing
 junit = "4.13.2"
@@ -81,8 +81,8 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
-# LLM
-google-generative-ai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "googleGenAi" }
+# HTTP (OpenRouter API client)
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

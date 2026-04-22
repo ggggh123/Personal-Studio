@@ -25,12 +25,17 @@ import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
 
 /**
- * Terminal-style top bar. Renders `studio:~/<route> $` plus optional trailing action.
- * Bottom edge is a 1dp dashed phosphor line. Pads for the status bar.
+ * Terminal-style top bar. Renders `studio:~/<route> $` on the top row, a bright
+ * phosphor dashed separator (insert with horizontal gutters so the line does not
+ * bleed to screen edges), and an optional `# ...` comment-style subtitle below —
+ * used to surface session + model metadata on chat / settings screens. Status bar
+ * padding is applied here, so screens that render this bar should NOT add their
+ * own `statusBarsPadding()`.
  */
 @Composable
 fun TerminalTopBar(
     route: String,
+    subtitle: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -42,18 +47,8 @@ fun TerminalTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .drawBehind {
-                    val y = size.height
-                    drawLine(
-                        color = Phosphor,
-                        start = Offset(0f, y - 0.5f),
-                        end = Offset(size.width, y - 0.5f),
-                        strokeWidth = 1f,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
-                    )
-                }
-                .padding(horizontal = 16.dp),
+                .height(48.dp)
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -68,6 +63,31 @@ fun TerminalTopBar(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Box { trailing?.invoke() }
+        }
+        // Phosphor dashed divider with side gutters — deliberately inset from the
+        // screen edges so it reads as a terminal rule, not a Material app-bar edge.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .padding(horizontal = 20.dp)
+                .drawBehind {
+                    drawLine(
+                        color = Phosphor,
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, 0f),
+                        strokeWidth = 1f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f)),
+                    )
+                }
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = FoamDim,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+            )
         }
     }
 }
