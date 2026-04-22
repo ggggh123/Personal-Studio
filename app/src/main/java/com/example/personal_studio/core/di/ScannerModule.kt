@@ -5,7 +5,9 @@ import com.example.personal_studio.data.local.db.dao.ScanDocumentDao
 import com.example.personal_studio.data.local.db.dao.ScanPageDao
 import com.example.personal_studio.data.repository.ScanRepository
 import com.example.personal_studio.data.repository.ScanRepositoryImpl
+import com.example.personal_studio.data.scanner.EdgeDetector
 import com.example.personal_studio.data.scanner.EnhancePipeline
+import com.example.personal_studio.data.scanner.OpenCvEdgeDetector
 import com.example.personal_studio.data.scanner.OpenCvEnhancePipeline
 import dagger.Module
 import dagger.Provides
@@ -31,4 +33,7 @@ object ScannerModule {
 
     @Provides @Singleton
     fun provideEnhancePipeline(impl: OpenCvEnhancePipeline): EnhancePipeline = impl
+
+    @Provides @Singleton
+    fun provideEdgeDetector(impl: OpenCvEdgeDetector): EdgeDetector = impl
 }
