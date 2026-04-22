@@ -1,0 +1,27 @@
+package com.example.personal_studio.domain.model
+
+enum class ScanFilter { COLOR, GRAYSCALE, BW }
+
+enum class SortMode { TIME_DESC, ALPHA_ASC, RECENT_UPDATED }
+
+data class ScanDocument(
+    val id: Long,
+    val title: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val pageCount: Int,
+    val coverPageId: Long?,
+) {
+    val isPending: Boolean get() = coverPageId == null
+}
+
+data class ScanPage(
+    val id: Long,
+    val docId: Long,
+    val ordinal: Int,
+    val originalImagePath: String,
+    val enhancedImagePath: String,
+    val filter: ScanFilter,
+    val cornersJson: String?,
+    val createdAt: Long,
+)
