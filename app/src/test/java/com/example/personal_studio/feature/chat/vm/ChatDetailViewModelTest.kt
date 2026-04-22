@@ -1,6 +1,7 @@
 package com.example.personal_studio.feature.chat.vm
 
 import app.cash.turbine.test
+import com.example.personal_studio.data.local.datastore.FakeUserPreferencesRepository
 import com.example.personal_studio.data.remote.llm.FakeLLMProvider
 import com.example.personal_studio.data.repository.FakeChatRepository
 import com.example.personal_studio.domain.chat.GenerateTitleUseCase
@@ -33,6 +34,7 @@ class ChatDetailViewModelTest {
             repo = repo,
             send = SendMessageUseCase(repo, llm),
             titleGen = GenerateTitleUseCase(repo, llm),
+            prefs = FakeUserPreferencesRepository(),
         )
         vm.uiState.test {
             awaitItem()  // initial empty
@@ -79,6 +81,7 @@ class ChatDetailViewModelTest {
             repo = repo,
             send = SendMessageUseCase(repo, llm),
             titleGen = GenerateTitleUseCase(repo, llm),
+            prefs = FakeUserPreferencesRepository(),
         )
         vm.uiState.test {
             awaitItem()

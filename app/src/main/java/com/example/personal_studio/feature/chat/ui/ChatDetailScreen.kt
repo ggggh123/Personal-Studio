@@ -3,11 +3,14 @@ package com.example.personal_studio.feature.chat.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,11 +25,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -42,6 +47,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.domain.model.ChatMessage
 import com.example.personal_studio.domain.model.MessageRole
 import com.example.personal_studio.feature.chat.vm.ChatDetailViewModel
 import com.example.personal_studio.ui.components.AiFrame
@@ -58,10 +64,6 @@ import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Rule
-import com.example.personal_studio.ui.theme.Void
-import com.example.personal_studio.ui.theme.scanLines
-import com.example.personal_studio.ui.theme.vignette
 import java.io.File
 
 @Composable
@@ -79,187 +81,287 @@ fun ChatDetailScreen(
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var pickedForCrop by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(state.messages.size, state.streamingText?.length) {
-        val lastIndex = state.messages.size + (if (state.streamingText != null) 1 else 0)
-        if (lastIndex > 0) listState.animateScrollToItem(lastIndex - 1)
+    // Per-message rendered height cache. MathMarkdownView is a WebView that reports
+    // its real height async (after KaTeX + font load + ResizeObserver). When an AI
+    // message scrolls out of view LazyColumn disposes its composition; re-entering
+    // would otherwise start back at a 60dp placeholder and visibly pop to full size,
+    // causing the neighboring rows to shift — this is the "scroll stall" symptom.
+    // Caching at the screen level means a row re-entering the viewport immediately
+    // lays out at its last-known size and the WebView's async report just confirms it.
+    val aiMessageHeights = remember { mutableStateMapOf<Long, Int>() }
+
+    // "Auto-follow" = user is already pinned to the latest turn. We only hijack
+    // scroll when this is true, so reading older messages (user drags down to
+    // look back) doesn't get yanked back to the bottom every time a streaming
+    // token arrives. Checked via the tail item being in the visible range —
+    // layoutInfo is pre-mutation when a new message appends, which conveniently
+    // captures the at-bottom state from *before* the new item was added.
+    val autoFollow by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            if (total == 0) return@derivedStateOf true
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index
+                ?: return@derivedStateOf true
+            lastVisible >= total - 1
+        }
     }
 
-    Scaffold(
-        containerColor = Void,
-        topBar = {
-            TerminalTopBar(
-                route = state.session?.title ?: "chat",
-                trailing = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-                    }
-                }
-            )
+    // Watch the last persisted message's cached WebView height. When a stream ends,
+    // the streaming item (TypewriterText at natural text height) is swapped for a
+    // MathMarkdownView placeholder at 60dp, we scroll to the end of that placeholder,
+    // and THEN the WebView asynchronously reports its real height and the item grows.
+    // LazyColumn anchors the first visible item, so that growth pushes the tail below
+    // the viewport — which reads as the viewport "snapping back to the top of the
+    // message". Including this height in the LaunchedEffect's keys re-fires the
+    // auto-scroll once the real height is known, pinning the tail against the bottom.
+    val lastMessageId = state.messages.lastOrNull()?.id
+    val lastMessageHeight = lastMessageId?.let { aiMessageHeights[it] }
+
+    LaunchedEffect(state.messages.size, state.streamingText?.length, lastMessageHeight) {
+        if (!autoFollow) return@LaunchedEffect
+        val lastIndex = state.messages.size + (if (state.streamingText != null) 1 else 0)
+        if (lastIndex > 0) {
+            // Non-animated scroll: the streaming path re-launches this effect on
+            // every token (~40/sec). Using animateScrollToItem here cancels the
+            // in-flight animation every tick and chases the ever-moving scroll-max,
+            // which reads as visual shake. Instant scroll has no curve to cancel
+            // and — since deltas per tick are tiny — still looks smooth to the eye.
+            // scrollOffset = Int.MAX_VALUE lands at the item's natural end (Compose
+            // clamps to scroll-max), so the tail of the message stays against the
+            // viewport bottom instead of the head being yanked to the viewport top.
+            listState.scrollToItem(lastIndex - 1, Int.MAX_VALUE)
         }
-    ) { inner ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .scanLines()
-                .vignette(),
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        TerminalTopBar(
+            route = "chat",
+            subtitle = buildSubtitle(state.session?.title, state.activeModel),
+            trailing = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                }
+            }
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            state = listState,
+            verticalArrangement = Arrangement.Top,
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                state = listState,
-                verticalArrangement = Arrangement.Top,
-            ) {
-                items(state.messages, key = { it.id }) { m ->
-                    when (m.role) {
-                        MessageRole.USER -> {
-                            val imagePath = m.attachedImagePath
-                            UserPromptLine(
-                                text = m.contentMarkdown,
-                                imageThumb = if (imagePath != null) {
-                                    { ChatImageThumbnail(path = imagePath) }
-                                } else null,
+            items(state.messages, key = { it.id }) { m ->
+                when (m.role) {
+                    MessageRole.USER -> {
+                        val imagePath = m.attachedImagePath
+                        UserPromptLine(
+                            text = m.contentMarkdown,
+                            imageThumb = if (imagePath != null) {
+                                { ChatImageThumbnail(path = imagePath) }
+                            } else null,
+                        )
+                    }
+                    MessageRole.AI -> {
+                        // Header pins the model that produced THIS reply — not the
+                        // currently-active one — so switching models later doesn't
+                        // retroactively relabel historical turns. Legacy rows without
+                        // a persisted model id fall back to the active model.
+                        AiFrame(
+                            header = m.modelUsed ?: state.activeModel,
+                            footer = formatDoneLine(m),
+                        ) {
+                            MathMarkdownView(
+                                markdown = m.contentMarkdown,
+                                initialHeightDp = aiMessageHeights[m.id] ?: 60,
+                                onHeightChanged = { h -> aiMessageHeights[m.id] = h },
                             )
                         }
-                        MessageRole.AI -> AiFrame(footer = "── done ──") {
-                            MathMarkdownView(markdown = m.contentMarkdown)
-                        }
-                        MessageRole.SYSTEM -> Text(
-                            m.contentMarkdown,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = FoamDim,
+                    }
+                    MessageRole.SYSTEM -> Text(
+                        m.contentMarkdown,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FoamDim,
+                    )
+                }
+            }
+            if (state.streamingText != null) {
+                item(key = "__streaming__") {
+                    AiFrame(header = state.activeModel) {
+                        TypewriterText(
+                            text = state.streamingText ?: "",
+                            style = MaterialTheme.typography.bodyMedium.copy(color = Foam),
                         )
                     }
                 }
-                if (state.streamingText != null) {
-                    item(key = "__streaming__") {
-                        AiFrame {
-                            TypewriterText(
-                                text = state.streamingText ?: "",
-                                style = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                            )
-                        }
-                    }
-                }
             }
+        }
 
-            // Error banner
-            if (state.errorBanner != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = Carmine)) { append("[err] ") }
-                            withStyle(SpanStyle(color = Foam)) { append(state.errorBanner ?: "") }
-                            append("  ")
-                            withStyle(SpanStyle(color = Cyan)) { append("[dismiss]") }
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.clickableNoRipple { vm.onDismissError() }
-                    )
-                }
-            }
-
-            // Attached image preview row
-            if (state.attachedImagePath != null) {
-                val attachedPath = state.attachedImagePath!!
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    ChatImageThumbnailSmall(path = attachedPath)
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = "[img] ${File(attachedPath).name}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Cyan,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        "[x]",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Carmine,
-                        modifier = Modifier.clickableNoRipple { vm.onAttachImage(null) }
-                    )
-                }
-            }
-
-            // Input line
+        // Error banner
+        if (state.errorBanner != null) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .drawBehind {
-                        drawLine(
-                            color = Rule,
-                            start = Offset(0f, 0f),
-                            end = Offset(size.width, 0f),
-                            strokeWidth = 1f,
-                        )
-                    }
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
             ) {
                 Text(
-                    "> ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Phosphor,
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = Carmine)) { append("[err] ") }
+                        withStyle(SpanStyle(color = Foam)) { append(state.errorBanner ?: "") }
+                        append("  ")
+                        withStyle(SpanStyle(color = Cyan)) { append("[dismiss]") }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.clickableNoRipple { vm.onDismissError() }
                 )
-                BasicTextField(
-                    value = state.input,
-                    onValueChange = vm::onInputChanged,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                    cursorBrush = SolidColor(Phosphor),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { vm.onSend() }),
-                    modifier = Modifier.weight(1f),
-                )
-                if (state.input.isBlank()) {
-                    BlinkingCursor()
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "↵ send",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Amber,
-                    modifier = Modifier.clickableNoRipple { vm.onSend() }
-                )
-                Spacer(Modifier.width(8.dp))
-                IconButton(onClick = { showAttachmentSheet = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = "attach", tint = Cyan)
-                }
             }
         }
 
-        // Attachment sheet
-        if (showAttachmentSheet) {
-            AttachmentSheet(
-                onDismiss = { showAttachmentSheet = false },
-                onImagePicked = { path ->
-                    pickedForCrop = path
-                    showAttachmentSheet = false
-                },
-            )
+        // Attached image preview row
+        if (state.attachedImagePath != null) {
+            val attachedPath = state.attachedImagePath!!
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ChatImageThumbnailSmall(path = attachedPath)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "[img] ${File(attachedPath).name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Cyan,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "[x]",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Carmine,
+                    modifier = Modifier.clickableNoRipple { vm.onAttachImage(null) }
+                )
+            }
         }
-        // Crop overlay
-        val toCrop = pickedForCrop
-        if (toCrop != null) {
-            ImageCropOverlay(
-                imagePath = toCrop,
-                onDismiss = { pickedForCrop = null },
-                onConfirm = { croppedPath ->
-                    pickedForCrop = null
-                    vm.onAttachImage(croppedPath)
+
+        // Phosphor dashed rule above the input — matching the top bar's divider style.
+        DashedPhosphorRule()
+
+        // Input line. `navigationBarsPadding` keeps it above the system gesture bar.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "> ",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Phosphor,
+            )
+            BasicTextField(
+                value = state.input,
+                onValueChange = vm::onInputChanged,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                cursorBrush = SolidColor(Phosphor),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { vm.onSend() }),
+                modifier = Modifier.weight(1f),
+                decorationBox = { innerTextField ->
+                    // Terminal-style placeholder: rendered underneath the inner text
+                    // field so it disappears as soon as the user types.
+                    if (state.input.isEmpty()) {
+                        Text(
+                            text = "type something here...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = FoamDim,
+                        )
+                    }
+                    innerTextField()
                 },
             )
+            if (state.input.isBlank()) {
+                BlinkingCursor()
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = "↵ send",
+                style = MaterialTheme.typography.labelSmall,
+                color = Amber,
+                modifier = Modifier.clickableNoRipple { vm.onSend() }
+            )
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = { showAttachmentSheet = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "attach", tint = Cyan)
+            }
         }
     }
+
+    // Attachment sheet
+    if (showAttachmentSheet) {
+        AttachmentSheet(
+            onDismiss = { showAttachmentSheet = false },
+            onImagePicked = { path ->
+                pickedForCrop = path
+                showAttachmentSheet = false
+            },
+        )
+    }
+    // Crop overlay
+    val toCrop = pickedForCrop
+    if (toCrop != null) {
+        ImageCropOverlay(
+            imagePath = toCrop,
+            onDismiss = { pickedForCrop = null },
+            onConfirm = { croppedPath ->
+                pickedForCrop = null
+                vm.onAttachImage(croppedPath)
+            },
+        )
+    }
+}
+
+private fun buildSubtitle(title: String?, model: String): String {
+    val sessionLabel = title?.takeIf { it.isNotBlank() } ?: "(untitled)"
+    // Two comment-style lines — keeps the session title readable when long and
+    // gives the active model its own row so it doesn't wrap awkwardly.
+    return "# session: $sessionLabel\n# model: $model"
+}
+
+/**
+ * Footer for a persisted AI message. Falls back to `── done ──` when duration or token
+ * count is missing (older DB rows); otherwise renders stats persisted by SendMessageUseCase.
+ */
+private fun formatDoneLine(message: ChatMessage): String {
+    val duration = message.generationMs
+    val tokens = message.tokenCount
+    if (duration == null || tokens == null) return "── done ──"
+    val secs = duration / 1000.0
+    val formatted = if (secs < 10) "%.1fs".format(secs) else "%.0fs".format(secs)
+    return "── done · $formatted · $tokens tokens ──"
+}
+
+@Composable
+private fun DashedPhosphorRule() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .padding(horizontal = 20.dp)
+            .drawBehind {
+                drawLine(
+                    color = Phosphor,
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, 0f),
+                    strokeWidth = 1f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f)),
+                )
+            }
+    )
 }
 
 private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =

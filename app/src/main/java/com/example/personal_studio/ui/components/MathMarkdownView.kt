@@ -37,12 +37,22 @@ import org.json.JSONObject
 fun MathMarkdownView(
     markdown: String,
     modifier: Modifier = Modifier,
+    /**
+     * Initial height in dp to use before the WebView has finished rendering — typically
+     * a cached value from a previous render of this same message. Without a cache, the
+     * placeholder is a fixed 60dp and the item visibly pops to its real size once the
+     * WebView's ResizeObserver reports, which causes other rows to shift. Passing a
+     * prior measurement keeps LazyColumn rows stable when items re-enter the viewport.
+     */
+    initialHeightDp: Int = 60,
+    /** Invoked when the WebView reports a new content height (in dp). */
+    onHeightChanged: (Int) -> Unit = {},
 ) {
     // Height values from JS are in CSS px, which with our viewport (device-width,
     // initial-scale=1) are equivalent to dp. Do NOT convert via density — that treats
     // the value as physical px and under-sizes by the display density factor,
     // clipping the bottom of the content.
-    var heightDp by remember(markdown) { mutableStateOf(60) }
+    var heightDp by remember(markdown) { mutableStateOf(initialHeightDp) }
     var pageReady by remember { mutableStateOf(false) }
 
     AndroidView(
@@ -61,7 +71,11 @@ fun MathMarkdownView(
                     @JavascriptInterface
                     fun onRendered(contentHeightCssPx: Int) {
                         // JS reports CSS pixels ≈ dp under our viewport config.
-                        post { heightDp = contentHeightCssPx + 12 }
+                        post {
+                            val h = contentHeightCssPx + 12
+                            heightDp = h
+                            onHeightChanged(h)
+                        }
                     }
                 }, "Android")
 

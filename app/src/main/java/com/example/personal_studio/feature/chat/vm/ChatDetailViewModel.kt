@@ -2,6 +2,8 @@ package com.example.personal_studio.feature.chat.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.personal_studio.BuildConfig
+import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
 import com.example.personal_studio.data.repository.ChatRepository
 import com.example.personal_studio.domain.chat.GenerateTitleUseCase
 import com.example.personal_studio.domain.chat.SendChunk
@@ -29,6 +31,8 @@ data class ChatDetailUiState(
     val streamingText: String? = null,
     val errorBanner: String? = null,
     val isSending: Boolean = false,
+    /** Active model id from preferences (or the bundled default). Surfaced in the top bar. */
+    val activeModel: String = BuildConfig.DEFAULT_LLM_MODEL,
     /** Incremented each time a send round-trip (including title generation) fully completes. */
     val sendGeneration: Int = 0,
 )
@@ -39,6 +43,7 @@ class ChatDetailViewModel @AssistedInject constructor(
     private val repo: ChatRepository,
     private val send: SendMessageUseCase,
     private val titleGen: GenerateTitleUseCase,
+    private val prefs: UserPreferencesRepository,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -52,6 +57,14 @@ class ChatDetailViewModel @AssistedInject constructor(
     init {
         repo.observeMessages(sessionId)
             .onEach { msgs -> _uiState.update { it.copy(messages = msgs) } }
+            .launchIn(viewModelScope)
+
+        prefs.modelName
+            .onEach { name ->
+                _uiState.update {
+                    it.copy(activeModel = name?.takeIf { v -> v.isNotBlank() } ?: BuildConfig.DEFAULT_LLM_MODEL)
+                }
+            }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
@@ -70,7 +83,14 @@ class ChatDetailViewModel @AssistedInject constructor(
         val imagePath = _uiState.value.attachedImagePath
         if (text.isBlank() && imagePath == null) return
 
-        _uiState.update { it.copy(input = "", attachedImagePath = null, isSending = true, streamingText = "") }
+        _uiState.update {
+            it.copy(
+                input = "",
+                attachedImagePath = null,
+                isSending = true,
+                streamingText = "",
+            )
+        }
 
         viewModelScope.launch {
             val buffer = StringBuilder()
@@ -82,7 +102,9 @@ class ChatDetailViewModel @AssistedInject constructor(
                         _uiState.update { it.copy(streamingText = buffer.toString()) }
                     }
                     is SendChunk.AiPersisted -> {
-                        _uiState.update { it.copy(streamingText = null, isSending = false) }
+                        _uiState.update {
+                            it.copy(streamingText = null, isSending = false)
+                        }
                         yield() // allow collectors to observe the persisted state before continuing
                         maybeGenerateTitle()
                         // Bump generation to guarantee one stable "fully done" emission after all

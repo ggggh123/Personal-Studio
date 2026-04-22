@@ -89,7 +89,7 @@ class OpenAiCompatibleProvider(
                 messages.forEach { m -> add(serializeMessage(m)) }
             }
         }
-        streamCompletion(endpoint, key, body)
+        streamCompletion(endpoint, key, body, model)
     }
         .flowOn(Dispatchers.IO)
         .catch { t -> emit(LlmChunk.Error(t.message ?: "Unknown LLM error", retryable = true)) }
@@ -170,6 +170,7 @@ class OpenAiCompatibleProvider(
         endpoint: String,
         key: String,
         body: JsonObject,
+        model: String,
     ) {
         val request = buildRequest(endpoint, key, body)
         httpClient.newCall(request).execute().use { response ->
@@ -225,7 +226,7 @@ class OpenAiCompatibleProvider(
                 ))
                 return@use
             }
-            emit(LlmChunk.Done(totalTokens = null))
+            emit(LlmChunk.Done(totalTokens = null, model = model))
         }
     }
 

@@ -27,6 +27,9 @@ interface ChatRepository {
         role: MessageRole,
         content: String,
         attachedImagePath: String?,
+        generationMs: Long? = null,
+        tokenCount: Int? = null,
+        modelUsed: String? = null,
     ): Long
 }
 
@@ -68,6 +71,9 @@ class ChatRepositoryImpl @Inject constructor(
         role: MessageRole,
         content: String,
         attachedImagePath: String?,
+        generationMs: Long?,
+        tokenCount: Int?,
+        modelUsed: String?,
     ): Long {
         val now = System.currentTimeMillis()
         val id = messageDao.insert(
@@ -77,6 +83,9 @@ class ChatRepositoryImpl @Inject constructor(
                 contentMarkdown = content,
                 attachedImagePath = attachedImagePath,
                 createdAt = now,
+                generationMs = generationMs,
+                tokenCount = tokenCount,
+                modelUsed = modelUsed,
             )
         )
         sessionDao.touch(sessionId, now)
@@ -95,6 +104,7 @@ private fun ChatMessageEntity.toDomain() = ChatMessage(
     id = id, sessionId = sessionId, role = role.toDomain(),
     contentMarkdown = contentMarkdown, attachedImagePath = attachedImagePath,
     createdAt = createdAt,
+    generationMs = generationMs, tokenCount = tokenCount, modelUsed = modelUsed,
 )
 
 private fun com.example.personal_studio.data.local.db.entity.MessageRole.toDomain() =

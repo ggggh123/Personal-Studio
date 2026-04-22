@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,8 +53,6 @@ import com.example.personal_studio.ui.theme.Olive
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Rule
 import com.example.personal_studio.ui.theme.Void
-import com.example.personal_studio.ui.theme.scanLines
-import com.example.personal_studio.ui.theme.vignette
 
 @Composable
 fun SettingsScreen(
@@ -62,28 +60,27 @@ fun SettingsScreen(
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val activeModel = state.savedModel ?: BuildConfig.DEFAULT_LLM_MODEL
 
-    Scaffold(
-        containerColor = Void,
-        topBar = {
-            TerminalTopBar(
-                route = "settings",
-                trailing = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-                    }
+    // No inner Scaffold: MainScreen owns the backdrop (scanLines + vignette) and safe-area
+    // insets for sub-routes. We render our own TerminalTopBar and a scrollable body.
+    Column(Modifier.fillMaxSize()) {
+        TerminalTopBar(
+            route = "settings",
+            subtitle = "# configure: api key · base url · model=$activeModel",
+            trailing = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
                 }
-            )
-        },
-    ) { inner ->
+            }
+        )
         Column(
             Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .scanLines()
-                .vignette()
+                .weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
+                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
 
@@ -228,7 +225,6 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
             )
 
-            val activeModel = state.savedModel ?: BuildConfig.DEFAULT_LLM_MODEL
             KeyValueRow(
                 key = "ACTIVE",
                 value = activeModel + if (state.savedModel == null) "  (default)" else "",

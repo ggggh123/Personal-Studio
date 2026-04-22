@@ -51,6 +51,9 @@ class FakeChatRepository : ChatRepository {
         role: MessageRole,
         content: String,
         attachedImagePath: String?,
+        generationMs: Long?,
+        tokenCount: Int?,
+        modelUsed: String?,
     ): Long {
         val id = seq.incrementAndGet()
         val now = System.currentTimeMillis()
@@ -58,6 +61,7 @@ class FakeChatRepository : ChatRepository {
             id = id, sessionId = sessionId, role = role,
             contentMarkdown = content, attachedImagePath = attachedImagePath,
             createdAt = now,
+            generationMs = generationMs, tokenCount = tokenCount, modelUsed = modelUsed,
         )
         val existing = messagesBySession.value[sessionId].orEmpty()
         messagesBySession.value = messagesBySession.value + (sessionId to existing + msg)

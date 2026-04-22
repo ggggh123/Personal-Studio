@@ -17,4 +17,14 @@ data class ChatMessage(
     val contentMarkdown: String,
     val attachedImagePath: String?,
     val createdAt: Long,
+    /** Wall-clock streaming duration for AI turns, in ms. `null` for non-AI messages. */
+    val generationMs: Long? = null,
+    /** Approximate token count for AI turns (CJK-aware). `null` for non-AI messages. */
+    val tokenCount: Int? = null,
+    /**
+     * Model id that actually produced this reply (e.g. `openai/gpt-4o-mini`). Set by
+     * [SendMessageUseCase] at persistence time so the UI labels stay accurate even
+     * after the user later switches the active model. Null for non-AI / legacy rows.
+     */
+    val modelUsed: String? = null,
 )
