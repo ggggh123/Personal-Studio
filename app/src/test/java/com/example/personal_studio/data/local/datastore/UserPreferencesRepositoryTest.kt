@@ -11,9 +11,9 @@ class UserPreferencesRepositoryTest {
     @Test
     fun `api key flow emits null initially, then the saved value after set`() = runTest {
         val fake = FakeUserPreferencesRepository()
-        fake.openRouterApiKey.test {
+        fake.apiKey.test {
             assertNull(awaitItem())
-            fake.setOpenRouterApiKey("secret-key")
+            fake.setApiKey("secret-key")
             assertEquals("secret-key", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -22,11 +22,22 @@ class UserPreferencesRepositoryTest {
     @Test
     fun `clearing api key emits null`() = runTest {
         val fake = FakeUserPreferencesRepository()
-        fake.setOpenRouterApiKey("secret-key")
-        fake.openRouterApiKey.test {
+        fake.setApiKey("secret-key")
+        fake.apiKey.test {
             assertEquals("secret-key", awaitItem())
-            fake.setOpenRouterApiKey(null)
+            fake.setApiKey(null)
             assertNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `api base URL round-trips through setter and flow`() = runTest {
+        val fake = FakeUserPreferencesRepository()
+        fake.apiBaseUrl.test {
+            assertNull(awaitItem())
+            fake.setApiBaseUrl("https://api.openai.com/v1")
+            assertEquals("https://api.openai.com/v1", awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }

@@ -2,6 +2,8 @@ package com.example.personal_studio.domain.chat
 
 import com.example.personal_studio.data.remote.llm.LLMProvider
 import com.example.personal_studio.data.remote.llm.LlmChunk
+import com.example.personal_studio.data.remote.llm.LlmMessage
+import com.example.personal_studio.data.remote.llm.LlmRole
 import com.example.personal_studio.data.repository.ChatRepository
 import com.example.personal_studio.domain.model.MessageRole
 import kotlinx.coroutines.flow.Flow
@@ -26,6 +28,7 @@ class SendMessageUseCase @Inject constructor(
         userImagePath: String?,
         systemPrompt: String? = SYSTEM_PROMPT,
     ): Flow<SendChunk> = flow {
+        // 1. Persist the new user message (including any attached image).
         val userId = repo.appendMessage(
             sessionId = sessionId,
             role = MessageRole.USER,
@@ -34,19 +37,32 @@ class SendMessageUseCase @Inject constructor(
         )
         emit(SendChunk.UserPersisted(userId))
 
-        val buffer = StringBuilder()
-        val llmFlow = if (userImagePath != null) {
-            val bytes = File(userImagePath).readBytes()
-            llm.generateMultimodal(
-                prompt = userText,
-                images = listOf(bytes),
-                systemPrompt = systemPrompt,
-            )
-        } else {
-            llm.generateText(prompt = userText, systemPrompt = systemPrompt)
+        // 2. Build the full conversation history for the LLM.
+        //    We include text of every prior turn and reload image bytes from disk for
+        //    any message (including the one we just appended) that has an attached image.
+        val history = repo.listMessages(sessionId)
+        val messages = buildList<LlmMessage> {
+            if (!systemPrompt.isNullOrBlank()) {
+                add(LlmMessage(LlmRole.SYSTEM, systemPrompt))
+            }
+            history.forEach { m ->
+                val role = when (m.role) {
+                    MessageRole.USER -> LlmRole.USER
+                    MessageRole.AI -> LlmRole.ASSISTANT
+                    MessageRole.SYSTEM -> LlmRole.SYSTEM
+                }
+                val images = m.attachedImagePath
+                    ?.let { File(it) }
+                    ?.takeIf { it.exists() }
+                    ?.let { listOf(it.readBytes()) }
+                    ?: emptyList()
+                add(LlmMessage(role, m.contentMarkdown, images))
+            }
         }
 
-        llmFlow.collect { chunk ->
+        // 3. Stream the response.
+        val buffer = StringBuilder()
+        llm.generate(messages).collect { chunk ->
             when (chunk) {
                 is LlmChunk.Text -> {
                     buffer.append(chunk.delta)

@@ -60,7 +60,7 @@ class SettingsViewModelTest {
     @Test
     fun `testConnection transitions Idle to Running to Success on happy path`() = runTest {
         val prefs = FakeUserPreferencesRepository()
-        prefs.setOpenRouterApiKey("configured")
+        prefs.setApiKey("configured")
         val vm = SettingsViewModel(prefs, FakeLLMProvider(textChunks = listOf("pong")))
         vm.onTestConnection()
 

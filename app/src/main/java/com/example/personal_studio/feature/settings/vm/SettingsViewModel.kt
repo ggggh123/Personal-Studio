@@ -18,6 +18,8 @@ import javax.inject.Inject
 data class SettingsUiState(
     val apiKeyDraft: String = "",
     val savedApiKey: String? = null,
+    val baseUrlDraft: String = "",
+    val savedBaseUrl: String? = null,
     val modelDraft: String = "",
     val savedModel: String? = null,
     val testConnection: TestConnectionState = TestConnectionState.Idle,
@@ -40,8 +42,12 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        prefs.openRouterApiKey
+        prefs.apiKey
             .onEach { saved -> _uiState.update { it.copy(savedApiKey = saved) } }
+            .launchIn(viewModelScope)
+
+        prefs.apiBaseUrl
+            .onEach { saved -> _uiState.update { it.copy(savedBaseUrl = saved) } }
             .launchIn(viewModelScope)
 
         prefs.modelName
@@ -58,15 +64,36 @@ class SettingsViewModel @Inject constructor(
     fun onSaveApiKey() {
         val key = _uiState.value.apiKeyDraft
         viewModelScope.launch {
-            prefs.setOpenRouterApiKey(key)
+            prefs.setApiKey(key)
             _uiState.update { it.copy(apiKeyDraft = "") }
         }
     }
 
     fun onClearApiKey() {
         viewModelScope.launch {
-            prefs.setOpenRouterApiKey(null)
+            prefs.setApiKey(null)
             _uiState.update { it.copy(apiKeyDraft = "") }
+        }
+    }
+
+    // Base URL ---------------------------------------------------------------
+
+    fun onBaseUrlDraftChanged(value: String) {
+        _uiState.update { it.copy(baseUrlDraft = value) }
+    }
+
+    fun onSaveBaseUrl() {
+        val url = _uiState.value.baseUrlDraft.trim()
+        viewModelScope.launch {
+            prefs.setApiBaseUrl(url)
+            _uiState.update { it.copy(baseUrlDraft = "") }
+        }
+    }
+
+    fun onResetBaseUrl() {
+        viewModelScope.launch {
+            prefs.setApiBaseUrl(null)
+            _uiState.update { it.copy(baseUrlDraft = "") }
         }
     }
 

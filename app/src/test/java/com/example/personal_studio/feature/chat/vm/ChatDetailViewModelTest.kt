@@ -66,11 +66,12 @@ class ChatDetailViewModelTest {
         val sid = repo.createSession("x")
         val llm = object : com.example.personal_studio.data.remote.llm.LLMProvider {
             override val name = "fake-err"
-            override fun generateText(p: String, s: String?, t: Float) =
-                kotlinx.coroutines.flow.flow {
-                    emit(com.example.personal_studio.data.remote.llm.LlmChunk.Error("boom", true))
-                }
-            override fun generateMultimodal(p: String, im: List<ByteArray>, s: String?, t: Float) = generateText(p, s, 0f)
+            override fun generate(
+                messages: List<com.example.personal_studio.data.remote.llm.LlmMessage>,
+                temperature: Float,
+            ) = kotlinx.coroutines.flow.flow {
+                emit(com.example.personal_studio.data.remote.llm.LlmChunk.Error("boom", true))
+            }
             override suspend fun generateStructured(p: String, sch: String) = "{}"
         }
         val vm = ChatDetailViewModel(

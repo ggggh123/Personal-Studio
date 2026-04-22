@@ -9,15 +9,20 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-// Read optional default OpenRouter API key + default model from local.properties
-// (never commit these). Keys shape:
-//   OPENROUTER_API_KEY=sk-or-v1-...
+// Read optional default API credentials + endpoint + model from local.properties
+// (never commit these). Supported keys:
+//   API_KEY=sk-...                           (any OpenAI-compatible provider)
+//   API_BASE_URL=https://openrouter.ai/api/v1  (OpenRouter by default; change for OpenAI/Ollama/etc.)
 //   DEFAULT_LLM_MODEL=google/gemini-2.0-flash-exp:free
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) load(f.inputStream())
 }
-val defaultOpenRouterKey: String = localProps.getProperty("OPENROUTER_API_KEY", "")
+val defaultApiKey: String = localProps.getProperty("API_KEY", "")
+val defaultApiBaseUrl: String = localProps.getProperty(
+    "API_BASE_URL",
+    "https://openrouter.ai/api/v1",
+)
 val defaultLlmModel: String = localProps.getProperty(
     "DEFAULT_LLM_MODEL",
     "google/gemini-2.0-flash-exp:free",
@@ -36,7 +41,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "DEFAULT_OPENROUTER_KEY", "\"$defaultOpenRouterKey\"")
+        buildConfigField("String", "DEFAULT_API_KEY", "\"$defaultApiKey\"")
+        buildConfigField("String", "DEFAULT_API_BASE_URL", "\"$defaultApiBaseUrl\"")
         buildConfigField("String", "DEFAULT_LLM_MODEL", "\"$defaultLlmModel\"")
 
         ksp {

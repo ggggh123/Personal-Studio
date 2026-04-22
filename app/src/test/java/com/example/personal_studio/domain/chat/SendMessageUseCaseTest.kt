@@ -58,11 +58,11 @@ class SendMessageUseCaseTest {
 private class FakeLLMProviderThatErrors(private val errorMessage: String) :
     com.example.personal_studio.data.remote.llm.LLMProvider {
     override val name = "fake-err"
-    override fun generateText(prompt: String, systemPrompt: String?, temperature: Float) =
-        kotlinx.coroutines.flow.flow {
-            emit(com.example.personal_studio.data.remote.llm.LlmChunk.Error(errorMessage, false))
-        }
-    override fun generateMultimodal(prompt: String, images: List<ByteArray>, systemPrompt: String?, temperature: Float) =
-        generateText(prompt, systemPrompt, 0f)
+    override fun generate(
+        messages: List<com.example.personal_studio.data.remote.llm.LlmMessage>,
+        temperature: Float,
+    ) = kotlinx.coroutines.flow.flow {
+        emit(com.example.personal_studio.data.remote.llm.LlmChunk.Error(errorMessage, false))
+    }
     override suspend fun generateStructured(prompt: String, jsonSchema: String) = "{}"
 }

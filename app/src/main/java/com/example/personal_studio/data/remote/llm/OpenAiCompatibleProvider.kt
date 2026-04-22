@@ -8,13 +8,10 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -29,24 +26,32 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 /**
- * OpenRouter (OpenAI-compatible) LLM provider.
+ * Generic OpenAI-compatible LLM provider.
  *
- * Endpoint: https://openrouter.ai/api/v1/chat/completions
+ * Works with any server that speaks the OpenAI chat-completions API format:
+ *  - OpenAI (`https://api.openai.com/v1`)
+ *  - OpenRouter (`https://openrouter.ai/api/v1`)
+ *  - Ollama (`http://<host>:11434/v1`)
+ *  - LM Studio (`http://<host>:1234/v1`)
+ *  - DeepSeek, Together, Fireworks, Groq, etc.
  *
- * Supports streaming via SSE. The response body is a sequence of `data: {json}` lines
- * terminated by `data: [DONE]`. Each chunk's `choices[0].delta.content` is the text delta.
+ * This class appends `/chat/completions` to the configured base URL.
  *
- * Multimodal is done via OpenAI's array-of-parts format: the user message's `content`
- * becomes a list of `{type:"text"}` and `{type:"image_url"}` objects with base64 data URIs.
+ * Streaming is SSE: `data: {json}` lines terminated by `data: [DONE]`.
+ * Multimodal uses OpenAI's array-of-parts content format.
+ *
+ * The OpenRouter-flavored `HTTP-Referer` and `X-Title` headers are sent unconditionally
+ * — they're harmless for other servers (ignored) and useful for OpenRouter's dashboard.
  */
-class OpenRouterProvider(
+class OpenAiCompatibleProvider(
     private val prefs: UserPreferencesRepository,
     private val bundledDefaultKey: String,
+    private val bundledDefaultBaseUrl: String,
     private val bundledDefaultModel: String,
     private val httpClient: OkHttpClient = defaultHttpClient(),
 ) : LLMProvider {
 
-    override val name: String = "openrouter"
+    override val name: String = "openai-compat"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -54,22 +59,26 @@ class OpenRouterProvider(
     }
 
     private suspend fun resolveApiKey(): String? =
-        prefs.openRouterApiKey.firstOrNull()?.takeIf { it.isNotBlank() }
+        prefs.apiKey.firstOrNull()?.takeIf { it.isNotBlank() }
             ?: bundledDefaultKey.takeIf { it.isNotBlank() }
+
+    private suspend fun resolveBaseUrl(): String =
+        prefs.apiBaseUrl.firstOrNull()?.takeIf { it.isNotBlank() }
+            ?: bundledDefaultBaseUrl
 
     private suspend fun resolveModel(): String =
         prefs.modelName.firstOrNull()?.takeIf { it.isNotBlank() }
             ?: bundledDefaultModel
 
-    override fun generateText(
-        prompt: String,
-        systemPrompt: String?,
+    override fun generate(
+        messages: List<LlmMessage>,
         temperature: Float,
     ): Flow<LlmChunk> = flow {
         val key = resolveApiKey() ?: run {
             emit(LlmChunk.Error("No API key configured — open Settings to add one.", retryable = false))
             return@flow
         }
+        val endpoint = completionsUrl(resolveBaseUrl())
         val model = resolveModel()
 
         val body = buildJsonObject {
@@ -77,65 +86,17 @@ class OpenRouterProvider(
             put("temperature", temperature.toDouble())
             put("stream", true)
             putJsonArray("messages") {
-                if (!systemPrompt.isNullOrBlank()) {
-                    add(textMessage("system", systemPrompt))
-                }
-                add(textMessage("user", prompt))
+                messages.forEach { m -> add(serializeMessage(m)) }
             }
         }
-
-        streamCompletion(key, body)
-    }
-        .flowOn(Dispatchers.IO)
-        .catch { t -> emit(LlmChunk.Error(t.message ?: "Unknown LLM error", retryable = true)) }
-
-    override fun generateMultimodal(
-        prompt: String,
-        images: List<ByteArray>,
-        systemPrompt: String?,
-        temperature: Float,
-    ): Flow<LlmChunk> = flow {
-        val key = resolveApiKey() ?: run {
-            emit(LlmChunk.Error("No API key configured — open Settings to add one.", retryable = false))
-            return@flow
-        }
-        val model = resolveModel()
-
-        val body = buildJsonObject {
-            put("model", model)
-            put("temperature", temperature.toDouble())
-            put("stream", true)
-            putJsonArray("messages") {
-                if (!systemPrompt.isNullOrBlank()) {
-                    add(textMessage("system", systemPrompt))
-                }
-                add(buildJsonObject {
-                    put("role", "user")
-                    putJsonArray("content") {
-                        add(buildJsonObject {
-                            put("type", "text")
-                            put("text", prompt)
-                        })
-                        images.forEach { bytes ->
-                            add(buildJsonObject {
-                                put("type", "image_url")
-                                putJsonObject("image_url") {
-                                    put("url", "data:image/jpeg;base64,${Base64.encodeToString(bytes, Base64.NO_WRAP)}")
-                                }
-                            })
-                        }
-                    }
-                })
-            }
-        }
-
-        streamCompletion(key, body)
+        streamCompletion(endpoint, key, body)
     }
         .flowOn(Dispatchers.IO)
         .catch { t -> emit(LlmChunk.Error(t.message ?: "Unknown LLM error", retryable = true)) }
 
     override suspend fun generateStructured(prompt: String, jsonSchema: String): String {
         val key = resolveApiKey() ?: error("No API key configured")
+        val endpoint = completionsUrl(resolveBaseUrl())
         val model = resolveModel()
 
         val instructed = """
@@ -153,15 +114,17 @@ class OpenRouterProvider(
             put("temperature", 0.2)
             put("stream", false)
             putJsonArray("messages") {
-                add(textMessage("user", instructed))
+                add(buildJsonObject {
+                    put("role", "user")
+                    put("content", instructed)
+                })
             }
-            // Ask for JSON mode if the model supports it
             putJsonObject("response_format") {
                 put("type", "json_object")
             }
         }
 
-        val request = buildRequest(key, body)
+        val request = buildRequest(endpoint, key, body)
         return httpClient.newCall(request).execute().use { response ->
             val responseBody = response.body?.string().orEmpty()
             if (!response.isSuccessful) error("HTTP ${response.code}: $responseBody")
@@ -170,18 +133,45 @@ class OpenRouterProvider(
                 ?.jsonObject?.get("message")
                 ?.jsonObject?.get("content")
                 ?.jsonPrimitive?.content
-                ?: error("OpenRouter returned no content")
+                ?: error("upstream returned no content")
             content
         }
     }
 
     // ───────────────────────────────────── internals ─────────────────────────────────────
 
+    private fun serializeMessage(m: LlmMessage): JsonObject = buildJsonObject {
+        put("role", when (m.role) {
+            LlmRole.SYSTEM -> "system"
+            LlmRole.USER -> "user"
+            LlmRole.ASSISTANT -> "assistant"
+        })
+        if (m.images.isEmpty()) {
+            put("content", m.text)
+        } else {
+            putJsonArray("content") {
+                add(buildJsonObject {
+                    put("type", "text")
+                    put("text", m.text)
+                })
+                m.images.forEach { bytes ->
+                    add(buildJsonObject {
+                        put("type", "image_url")
+                        putJsonObject("image_url") {
+                            put("url", "data:image/jpeg;base64,${Base64.encodeToString(bytes, Base64.NO_WRAP)}")
+                        }
+                    })
+                }
+            }
+        }
+    }
+
     private suspend fun kotlinx.coroutines.flow.FlowCollector<LlmChunk>.streamCompletion(
+        endpoint: String,
         key: String,
         body: JsonObject,
     ) {
-        val request = buildRequest(key, body)
+        val request = buildRequest(endpoint, key, body)
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 val errText = response.body?.string().orEmpty().take(500)
@@ -196,11 +186,9 @@ class OpenRouterProvider(
 
             var gotAnyContent = false
 
-            // readUtf8Line() is null-safe at EOF (unlike strict). Loop until the stream
-            // closes or [DONE] / error marker arrives.
             while (true) {
                 val line = source.readUtf8Line() ?: break
-                if (line.isEmpty()) continue                 // SSE event terminator
+                if (line.isEmpty()) continue
                 if (!line.startsWith("data:")) continue
                 val payload = line.removePrefix("data:").trim()
                 if (payload.isEmpty()) continue
@@ -212,9 +200,7 @@ class OpenRouterProvider(
                     continue
                 }
 
-                // OpenAI-compatible API sometimes returns errors inside the stream
-                // with HTTP 200. Handle that explicitly.
-                val errorObj = root["error"]?.let { it as? JsonObject ?: (it as? kotlinx.serialization.json.JsonElement)?.jsonObject }
+                val errorObj = root["error"] as? JsonObject
                 if (errorObj != null) {
                     val msg = errorObj["message"]?.jsonPrimitive?.content ?: "upstream error"
                     emit(LlmChunk.Error(msg, retryable = false))
@@ -243,9 +229,9 @@ class OpenRouterProvider(
         }
     }
 
-    private fun buildRequest(apiKey: String, body: JsonObject): Request =
+    private fun buildRequest(endpoint: String, apiKey: String, body: JsonObject): Request =
         Request.Builder()
-            .url(ENDPOINT)
+            .url(endpoint)
             .header("Authorization", "Bearer $apiKey")
             .header("Content-Type", "application/json")
             .header("Accept", "text/event-stream")
@@ -254,21 +240,17 @@ class OpenRouterProvider(
             .post(json.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
+    private fun completionsUrl(baseUrl: String): String =
+        baseUrl.trimEnd('/') + "/chat/completions"
+
     companion object {
-        private const val ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
         private fun defaultHttpClient(): OkHttpClient =
             OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)       // Streaming can be slow-trickle
+                .readTimeout(120, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build()
-
-        private fun textMessage(role: String, content: String): JsonObject =
-            buildJsonObject {
-                put("role", role)
-                put("content", content)
-            }
     }
 }
