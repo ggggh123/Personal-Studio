@@ -43,4 +43,10 @@ interface ScanPageDao {
 
     @Query("UPDATE scan_pages SET ordinal = :ordinal WHERE id = :id")
     suspend fun setOrdinal(id: Long, ordinal: Int)
+
+    @Query("SELECT COALESCE(MAX(ordinal), -1) + 1 FROM scan_pages WHERE docId = :docId")
+    suspend fun nextOrdinal(docId: Long): Int
+
+    @Query("SELECT * FROM scan_pages WHERE docId = :docId ORDER BY ordinal ASC")
+    suspend fun getPages(docId: Long): List<ScanPageEntity>
 }
