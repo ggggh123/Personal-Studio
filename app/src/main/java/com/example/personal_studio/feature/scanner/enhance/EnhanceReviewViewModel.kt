@@ -17,7 +17,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 data class EnhanceReviewUiState(
-    val currentFilter: ScanFilter = ScanFilter.BW,
+    // GRAYSCALE is our CamScanner-style "enhanced+sharp" mode — the sensible
+    // default for document scans (keeps gray levels so small fonts survive).
+    val currentFilter: ScanFilter = ScanFilter.GRAYSCALE,
     val displayedBitmap: Bitmap? = null,
     val isLoading: Boolean = true,
     val warpedColor: Bitmap? = null,  // the common pre-filter base (COLOR output)
@@ -39,10 +41,10 @@ class EnhanceReviewViewModel @AssistedInject constructor(
             val raw = BitmapIo.decodeDownscaled(File(capturedFilePath))
             val warped = pipeline.warpAndFilter(raw, cornersBitmapPx, ScanFilter.COLOR)
             cache[ScanFilter.COLOR] = warped
-            val initial = pipeline.applyFilter(warped, ScanFilter.BW)
-            cache[ScanFilter.BW] = initial
+            val initial = pipeline.applyFilter(warped, ScanFilter.GRAYSCALE)
+            cache[ScanFilter.GRAYSCALE] = initial
             _state.value = EnhanceReviewUiState(
-                currentFilter = ScanFilter.BW,
+                currentFilter = ScanFilter.GRAYSCALE,
                 displayedBitmap = initial,
                 isLoading = false,
                 warpedColor = warped,
