@@ -15,6 +15,11 @@ object NavRoutes {
 
     const val SETTINGS = "settings"
 
+    // Scanner multi-page flow host (Phase 3).
+    const val SCANNER_NEW_DOC = "scanner/new?resumeDocId={resumeDocId}"
+    fun scannerNewDoc(resumeDocId: Long? = null) =
+        if (resumeDocId == null) "scanner/new?resumeDocId=" else "scanner/new?resumeDocId=$resumeDocId"
+
     // Scanner single-page smoke flow (expanded into DocumentBuilder host in Phase 3).
     const val SCANNER_CAMERA = "scanner/camera"
 

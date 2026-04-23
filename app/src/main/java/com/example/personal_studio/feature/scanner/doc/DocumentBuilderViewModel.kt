@@ -2,12 +2,15 @@ package com.example.personal_studio.feature.scanner.doc
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.graphics.PointF
 import com.example.personal_studio.data.repository.ScanRepository
 import com.example.personal_studio.domain.model.ScanFilter
 import com.example.personal_studio.domain.scanner.AddPageToDocumentUseCase
+import com.example.personal_studio.domain.scanner.CaptureAndEnhancePageUseCase
 import com.example.personal_studio.domain.scanner.CreateScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.DeleteScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.FinalizeScanDocumentUseCase
+import java.io.File
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -43,6 +46,7 @@ class DocumentBuilderViewModel @AssistedInject constructor(
     private val addPage: AddPageToDocumentUseCase,
     private val finalize: FinalizeScanDocumentUseCase,
     private val deleteDoc: DeleteScanDocumentUseCase,
+    private val captureAndEnhance: CaptureAndEnhancePageUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DocBuilderUiState())
@@ -73,6 +77,22 @@ class DocumentBuilderViewModel @AssistedInject constructor(
     ) = viewModelScope.launch {
         val id = _state.value.docId ?: return@launch
         addPage(id, originalImagePath, enhancedImagePath, filter, cornersJson)
+    }
+
+    /**
+     * End-to-end "confirm page" entry point used by [DocumentBuilderScreen]:
+     * runs [CaptureAndEnhancePageUseCase] to warp+filter the tmp capture
+     * into disk files under the document's folder, then appends the page
+     * to the doc. All pieces the screen already has in hand.
+     */
+    fun confirmPage(
+        tmpCapture: File,
+        corners: List<PointF>,
+        filter: ScanFilter,
+    ) = viewModelScope.launch {
+        val id = _state.value.docId ?: return@launch
+        val result = captureAndEnhance(id, tmpCapture, corners, filter)
+        addPage(id, result.originalImagePath, result.enhancedImagePath, result.filter, result.cornersJson)
     }
 
     fun finish() = viewModelScope.launch {

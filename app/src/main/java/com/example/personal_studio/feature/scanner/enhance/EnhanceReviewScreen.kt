@@ -47,7 +47,10 @@ fun EnhanceReviewScreen(
     onConfirm: (filter: ScanFilter, saveToLib: Boolean) -> Unit,
     onCancel: () -> Unit,
 ) {
+    // Same reasoning as EdgeDetectAndCropScreen: key by the tmp path so nested
+    // use inside DocumentBuilder doesn't reuse VMs across captures.
     val vm: EnhanceReviewViewModel = hiltViewModel(
+        key = capturedFilePath,
         creationCallback = { f: EnhanceReviewViewModel.Factory -> f.create(capturedFilePath, cornersBitmapPx) }
     )
     val state by vm.state.collectAsStateWithLifecycle()

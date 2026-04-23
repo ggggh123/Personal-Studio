@@ -54,7 +54,13 @@ fun EdgeDetectAndCropScreen(
     onConfirm: (corners: List<PointF>) -> Unit,
     onRetake: () -> Unit,
 ) {
+    // Keying the VM by capturedFilePath means each distinct capture gets its
+    // own VM instance — critical when this composable is reused inside a
+    // DocumentBuilder state machine (same nav entry, multiple rounds of
+    // capture→edge→enhance), where the default class-only key would leak
+    // the first round's bitmap into later rounds.
     val vm: EdgeDetectViewModel = hiltViewModel(
+        key = capturedFilePath,
         creationCallback = { f: EdgeDetectViewModel.Factory ->
             f.create(capturedFilePath, autoDetect, preDetectedNormalized)
         }

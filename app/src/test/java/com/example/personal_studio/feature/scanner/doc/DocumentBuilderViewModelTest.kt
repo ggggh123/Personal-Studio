@@ -3,9 +3,11 @@ package com.example.personal_studio.feature.scanner.doc
 import com.example.personal_studio.data.repository.FakeScanRepository
 import com.example.personal_studio.domain.model.ScanFilter
 import com.example.personal_studio.domain.scanner.AddPageToDocumentUseCase
+import com.example.personal_studio.domain.scanner.CaptureAndEnhancePageUseCase
 import com.example.personal_studio.domain.scanner.CreateScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.DeleteScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.FinalizeScanDocumentUseCase
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -35,6 +37,10 @@ class DocumentBuilderViewModelTest {
             addPage = AddPageToDocumentUseCase(repo),
             finalize = FinalizeScanDocumentUseCase(repo),
             deleteDoc = DeleteScanDocumentUseCase(repo),
+            // confirmPage is not exercised in these state-machine tests —
+            // it depends on Android Bitmap operations (via BitmapIo /
+            // EnhancePipeline) which aren't available in pure JVM tests.
+            captureAndEnhance = mockk(relaxed = true),
         )
 
     @Test fun `init creates pending doc with fresh id`() = runTest {

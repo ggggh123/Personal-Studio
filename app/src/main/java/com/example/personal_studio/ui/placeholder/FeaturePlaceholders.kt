@@ -25,7 +25,7 @@ import com.example.personal_studio.ui.theme.Phosphor
         command = "ls scans/",
         output = "no documents yet",
         hint = "camera + edge detection lands in P2",
-        action = onStartSmokeCapture?.let { "[▸ test capture]" to it },
+        action = onStartSmokeCapture?.let { "[+ new doc]" to it },
     )
 
 @Composable fun KnowledgePlaceholder() = Placeholder("grep -r . kb/", "no entries yet",

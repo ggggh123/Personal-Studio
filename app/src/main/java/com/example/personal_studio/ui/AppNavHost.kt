@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
+import com.example.personal_studio.feature.scanner.doc.DocumentBuilderScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
@@ -48,7 +49,20 @@ fun AppNavHost(navController: NavHostController) {
 
         composable(NavRoutes.SCANNER) {
             ScannerPlaceholder(
-                onStartSmokeCapture = { navController.navigate(NavRoutes.SCANNER_CAMERA) }
+                onStartSmokeCapture = { navController.navigate(NavRoutes.scannerNewDoc()) }
+            )
+        }
+        composable(
+            route = NavRoutes.SCANNER_NEW_DOC,
+            arguments = listOf(
+                navArgument("resumeDocId") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { backStack ->
+            val raw = backStack.arguments?.getString("resumeDocId").orEmpty()
+            val resumeId = raw.toLongOrNull()
+            DocumentBuilderScreen(
+                resumeDocId = resumeId,
+                onExit = { navController.popBackStack() },
             )
         }
         composable(NavRoutes.KNOWLEDGE) { KnowledgePlaceholder() }
