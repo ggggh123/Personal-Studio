@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -40,6 +41,12 @@ fun CornerDragOverlay(
     val grabRadiusPx = with(density) { 36.dp.toPx() }
     var dragging by remember { mutableStateOf<CornerId?>(null) }
 
+    // pointerInput(Unit) registers its gesture handlers once; without these latches
+    // the handlers would capture the initial `corners` / `onCornersChange` forever
+    // and each onDrag frame would only write `initial + per-frame-delta` (stuck feel).
+    val cornersLatest by rememberUpdatedState(corners)
+    val onChangeLatest by rememberUpdatedState(onCornersChange)
+
     Canvas(
         modifier = modifier
             .fillMaxSize()
@@ -47,7 +54,7 @@ fun CornerDragOverlay(
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { pos ->
-                        dragging = nearestCorner(pos, corners, grabRadiusPx)
+                        dragging = nearestCorner(pos, cornersLatest, grabRadiusPx)
                     },
                     onDragEnd = { dragging = null },
                     onDragCancel = { dragging = null },
@@ -55,11 +62,12 @@ fun CornerDragOverlay(
                         val which = dragging ?: return@detectDragGestures
                         change.consume()
                         val idx = which.ordinal
+                        val c = cornersLatest
                         val clamped = Offset(
-                            (corners[idx].x + drag.x).coerceIn(0f, boxSize.width),
-                            (corners[idx].y + drag.y).coerceIn(0f, boxSize.height),
+                            (c[idx].x + drag.x).coerceIn(0f, boxSize.width),
+                            (c[idx].y + drag.y).coerceIn(0f, boxSize.height),
                         )
-                        onCornersChange(corners.toMutableList().also { it[idx] = clamped })
+                        onChangeLatest(c.toMutableList().also { it[idx] = clamped })
                     },
                 )
             },
