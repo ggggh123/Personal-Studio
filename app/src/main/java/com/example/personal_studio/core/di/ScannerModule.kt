@@ -7,7 +7,7 @@ import com.example.personal_studio.data.repository.ScanRepository
 import com.example.personal_studio.data.repository.ScanRepositoryImpl
 import com.example.personal_studio.data.scanner.EdgeDetector
 import com.example.personal_studio.data.scanner.EnhancePipeline
-import com.example.personal_studio.data.scanner.OpenCvEdgeDetector
+import com.example.personal_studio.data.scanner.OnnxEdgeDetector
 import com.example.personal_studio.data.scanner.OpenCvEnhancePipeline
 import com.example.personal_studio.data.scanner.PdfExporter
 import dagger.Module
@@ -36,7 +36,7 @@ object ScannerModule {
     fun provideEnhancePipeline(impl: OpenCvEnhancePipeline): EnhancePipeline = impl
 
     @Provides @Singleton
-    fun provideEdgeDetector(impl: OpenCvEdgeDetector): EdgeDetector = impl
+    fun provideEdgeDetector(impl: OnnxEdgeDetector): EdgeDetector = impl
 
     @Provides @Singleton
     fun providePdfExporter(@ApplicationContext ctx: Context): PdfExporter = PdfExporter(ctx)
