@@ -1,5 +1,6 @@
 package com.example.personal_studio.ui.placeholder
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,8 +20,13 @@ import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 
-@Composable fun ScannerPlaceholder() = Placeholder("ls scans/", "no documents yet",
-    "camera + edge detection lands in P2")
+@Composable fun ScannerPlaceholder(onStartSmokeCapture: (() -> Unit)? = null) =
+    Placeholder(
+        command = "ls scans/",
+        output = "no documents yet",
+        hint = "camera + edge detection lands in P2",
+        action = onStartSmokeCapture?.let { "[▸ test capture]" to it },
+    )
 
 @Composable fun KnowledgePlaceholder() = Placeholder("grep -r . kb/", "no entries yet",
     "archive a chat response in P3 to populate this index")
@@ -29,7 +35,12 @@ import com.example.personal_studio.ui.theme.Phosphor
     "timeline + notifications arrive in P4")
 
 @Composable
-private fun Placeholder(command: String, output: String, hint: String) {
+private fun Placeholder(
+    command: String,
+    output: String,
+    hint: String,
+    action: Pair<String, () -> Unit>? = null,
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 36.dp),
     ) {
@@ -51,5 +62,14 @@ private fun Placeholder(command: String, output: String, hint: String) {
             },
             style = MaterialTheme.typography.bodySmall,
         )
+        if (action != null) {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                action.first,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Phosphor,
+                modifier = Modifier.clickable(onClick = action.second),
+            )
+        }
     }
 }
