@@ -33,6 +33,9 @@ okhttp = "4.12.0"
 camerax = "1.4.1"
 opencv = "4.10.0"
 
+# ML inference (ONNXRuntime for the fastvit_sa24 document corner detector)
+onnxruntime = "1.20.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -94,6 +97,7 @@ androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", 
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 opencv-android = { group = "org.opencv", name = "opencv", version.ref = "opencv" }
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

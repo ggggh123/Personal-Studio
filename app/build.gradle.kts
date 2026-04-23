@@ -85,6 +85,12 @@ android {
             excludes += "/META-INF/LICENSE-notice.md"
         }
     }
+
+    androidResources {
+        // Don't compress the ONNX model — it's already not very compressible
+        // and decompression on load would add startup latency + memory churn.
+        noCompress += "onnx"
+    }
 }
 
 dependencies {
@@ -133,6 +139,9 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.opencv.android)
+
+    // ONNXRuntime for document-corner ML model (fastvit_sa24)
+    implementation(libs.onnxruntime.android)
 
     // Unit tests
     testImplementation(libs.junit)
