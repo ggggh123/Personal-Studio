@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanFilter
+import com.example.personal_studio.ui.components.rememberZoomableBoxState
+import com.example.personal_studio.ui.components.zoomTransform
+import com.example.personal_studio.ui.components.zoomable
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
@@ -49,15 +52,26 @@ fun EnhanceReviewScreen(
     )
     val state by vm.state.collectAsStateWithLifecycle()
     var saveToLib by remember { mutableStateOf(false) }
+    val zoom = rememberZoomableBoxState()
+
+    // Any filter switch resets the zoom — otherwise the new filter's preview
+    // opens inside the previous pan/zoom window, which feels disorienting.
+    remember(state.currentFilter) { zoom.reset(); state.currentFilter }
 
     Column(Modifier.fillMaxSize().background(Void)) {
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .zoomable(zoom),
+            contentAlignment = Alignment.Center,
+        ) {
             state.displayedBitmap?.let {
                 Image(
                     bitmap = it.asImageBitmap(),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().zoomTransform(zoom),
                 )
             }
         }

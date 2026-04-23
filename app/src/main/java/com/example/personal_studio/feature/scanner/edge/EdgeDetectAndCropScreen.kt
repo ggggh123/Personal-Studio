@@ -28,10 +28,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.ui.components.CornerDragOverlay
+import com.example.personal_studio.ui.components.rememberZoomableBoxState
+import com.example.personal_studio.ui.components.zoomTransform
+import com.example.personal_studio.ui.components.zoomable
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
@@ -48,13 +52,27 @@ fun EdgeDetectAndCropScreen(
     )
     val state by vm.state.collectAsStateWithLifecycle()
     var containerSize by remember { mutableStateOf(Size.Zero) }
+    val zoom = rememberZoomableBoxState()
+    val density = LocalDensity.current
+    val grabRadiusPx = with(density) { 36.dp.toPx() }
+
+    // Computed below inside the content block; re-referenced from hitTest. We
+    // hold it in a mutable state so the outer zoomable modifier (which takes
+    // a stable lambda) sees the current corner positions without being re-keyed.
+    var cornersUiLatest by remember { mutableStateOf<List<Offset>>(emptyList()) }
+    val hitTest: (Offset) -> Boolean = { pos ->
+        cornersUiLatest.any { corner ->
+            (pos - corner).getDistance() <= grabRadiusPx
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(Void)) {
         Box(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .onSizeChanged { containerSize = Size(it.width.toFloat(), it.height.toFloat()) },
+                .onSizeChanged { containerSize = Size(it.width.toFloat(), it.height.toFloat()) }
+                .zoomable(zoom, hitTest = hitTest),
             contentAlignment = Alignment.Center,
         ) {
             state.bitmap?.let { bmp ->
@@ -62,22 +80,33 @@ fun EdgeDetectAndCropScreen(
                     bitmap = bmp.asImageBitmap(),
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().zoomTransform(zoom),
                 )
                 val cornersBitmap = state.corners ?: emptyList()
                 if (cornersBitmap.size == 4 && containerSize.width > 0) {
                     val fit = fitTransform(bmp.width, bmp.height, containerSize)
+                    // Apply the visual zoom to corners so the overlay draws
+                    // them where the (zoomed) image visually shows the paper,
+                    // and hit testing lines up with what the user sees.
+                    val s = zoom.scale
+                    val ox = zoom.offset.x
+                    val oy = zoom.offset.y
                     val cornersUi = cornersBitmap.map { p ->
-                        Offset(p.x * fit.scale + fit.offsetX, p.y * fit.scale + fit.offsetY)
+                        val baseX = p.x * fit.scale + fit.offsetX
+                        val baseY = p.y * fit.scale + fit.offsetY
+                        Offset(baseX * s + ox, baseY * s + oy)
                     }
+                    cornersUiLatest = cornersUi
                     CornerDragOverlay(
                         corners = cornersUi,
                         onCornersChange = { uiCorners ->
                             vm.updateCorners(
                                 uiCorners.map {
+                                    val baseX = (it.x - ox) / s
+                                    val baseY = (it.y - oy) / s
                                     PointF(
-                                        ((it.x - fit.offsetX) / fit.scale).coerceAtLeast(0f),
-                                        ((it.y - fit.offsetY) / fit.scale).coerceAtLeast(0f),
+                                        ((baseX - fit.offsetX) / fit.scale).coerceAtLeast(0f),
+                                        ((baseY - fit.offsetY) / fit.scale).coerceAtLeast(0f),
                                     )
                                 },
                             )
