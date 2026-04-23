@@ -59,8 +59,11 @@ fun AppNavHost(navController: NavHostController) {
             val tmpDir = File(context.filesDir, "scans/tmp").apply { mkdirs() }
             CameraCaptureScreen(
                 outputDir = tmpDir,
-                onCaptured = { file ->
-                    navController.navigate(NavRoutes.scannerEdge(file.absolutePath)) {
+                onCaptured = { file, autoDetect, liveNorm ->
+                    val liveEncoded = liveNorm?.let(::encodeCorners).orEmpty()
+                    navController.navigate(
+                        NavRoutes.scannerEdge(file.absolutePath, autoDetect, liveEncoded),
+                    ) {
                         popUpTo(NavRoutes.SCANNER_CAMERA) { inclusive = true }
                     }
                 },
@@ -69,11 +72,20 @@ fun AppNavHost(navController: NavHostController) {
         }
         composable(
             route = NavRoutes.SCANNER_EDGE,
-            arguments = listOf(navArgument("tmp") { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument("tmp") { type = NavType.StringType },
+                navArgument("auto") { type = NavType.BoolType; defaultValue = true },
+                navArgument("live") { type = NavType.StringType; defaultValue = "" },
+            ),
         ) { backStack ->
             val tmp = Uri.decode(backStack.arguments?.getString("tmp") ?: "")
+            val auto = backStack.arguments?.getBoolean("auto") ?: true
+            val liveStr = Uri.decode(backStack.arguments?.getString("live") ?: "")
+            val liveNorm = if (liveStr.isBlank()) null else decodeCorners(liveStr)
             EdgeDetectAndCropScreen(
                 capturedFilePath = tmp,
+                autoDetect = auto,
+                preDetectedNormalized = liveNorm,
                 onConfirm = { corners ->
                     val encoded = encodeCorners(corners)
                     navController.navigate(NavRoutes.scannerEnhance(tmp, encoded)) {

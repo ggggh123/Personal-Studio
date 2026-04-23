@@ -44,11 +44,20 @@ import com.example.personal_studio.ui.theme.Void
 @Composable
 fun EdgeDetectAndCropScreen(
     capturedFilePath: String,
+    autoDetect: Boolean = true,
+    /** Optional pre-detected corners in normalized [0,1]² portrait coords,
+     *  forwarded from the live-preview overlay. If set, the VM skips its
+     *  own post-capture detection call and uses these instead — so the
+     *  quad the user saw on the viewfinder is the quad they get after
+     *  tapping capture. */
+    preDetectedNormalized: List<PointF>? = null,
     onConfirm: (corners: List<PointF>) -> Unit,
     onRetake: () -> Unit,
 ) {
     val vm: EdgeDetectViewModel = hiltViewModel(
-        creationCallback = { f: EdgeDetectViewModel.Factory -> f.create(capturedFilePath) }
+        creationCallback = { f: EdgeDetectViewModel.Factory ->
+            f.create(capturedFilePath, autoDetect, preDetectedNormalized)
+        }
     )
     val state by vm.state.collectAsStateWithLifecycle()
     var containerSize by remember { mutableStateOf(Size.Zero) }

@@ -18,8 +18,14 @@ object NavRoutes {
     // Scanner single-page smoke flow (expanded into DocumentBuilder host in Phase 3).
     const val SCANNER_CAMERA = "scanner/camera"
 
-    const val SCANNER_EDGE = "scanner/edge?tmp={tmp}"
-    fun scannerEdge(tmp: String) = "scanner/edge?tmp=${Uri.encode(tmp)}"
+    const val SCANNER_EDGE = "scanner/edge?tmp={tmp}&auto={auto}&live={live}"
+    /**
+     * [live] is an optional pre-detected quadrilateral in normalized
+     * portrait coordinates (values 0..1, encoded "x,y;x,y;x,y;x,y"). Empty
+     * string when no live detection was available at capture time.
+     */
+    fun scannerEdge(tmp: String, auto: Boolean, live: String) =
+        "scanner/edge?tmp=${Uri.encode(tmp)}&auto=$auto&live=${Uri.encode(live)}"
 
     const val SCANNER_ENHANCE = "scanner/enhance?tmp={tmp}&corners={corners}"
     fun scannerEnhance(tmp: String, corners: String) =
