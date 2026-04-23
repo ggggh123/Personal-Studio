@@ -54,9 +54,12 @@ fun EnhanceReviewScreen(
     var saveToLib by remember { mutableStateOf(false) }
     val zoom = rememberZoomableBoxState()
 
-    // Any filter switch resets the zoom — otherwise the new filter's preview
-    // opens inside the previous pan/zoom window, which feels disorienting.
-    remember(state.currentFilter) { zoom.reset(); state.currentFilter }
+    // Filter switches and rotations reset the zoom — rotation swaps W/H so a
+    // lingering pan/scale from the previous orientation would feel disorienting.
+    remember(state.currentFilter, state.rotationQuarters) {
+        zoom.reset()
+        state.currentFilter to state.rotationQuarters
+    }
 
     Column(Modifier.fillMaxSize().background(Void)) {
         Box(
@@ -76,10 +79,11 @@ fun EnhanceReviewScreen(
             }
         }
 
-        // Filter toolbar
+        // Filter toolbar + rotate button
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             ScanFilter.entries.forEach { f ->
                 val active = state.currentFilter == f
@@ -90,6 +94,12 @@ fun EnhanceReviewScreen(
                     modifier = Modifier.clickable { vm.selectFilter(f) },
                 )
             }
+            Text(
+                "[↻ rot]",
+                style = MaterialTheme.typography.bodyMedium,
+                color = FoamDim,
+                modifier = Modifier.clickable { vm.rotateClockwise() },
+            )
         }
 
         if (showSaveToLibCheckbox) {
