@@ -41,6 +41,10 @@ fun MainScreen(navController: NavHostController = rememberNavController()) {
     val currentRoute = backStack?.destination?.route
     val isTabRoute = tabs.any { it.route == currentRoute }
     val currentTab = tabs.firstOrNull { it.route == currentRoute }
+    // Scanner sub-routes show camera/image content that must not be tinted by
+    // the CRT phosphor glow or dimmed by the vignette — the scanlines overlay
+    // was painting a greenish film on top of the preview and looked hazy.
+    val isScannerSubRoute = currentRoute?.startsWith("scanner/") == true
 
     // Sub-routes (chat detail, settings) render their own top bar — we only show
     // the shell's chrome on tab destinations. `contentWindowInsets = WindowInsets(0)`
@@ -88,8 +92,7 @@ fun MainScreen(navController: NavHostController = rememberNavController()) {
                 .fillMaxSize()
                 .padding(inner)
                 .background(Void)
-                .scanLines()
-                .vignette(),
+                .let { if (isScannerSubRoute) it else it.scanLines().vignette() },
         ) {
             AppNavHost(navController = navController)
         }
