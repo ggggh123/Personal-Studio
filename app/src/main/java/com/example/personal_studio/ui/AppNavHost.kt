@@ -15,10 +15,10 @@ import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.doc.DocumentBuilderScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
+import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
 import com.example.personal_studio.ui.placeholder.KnowledgePlaceholder
-import com.example.personal_studio.ui.placeholder.ScannerPlaceholder
 import com.example.personal_studio.ui.placeholder.TimelinePlaceholder
 import java.io.File
 
@@ -48,8 +48,12 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(NavRoutes.SCANNER) {
-            ScannerPlaceholder(
-                onStartSmokeCapture = { navController.navigate(NavRoutes.scannerNewDoc()) }
+            ScanLibraryScreen(
+                onNewDoc = { navController.navigate(NavRoutes.scannerNewDoc()) },
+                onOpenDoc = { docId ->
+                    // TODO(P2 Phase 3 Task 21): wire SCANNER_DETAIL navigation
+                    //  navController.navigate(NavRoutes.scannerDetail(docId))
+                },
             )
         }
         composable(
