@@ -54,6 +54,9 @@ fun AppNavHost(navController: NavHostController) {
                     // TODO(P2 Phase 3 Task 21): wire SCANNER_DETAIL navigation
                     //  navController.navigate(NavRoutes.scannerDetail(docId))
                 },
+                onResumeDoc = { docId ->
+                    navController.navigate(NavRoutes.scannerNewDoc(docId))
+                },
             )
         }
         composable(
