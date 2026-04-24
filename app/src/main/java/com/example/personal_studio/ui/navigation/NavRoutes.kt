@@ -24,6 +24,10 @@ object NavRoutes {
     const val SCANNER_DETAIL = "scanner/detail/{docId}"
     fun scannerDetail(docId: Long) = "scanner/detail/$docId"
 
+    // Scanner per-page edit screen (Phase 3 Task 22).
+    const val SCANNER_PAGE_EDIT = "scanner/page/{pageId}"
+    fun scannerPageEdit(pageId: Long) = "scanner/page/$pageId"
+
     // Scanner single-page smoke flow (expanded into DocumentBuilder host in Phase 3).
     const val SCANNER_CAMERA = "scanner/camera"
 

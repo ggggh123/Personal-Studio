@@ -13,6 +13,7 @@ import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.doc.DocumentBuilderScreen
+import com.example.personal_studio.feature.scanner.doc.PageEditScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScreen
@@ -65,8 +66,18 @@ fun AppNavHost(navController: NavHostController) {
             ScanDocumentDetailScreen(
                 docId = docId,
                 onBack = { navController.popBackStack() },
-                // TODO(P2 Phase 3 Task 22): wire PageEditScreen on page tap.
+                onOpenPage = { pageId -> navController.navigate(NavRoutes.scannerPageEdit(pageId)) },
                 // TODO(P2 Phase 5 Task 26/27): wire share-pdf intent.
+            )
+        }
+        composable(
+            route = NavRoutes.SCANNER_PAGE_EDIT,
+            arguments = listOf(navArgument("pageId") { type = NavType.LongType }),
+        ) { backStack ->
+            val pageId = backStack.arguments?.getLong("pageId") ?: return@composable
+            PageEditScreen(
+                pageId = pageId,
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
