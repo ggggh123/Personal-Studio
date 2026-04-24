@@ -52,6 +52,8 @@ private fun Context.copyUriToFile(uri: Uri): String? {
 fun AttachmentSheet(
     onDismiss: () -> Unit,
     onImagePicked: (path: String) -> Unit,
+    onRequestQuickCapture: () -> Unit = {},
+    onRequestPickFromScans: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -91,14 +93,18 @@ fun AttachmentSheet(
                 },
             )
             Option(
-                line = "--from-camera     take a new photo (P2 adds enhancement)",
-                onClick = { /* deferred to P2 — scanner will own camera capture + enhancement */ },
-                disabled = true,
+                line = "--from-camera      take a new photo (scanned)",
+                onClick = {
+                    onRequestQuickCapture()
+                    onDismiss()
+                },
             )
             Option(
-                line = "--from-scans      pick from scan library (P2)",
-                onClick = {},
-                disabled = true,
+                line = "--from-scans       pick from scan library",
+                onClick = {
+                    onRequestPickFromScans()
+                    onDismiss()
+                },
             )
             Spacer(Modifier.height(8.dp))
         }
