@@ -91,7 +91,7 @@ class DocumentBuilderViewModel @AssistedInject constructor(
         filter: ScanFilter,
     ) = viewModelScope.launch {
         val id = _state.value.docId ?: return@launch
-        val result = captureAndEnhance(id, tmpCapture, corners, filter)
+        val result = captureAndEnhance(repo.documentDir(id), tmpCapture, corners, filter)
         addPage(id, result.originalImagePath, result.enhancedImagePath, result.filter, result.cornersJson)
     }
 

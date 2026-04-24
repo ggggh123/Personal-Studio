@@ -1,7 +1,6 @@
 package com.example.personal_studio.domain.scanner
 
 import android.graphics.PointF
-import com.example.personal_studio.data.repository.ScanRepository
 import com.example.personal_studio.data.scanner.BitmapIo
 import com.example.personal_studio.data.scanner.EnhancePipeline
 import com.example.personal_studio.domain.model.ScanFilter
@@ -13,13 +12,15 @@ import javax.inject.Inject
 
 /**
  * Given a freshly captured tmp photo + the user's confirmed 4 corners + filter
- * selection, produces the orig + enhanced JPGs on disk under the doc's
- * directory and returns their paths. Does NOT touch the DB; the caller decides
- * whether to append to the doc or return the path for chat.
+ * selection, produces the orig + enhanced JPGs on disk under [dir] and returns
+ * their paths. Does NOT touch the DB; the caller decides whether to append to
+ * a scan doc, replace an existing page, or surface the path to chat.
+ *
+ * [dir] is typically `repo.documentDir(docId)` for scan-library captures, or a
+ * scratch directory under `filesDir/scans/tmp-chat/` for one-shot chat uses.
  */
 class CaptureAndEnhancePageUseCase @Inject constructor(
     private val pipeline: EnhancePipeline,
-    private val repo: ScanRepository,
 ) {
     data class Result(
         val originalImagePath: String,
@@ -29,12 +30,12 @@ class CaptureAndEnhancePageUseCase @Inject constructor(
     )
 
     suspend operator fun invoke(
-        docId: Long,
+        dir: File,
         tmpCaptureFile: File,
         corners: List<PointF>,
         filter: ScanFilter,
     ): Result {
-        val dir = repo.documentDir(docId).apply { mkdirs() }
+        dir.mkdirs()
         val stem = UUID.randomUUID().toString().take(8)
 
         val rawBmp = BitmapIo.decodeDownscaled(tmpCaptureFile)
