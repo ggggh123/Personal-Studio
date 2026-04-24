@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import com.example.personal_studio.feature.scanner.chat.QuickCaptureForChatScreen
+import com.example.personal_studio.feature.scanner.library.ScanLibraryPickerScreen
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -80,6 +82,9 @@ fun ChatDetailScreen(
     // Attachment sheet + crop overlay local UI state
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var pickedForCrop by remember { mutableStateOf<String?>(null) }
+    // Full-screen takeover states for scanner integration.
+    var showQuickCapture by remember { mutableStateOf(false) }
+    var showScansPicker by remember { mutableStateOf(false) }
 
     // Per-message rendered height cache. MathMarkdownView is a WebView that reports
     // its real height async (after KaTeX + font load + ResizeObserver). When an AI
@@ -309,6 +314,30 @@ fun ChatDetailScreen(
                 pickedForCrop = path
                 showAttachmentSheet = false
             },
+            onRequestQuickCapture = { showQuickCapture = true },
+            onRequestPickFromScans = { showScansPicker = true },
+        )
+    }
+
+    // Scanner takeovers. Both funnel picked paths through the same
+    // pickedForCrop state, so the ImageCropOverlay path is identical to
+    // the gallery case.
+    if (showQuickCapture) {
+        QuickCaptureForChatScreen(
+            onImagePicked = { path ->
+                pickedForCrop = path
+                showQuickCapture = false
+            },
+            onCancel = { showQuickCapture = false },
+        )
+    }
+    if (showScansPicker) {
+        ScanLibraryPickerScreen(
+            onPagePicked = { path ->
+                pickedForCrop = path
+                showScansPicker = false
+            },
+            onCancel = { showScansPicker = false },
         )
     }
     // Crop overlay

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Exported PDFs from PdfExporter land under cacheDir/export/. -->
+    <cache-path name="export" path="export/" />
+    <!-- Scan originals + enhanced JPEGs under filesDir/scans/. -->
+    <files-path name="scans" path="scans/" />
+</paths>

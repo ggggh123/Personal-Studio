@@ -3,6 +3,7 @@ package com.example.personal_studio
 import android.app.Application
 import com.example.personal_studio.core.util.CrashLogger
 import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
+import com.example.personal_studio.data.scanner.OpenCvInitializer
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ class PersonalStudioApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        OpenCvInitializer.ensureInitialized()
         CrashLogger.install(this)
 
         // One-shot: move legacy openrouter_api_key → new api_key if present.

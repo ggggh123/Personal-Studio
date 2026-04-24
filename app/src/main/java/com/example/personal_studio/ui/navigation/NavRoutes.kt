@@ -1,5 +1,7 @@
 package com.example.personal_studio.ui.navigation
 
+import android.net.Uri
+
 object NavRoutes {
     // Bottom-nav tabs
     const val CHAT = "chat"
@@ -12,4 +14,33 @@ object NavRoutes {
     fun chatDetail(sessionId: Long) = "chat/detail/$sessionId"
 
     const val SETTINGS = "settings"
+
+    // Scanner multi-page flow host (Phase 3).
+    const val SCANNER_NEW_DOC = "scanner/new?resumeDocId={resumeDocId}"
+    fun scannerNewDoc(resumeDocId: Long? = null) =
+        if (resumeDocId == null) "scanner/new?resumeDocId=" else "scanner/new?resumeDocId=$resumeDocId"
+
+    // Scanner library detail screen (Phase 3 Task 21).
+    const val SCANNER_DETAIL = "scanner/detail/{docId}"
+    fun scannerDetail(docId: Long) = "scanner/detail/$docId"
+
+    // Scanner per-page edit screen (Phase 3 Task 22).
+    const val SCANNER_PAGE_EDIT = "scanner/page/{pageId}"
+    fun scannerPageEdit(pageId: Long) = "scanner/page/$pageId"
+
+    // Scanner single-page smoke flow (expanded into DocumentBuilder host in Phase 3).
+    const val SCANNER_CAMERA = "scanner/camera"
+
+    const val SCANNER_EDGE = "scanner/edge?tmp={tmp}&auto={auto}&live={live}"
+    /**
+     * [live] is an optional pre-detected quadrilateral in normalized
+     * portrait coordinates (values 0..1, encoded "x,y;x,y;x,y;x,y"). Empty
+     * string when no live detection was available at capture time.
+     */
+    fun scannerEdge(tmp: String, auto: Boolean, live: String) =
+        "scanner/edge?tmp=${Uri.encode(tmp)}&auto=$auto&live=${Uri.encode(live)}"
+
+    const val SCANNER_ENHANCE = "scanner/enhance?tmp={tmp}&corners={corners}"
+    fun scannerEnhance(tmp: String, corners: String) =
+        "scanner/enhance?tmp=${Uri.encode(tmp)}&corners=${Uri.encode(corners)}"
 }

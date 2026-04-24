@@ -48,6 +48,10 @@ android {
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
         }
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildFeatures {
@@ -77,7 +81,15 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
         }
+    }
+
+    androidResources {
+        // Don't compress the ONNX model — it's already not very compressible
+        // and decompression on load would add startup latency + memory churn.
+        noCompress += "onnx"
     }
 }
 
@@ -121,6 +133,19 @@ dependencies {
     // HTTP (OpenRouter API client)
     implementation(libs.okhttp)
 
+    // Camera (CameraX + OpenCV)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.opencv.android)
+
+    // ONNXRuntime for document-corner ML model (fastvit_sa24)
+    implementation(libs.onnxruntime.android)
+
+    // Drag-to-reorder for the scan detail page grid
+    implementation(libs.reorderable)
+
     // Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
@@ -134,5 +159,6 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
