@@ -143,6 +143,9 @@ dependencies {
     // ONNXRuntime for document-corner ML model (fastvit_sa24)
     implementation(libs.onnxruntime.android)
 
+    // Drag-to-reorder for the scan detail page grid
+    implementation(libs.reorderable)
+
     // Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

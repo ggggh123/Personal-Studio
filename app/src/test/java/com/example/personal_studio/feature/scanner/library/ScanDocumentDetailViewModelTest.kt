@@ -2,9 +2,7 @@ package com.example.personal_studio.feature.scanner.library
 
 import com.example.personal_studio.data.repository.FakeScanRepository
 import com.example.personal_studio.domain.model.ScanFilter
-import com.example.personal_studio.domain.scanner.DeleteScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.RemovePageUseCase
-import com.example.personal_studio.domain.scanner.RenameScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.ReorderPagesUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,8 +13,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -33,35 +29,24 @@ class ScanDocumentDetailViewModelTest {
         repo = repo,
         reorderUc = ReorderPagesUseCase(repo),
         removePageUc = RemovePageUseCase(repo),
-        renameUc = RenameScanDocumentUseCase(repo),
-        deleteDocUc = DeleteScanDocumentUseCase(repo),
     )
 
-    @Test fun `commitReorder persists new order`() = runTest {
+    @Test fun `reorderPages persists the given order`() = runTest {
         val repo = FakeScanRepository()
         val docId = repo.createPendingDocument("d")
         val ids = (0..2).map { repo.appendPage(docId, "$it", "$it", ScanFilter.BW, null) }
         val vm = newVm(repo, docId)
-        vm.enterReorder()
-        vm.moveInDraft(0, 2)
-        vm.commitReorder()
-        assertEquals(listOf(ids[1], ids[2], ids[0]), repo.observePages(docId).first().map { it.id })
-        // reorderMode should reset after commit
-        assertFalse(vm.state.value.reorderMode)
-        assertTrue(vm.state.value.reorderDraft.isEmpty())
+        vm.reorderPages(listOf(ids[2], ids[0], ids[1]))
+        assertEquals(listOf(ids[2], ids[0], ids[1]), repo.observePages(docId).first().map { it.id })
     }
 
-    @Test fun `cancelReorder drops the draft without persisting`() = runTest {
+    @Test fun `reorderPages ignores empty input`() = runTest {
         val repo = FakeScanRepository()
         val docId = repo.createPendingDocument("d")
-        val ids = (0..2).map { repo.appendPage(docId, "$it", "$it", ScanFilter.BW, null) }
+        val ids = (0..1).map { repo.appendPage(docId, "$it", "$it", ScanFilter.BW, null) }
         val vm = newVm(repo, docId)
-        vm.enterReorder()
-        vm.moveInDraft(0, 2)
-        vm.cancelReorder()
-        // Original order still in repo
+        vm.reorderPages(emptyList())
         assertEquals(ids, repo.observePages(docId).first().map { it.id })
-        assertFalse(vm.state.value.reorderMode)
     }
 
     @Test fun `deletePage propagates to repo`() = runTest {
@@ -72,21 +57,5 @@ class ScanDocumentDetailViewModelTest {
         val vm = newVm(repo, docId)
         vm.deletePage(pid)
         assertEquals(1, repo.observePages(docId).first().size)
-    }
-
-    @Test fun `renameDoc updates the document title`() = runTest {
-        val repo = FakeScanRepository()
-        val docId = repo.createPendingDocument("old")
-        val vm = newVm(repo, docId)
-        vm.renameDoc("new-title")
-        assertEquals("new-title", repo.observeDocument(docId).first()!!.title)
-    }
-
-    @Test fun `deleteDoc removes the document`() = runTest {
-        val repo = FakeScanRepository()
-        val docId = repo.createPendingDocument("x")
-        val vm = newVm(repo, docId)
-        vm.deleteDoc()
-        assertEquals(null, repo.observeDocument(docId).first())
     }
 }

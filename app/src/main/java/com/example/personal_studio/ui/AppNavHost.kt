@@ -15,6 +15,7 @@ import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.doc.DocumentBuilderScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
+import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScreen
 import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
@@ -50,13 +51,22 @@ fun AppNavHost(navController: NavHostController) {
         composable(NavRoutes.SCANNER) {
             ScanLibraryScreen(
                 onNewDoc = { navController.navigate(NavRoutes.scannerNewDoc()) },
-                onOpenDoc = { docId ->
-                    // TODO(P2 Phase 3 Task 21): wire SCANNER_DETAIL navigation
-                    //  navController.navigate(NavRoutes.scannerDetail(docId))
-                },
+                onOpenDoc = { docId -> navController.navigate(NavRoutes.scannerDetail(docId)) },
                 onResumeDoc = { docId ->
                     navController.navigate(NavRoutes.scannerNewDoc(docId))
                 },
+            )
+        }
+        composable(
+            route = NavRoutes.SCANNER_DETAIL,
+            arguments = listOf(navArgument("docId") { type = NavType.LongType }),
+        ) { backStack ->
+            val docId = backStack.arguments?.getLong("docId") ?: return@composable
+            ScanDocumentDetailScreen(
+                docId = docId,
+                onBack = { navController.popBackStack() },
+                // TODO(P2 Phase 3 Task 22): wire PageEditScreen on page tap.
+                // TODO(P2 Phase 5 Task 26/27): wire share-pdf intent.
             )
         }
         composable(

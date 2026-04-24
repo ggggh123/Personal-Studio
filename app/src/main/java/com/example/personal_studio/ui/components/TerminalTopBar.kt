@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.theme.Foam
@@ -61,6 +62,12 @@ fun TerminalTopBar(
                     withStyle(SpanStyle(color = Phosphor)) { append("$") }
                 },
                 style = MaterialTheme.typography.bodyMedium,
+                // Clamp to one line and ellipsize — long routes (e.g. scan
+                // filenames) would otherwise consume the trailing slot's
+                // width and force trailing Text to wrap per-character.
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
             Box { trailing?.invoke() }
         }

@@ -5,9 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.repository.ScanRepository
 import com.example.personal_studio.domain.model.ScanDocument
 import com.example.personal_studio.domain.model.ScanPage
-import com.example.personal_studio.domain.scanner.DeleteScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.RemovePageUseCase
-import com.example.personal_studio.domain.scanner.RenameScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.ReorderPagesUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -20,17 +18,16 @@ import kotlinx.coroutines.launch
 data class ScanDetailUiState(
     val doc: ScanDocument? = null,
     val pages: List<ScanPage> = emptyList(),
-    val reorderMode: Boolean = false,
-    val reorderDraft: List<Long> = emptyList(),
 )
 
 /**
  * Owns the detail view of a finalized (or pending) scan document.
- * Streams doc + pages from the repository, tracks a local reorder draft
- * that is only persisted on commit, and exposes single-shot doc/page ops.
+ * Streams doc + pages from the repository and exposes reorder + per-page
+ * ops. Rename/delete-doc live on the library row's long-press dialog, not
+ * here — consolidating those entry points avoids duplicate UX paths.
  *
  * Keyed by docId via @AssistedInject so each detail screen instance
- * scopes to its own document without re-creating the host nav entry.
+ * scopes to its own document.
  */
 @HiltViewModel(assistedFactory = ScanDocumentDetailViewModel.Factory::class)
 class ScanDocumentDetailViewModel @AssistedInject constructor(
@@ -38,8 +35,6 @@ class ScanDocumentDetailViewModel @AssistedInject constructor(
     private val repo: ScanRepository,
     private val reorderUc: ReorderPagesUseCase,
     private val removePageUc: RemovePageUseCase,
-    private val renameUc: RenameScanDocumentUseCase,
-    private val deleteDocUc: DeleteScanDocumentUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ScanDetailUiState())
@@ -58,35 +53,12 @@ class ScanDocumentDetailViewModel @AssistedInject constructor(
         }
     }
 
-    fun enterReorder() {
-        _state.value = _state.value.copy(
-            reorderMode = true,
-            reorderDraft = _state.value.pages.map { it.id },
-        )
-    }
-
-    fun cancelReorder() {
-        _state.value = _state.value.copy(reorderMode = false, reorderDraft = emptyList())
-    }
-
-    fun moveInDraft(fromIdx: Int, toIdx: Int) {
-        val draft = _state.value.reorderDraft.toMutableList()
-        val id = draft.removeAt(fromIdx)
-        draft.add(toIdx, id)
-        _state.value = _state.value.copy(reorderDraft = draft)
-    }
-
-    fun commitReorder() = viewModelScope.launch {
-        val draft = _state.value.reorderDraft
-        if (draft.isNotEmpty()) reorderUc(docId, draft)
-        _state.value = _state.value.copy(reorderMode = false, reorderDraft = emptyList())
+    /** Persists [orderedIds] as the new page order. No-op on empty input. */
+    fun reorderPages(orderedIds: List<Long>) = viewModelScope.launch {
+        if (orderedIds.isNotEmpty()) reorderUc(docId, orderedIds)
     }
 
     fun deletePage(pageId: Long) = viewModelScope.launch { removePageUc(pageId) }
-
-    fun renameDoc(title: String) = viewModelScope.launch { renameUc(docId, title) }
-
-    fun deleteDoc() = viewModelScope.launch { deleteDocUc(docId) }
 
     @AssistedFactory
     interface Factory {

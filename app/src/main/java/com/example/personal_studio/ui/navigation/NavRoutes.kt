@@ -20,6 +20,10 @@ object NavRoutes {
     fun scannerNewDoc(resumeDocId: Long? = null) =
         if (resumeDocId == null) "scanner/new?resumeDocId=" else "scanner/new?resumeDocId=$resumeDocId"
 
+    // Scanner library detail screen (Phase 3 Task 21).
+    const val SCANNER_DETAIL = "scanner/detail/{docId}"
+    fun scannerDetail(docId: Long) = "scanner/detail/$docId"
+
     // Scanner single-page smoke flow (expanded into DocumentBuilder host in Phase 3).
     const val SCANNER_CAMERA = "scanner/camera"
 

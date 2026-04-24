@@ -36,6 +36,9 @@ opencv = "4.10.0"
 # ML inference (ONNXRuntime for the fastvit_sa24 document corner detector)
 onnxruntime = "1.20.0"
 
+# Drag-to-reorder for Compose LazyGrid/Column (used in scan detail screen)
+reorderable = "3.1.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -98,6 +101,9 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
 opencv-android = { group = "org.opencv", name = "opencv", version.ref = "opencv" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
+
+# Reorderable (Compose drag-to-reorder for lists and grids)
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
