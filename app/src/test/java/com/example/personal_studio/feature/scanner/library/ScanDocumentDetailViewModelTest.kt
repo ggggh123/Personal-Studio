@@ -4,6 +4,7 @@ import com.example.personal_studio.data.repository.FakeScanRepository
 import com.example.personal_studio.domain.model.ScanFilter
 import com.example.personal_studio.domain.scanner.RemovePageUseCase
 import com.example.personal_studio.domain.scanner.ReorderPagesUseCase
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -26,9 +27,13 @@ class ScanDocumentDetailViewModelTest {
 
     private fun newVm(repo: FakeScanRepository, docId: Long) = ScanDocumentDetailViewModel(
         docId = docId,
+        // context + exportUc stubbed out — these tests don't exercise the
+        // export path (Android FileProvider / PdfExporter need androidTest).
+        context = mockk(relaxed = true),
         repo = repo,
         reorderUc = ReorderPagesUseCase(repo),
         removePageUc = RemovePageUseCase(repo),
+        exportUc = mockk(relaxed = true),
     )
 
     @Test fun `reorderPages persists the given order`() = runTest {

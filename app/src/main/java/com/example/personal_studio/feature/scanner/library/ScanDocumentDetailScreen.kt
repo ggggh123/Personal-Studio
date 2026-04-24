@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.scanner.library
 
+import android.content.Intent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanPage
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
@@ -64,12 +67,28 @@ fun ScanDocumentDetailScreen(
     docId: Long,
     onBack: () -> Unit,
     onOpenPage: (pageId: Long) -> Unit = {},
-    onExportPdf: (docId: Long) -> Unit = {},
 ) {
     val vm: ScanDocumentDetailViewModel = hiltViewModel(
         creationCallback = { f: ScanDocumentDetailViewModel.Factory -> f.create(docId) }
     )
     val state by vm.state.collectAsStateWithLifecycle()
+    val shareUri by vm.pendingShareUri.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // When the VM emits a share URI, fire the system ACTION_SEND chooser
+    // and immediately clear the URI so the effect doesn't re-fire on
+    // recomposition / config change.
+    LaunchedEffect(shareUri) {
+        shareUri?.let { uri ->
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "Share PDF"))
+            vm.clearShareIntent()
+        }
+    }
 
     val title = state.doc?.title ?: "…"
     val createdAt = state.doc?.createdAt
@@ -103,8 +122,9 @@ fun ScanDocumentDetailScreen(
         )
 
         ReadActionBar(
-            canExport = pageCount > 0,
-            onExport = { onExportPdf(docId) },
+            canExport = pageCount > 0 && !state.isExporting,
+            isExporting = state.isExporting,
+            onExport = { vm.exportPdf() },
         )
     }
 }
@@ -203,6 +223,7 @@ private fun ReorderablePageGrid(
 @Composable
 private fun ReadActionBar(
     canExport: Boolean,
+    isExporting: Boolean,
     onExport: () -> Unit,
 ) {
     Box(
@@ -218,9 +239,15 @@ private fun ReadActionBar(
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val label = if (isExporting) "[... exporting pdf]" else "[📄 export pdf]"
+        val color = when {
+            isExporting -> Amber
+            canExport -> Phosphor
+            else -> FoamDim
+        }
         Text(
-            "[📄 export pdf]",
-            color = if (canExport) Phosphor else FoamDim,
+            label,
+            color = color,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.clickable(enabled = canExport, onClick = onExport),
         )
