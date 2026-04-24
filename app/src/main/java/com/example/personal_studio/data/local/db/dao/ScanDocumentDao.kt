@@ -35,6 +35,20 @@ interface ScanDocumentDao {
     @Query("UPDATE scan_documents SET updatedAt = :now WHERE id = :id")
     suspend fun touchUpdatedAt(id: Long, now: Long)
 
+    /**
+     * Recomputes pageCount from scan_pages and bumps updatedAt. Called on
+     * every append/delete so the denormalized pageCount stays accurate for
+     * pending docs (library row label). coverPageId remains null until
+     * [finalize].
+     */
+    @Query("""
+        UPDATE scan_documents
+        SET pageCount = (SELECT COUNT(*) FROM scan_pages WHERE docId = :id),
+            updatedAt = :now
+        WHERE id = :id
+    """)
+    suspend fun recountPages(id: Long, now: Long)
+
     @Query("UPDATE scan_documents SET pageCount = :count, coverPageId = :coverId, updatedAt = :now WHERE id = :id")
     suspend fun finalize(id: Long, count: Int, coverId: Long?, now: Long)
 

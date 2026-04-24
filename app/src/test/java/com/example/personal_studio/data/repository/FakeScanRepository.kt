@@ -58,7 +58,9 @@ class FakeScanRepository(
         val ordinal = current.value.size
         val page = ScanPage(pageId, docId, ordinal, originalImagePath, enhancedImagePath, filter, cornersJson, System.currentTimeMillis())
         current.update { it + page }
-        docs.update { list -> list.map { if (it.id == docId) it.copy(updatedAt = System.currentTimeMillis()) else it } }
+        val newCount = current.value.size
+        val now = System.currentTimeMillis()
+        docs.update { list -> list.map { if (it.id == docId) it.copy(pageCount = newCount, updatedAt = now) else it } }
         return pageId
     }
 
@@ -75,8 +77,16 @@ class FakeScanRepository(
     }
 
     override suspend fun deletePage(pageId: Long) {
+        val ownerDocId = pagesByDoc.entries
+            .firstOrNull { (_, flow) -> flow.value.any { it.id == pageId } }
+            ?.key
         pagesByDoc.values.forEach { flow ->
             flow.update { list -> list.filter { it.id != pageId } }
+        }
+        if (ownerDocId != null) {
+            val newCount = pagesByDoc[ownerDocId]?.value?.size ?: 0
+            val now = System.currentTimeMillis()
+            docs.update { list -> list.map { if (it.id == ownerDocId) it.copy(pageCount = newCount, updatedAt = now) else it } }
         }
     }
 

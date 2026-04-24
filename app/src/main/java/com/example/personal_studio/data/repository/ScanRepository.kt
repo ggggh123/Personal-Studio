@@ -145,7 +145,7 @@ class ScanRepositoryImpl @Inject constructor(
                 createdAt = now,
             )
         )
-        docDao.touchUpdatedAt(docId, now)
+        docDao.recountPages(docId, now)
         return pageId
     }
 
@@ -185,7 +185,7 @@ class ScanRepositoryImpl @Inject constructor(
             runCatching { File(page.enhancedImagePath).delete() }
         }
         pageDao.deleteById(pageId)
-        docDao.touchUpdatedAt(page.docId, System.currentTimeMillis())
+        docDao.recountPages(page.docId, System.currentTimeMillis())
     }
 
     override suspend fun reorderPages(docId: Long, orderedPageIds: List<Long>) {

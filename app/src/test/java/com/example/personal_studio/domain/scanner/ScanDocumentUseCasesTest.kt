@@ -41,4 +41,27 @@ class ScanDocumentUseCasesTest {
         DeleteScanDocumentUseCase(repo)(docId)
         assertNull(repo.observeDocument(docId).first())
     }
+
+    /**
+     * Regression: pending-doc rows showed `0 pages` in the library even
+     * after appendPage, because pageCount was only written by finalize.
+     * appendPage must keep the denormalized pageCount honest so the
+     * library row matches what resume actually loads.
+     */
+    @Test fun `appendPage updates pageCount on the document`() = runTest {
+        val repo = FakeScanRepository()
+        val docId = repo.createPendingDocument("pending")
+        repo.appendPage(docId, "a.jpg", "a.jpg", ScanFilter.BW, null)
+        repo.appendPage(docId, "b.jpg", "b.jpg", ScanFilter.BW, null)
+        assertEquals(2, repo.observeDocument(docId).first()!!.pageCount)
+    }
+
+    @Test fun `deletePage decrements pageCount on the document`() = runTest {
+        val repo = FakeScanRepository()
+        val docId = repo.createPendingDocument("pending")
+        val pid = repo.appendPage(docId, "a.jpg", "a.jpg", ScanFilter.BW, null)
+        repo.appendPage(docId, "b.jpg", "b.jpg", ScanFilter.BW, null)
+        repo.deletePage(pid)
+        assertEquals(1, repo.observeDocument(docId).first()!!.pageCount)
+    }
 }
