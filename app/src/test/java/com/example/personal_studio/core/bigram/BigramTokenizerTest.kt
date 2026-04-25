@@ -45,12 +45,12 @@ class BigramTokenizerTest {
         assertEquals("\"数学\"", BigramTokenizer.tokenizeForQuery("数学"))
     }
 
-    @Test fun `query CJK chunk joins bigrams with AND`() {
-        assertEquals("\"微积\" AND \"积分\"", BigramTokenizer.tokenizeForQuery("微积分"))
+    @Test fun `query CJK chunk joins bigrams with implicit AND (space)`() {
+        assertEquals("\"微积\" \"积分\"", BigramTokenizer.tokenizeForQuery("微积分"))
     }
 
-    @Test fun `query multiple chunks join with AND`() {
-        assertEquals("\"微积\" AND \"积分\" AND \"极限\"", BigramTokenizer.tokenizeForQuery("微积分 极限"))
+    @Test fun `query multiple chunks join with implicit AND (space)`() {
+        assertEquals("\"微积\" \"积分\" \"极限\"", BigramTokenizer.tokenizeForQuery("微积分 极限"))
     }
 
     @Test fun `query ASCII word is lowercased and quoted`() {

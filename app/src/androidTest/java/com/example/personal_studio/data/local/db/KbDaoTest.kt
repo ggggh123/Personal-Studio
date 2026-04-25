@@ -112,7 +112,7 @@ class KbDaoTest {
                 standardizedQuestionBigrams = "",
             ),
         )
-        val hits = db.kbEntryDao().searchOnce("\"判别\" AND \"别式\"")
+        val hits = db.kbEntryDao().searchOnce("\"判别\" \"别式\"")
         assertEquals(1, hits.size)
         assertEquals(id, hits[0].id)
     }
