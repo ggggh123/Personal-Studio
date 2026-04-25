@@ -94,30 +94,34 @@ class OpenAiCompatibleProvider(
         .flowOn(Dispatchers.IO)
         .catch { t -> emit(LlmChunk.Error(t.message ?: "Unknown LLM error", retryable = true)) }
 
-    override suspend fun generateStructured(prompt: String, jsonSchema: String): String {
+    override suspend fun generateStructured(
+        messages: List<LlmMessage>,
+        jsonSchema: String,
+        temperature: Float,
+    ): String {
         val key = resolveApiKey() ?: error("No API key configured")
         val endpoint = completionsUrl(resolveBaseUrl())
         val model = resolveModel()
 
-        val instructed = """
-            You must respond with valid JSON conforming to this schema:
-            $jsonSchema
+        // Wrap caller messages: prepend a system instruction reminding the model to emit JSON
+        // matching the schema, then forward the original messages (which may carry images).
+        val schemaInstruction = LlmMessage(
+            role = LlmRole.SYSTEM,
+            text = """
+                You must respond with valid JSON conforming to this schema:
+                $jsonSchema
 
-            Return only the JSON, no Markdown fences, no prose.
-
-            Task:
-            $prompt
-        """.trimIndent()
+                Return only the JSON, no Markdown fences, no prose.
+            """.trimIndent(),
+        )
+        val finalMessages = listOf(schemaInstruction) + messages
 
         val body = buildJsonObject {
             put("model", model)
-            put("temperature", 0.2)
+            put("temperature", temperature.toDouble())
             put("stream", false)
             putJsonArray("messages") {
-                add(buildJsonObject {
-                    put("role", "user")
-                    put("content", instructed)
-                })
+                finalMessages.forEach { m -> add(serializeMessage(m)) }
             }
             putJsonObject("response_format") {
                 put("type", "json_object")
