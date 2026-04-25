@@ -45,7 +45,8 @@ fun AppNavHost(navController: NavHostController) {
             val sessionId = backStack.arguments?.getLong("sessionId") ?: 0L
             ChatDetailScreen(
                 sessionId = sessionId,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
             )
         }
 

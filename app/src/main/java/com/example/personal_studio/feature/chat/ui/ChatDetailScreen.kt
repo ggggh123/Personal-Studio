@@ -72,11 +72,15 @@ import java.io.File
 fun ChatDetailScreen(
     sessionId: Long,
     onBack: () -> Unit,
+    onNavigateToKbEntry: (Long) -> Unit,
 ) {
     val vm: ChatDetailViewModel = hiltViewModel(
         creationCallback = { factory: ChatDetailViewModel.Factory -> factory.create(sessionId) }
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val saveVm: com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel = hiltViewModel()
+    val saveState by saveVm.uiState.collectAsStateWithLifecycle()
+    val activeSourceState = remember { mutableStateOf<com.example.personal_studio.domain.model.KbDraftSource?>(null) }
     val listState = rememberLazyListState()
 
     // Attachment sheet + crop overlay local UI state
@@ -184,6 +188,26 @@ fun ChatDetailScreen(
                                 markdown = m.contentMarkdown,
                                 initialHeightDp = aiMessageHeights[m.id] ?: 60,
                                 onHeightChanged = { h -> aiMessageHeights[m.id] = h },
+                            )
+                        }
+                        // [+ archive] row — only on completed AI messages (not the
+                        // streaming placeholder, which has no real id yet).
+                        Row(
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "[+ archive]",
+                                color = Phosphor,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .clickable {
+                                        val src = com.example.personal_studio.domain.model.KbDraftSource
+                                            .FromChatMessage(sessionId = sessionId, aiMessageId = m.id)
+                                        activeSourceState.value = src
+                                        saveVm.startDraft(src)
+                                    }
+                                    .padding(8.dp),
                             )
                         }
                     }
@@ -302,6 +326,20 @@ fun ChatDetailScreen(
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = { showAttachmentSheet = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "attach", tint = Cyan)
+            }
+        }
+
+        com.example.personal_studio.feature.knowledge.ui.SavePreviewModal(
+            state = saveState,
+            onCancel = { saveVm.reset() },
+            onConfirm = { draft -> saveVm.commit(draft) },
+            onRetry = { activeSourceState.value?.let { saveVm.retry(it) } },
+        )
+        LaunchedEffect(saveState) {
+            val s = saveState
+            if (s is com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeUiState.Saved) {
+                onNavigateToKbEntry(s.entryId)
+                saveVm.reset()
             }
         }
     }
