@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "403a5464b1db2ae9e4eafc2ec1faa853",
+    "identityHash": "79b0ef02b7461b45be8dbd16557a862b",
     "entities": [
       {
         "tableName": "chat_sessions",
@@ -550,7 +550,7 @@
       {
         "ftsVersion": "FTS4",
         "ftsOptions": {
-          "tokenizer": "simple",
+          "tokenizer": "unicode61",
           "tokenizerArgs": [],
           "contentTable": "",
           "languageIdColumnName": "",
@@ -561,7 +561,7 @@
         },
         "contentSyncTriggers": [],
         "tableName": "kb_entries_fts",
-        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`titleBigrams` TEXT NOT NULL, `summaryBigrams` TEXT NOT NULL, `standardizedQuestionBigrams` TEXT NOT NULL)",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`titleBigrams` TEXT NOT NULL, `summaryBigrams` TEXT NOT NULL, `standardizedQuestionBigrams` TEXT NOT NULL, tokenize=unicode61)",
         "fields": [
           {
             "fieldPath": "titleBigrams",
@@ -595,7 +595,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '403a5464b1db2ae9e4eafc2ec1faa853')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '79b0ef02b7461b45be8dbd16557a862b')"
     ]
   }
 }

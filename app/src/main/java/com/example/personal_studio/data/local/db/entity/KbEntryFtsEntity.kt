@@ -5,7 +5,7 @@ import androidx.room.Entity
 import androidx.room.Fts4
 import androidx.room.PrimaryKey
 
-@Fts4(tokenizer = "simple")
+@Fts4(tokenizer = "unicode61")
 @Entity(tableName = "kb_entries_fts")
 data class KbEntryFtsEntity(
     @PrimaryKey @ColumnInfo(name = "rowid") val rowid: Long,

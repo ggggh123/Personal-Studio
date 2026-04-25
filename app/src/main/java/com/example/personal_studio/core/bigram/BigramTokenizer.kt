@@ -8,10 +8,15 @@ package com.example.personal_studio.core.bigram
  *  - ASCII chunks (`code < 128`) are lowercased and kept whole.
  *  - CJK chunks are split into sliding bigrams (length 1 → kept as the single char).
  *
- * The query side joins per-chunk bigrams with AND so a 4-char term like 微积分极 must
- * have all three bigrams 微积, 积分, 分极 present in the document. Cross-chunk noise
- * is mitigated by encouraging users to add spaces between conceptual terms; the
- * ViewModel layer additionally falls back to OR when the AND query returns < 5 hits.
+ * The query side joins per-chunk bigrams with space-separated implicit AND, since
+ * stock Android SQLite FTS3/4 doesn't support the literal `AND` keyword (it's built
+ * without `SQLITE_ENABLE_FTS3_PARENTHESIS`, so only standard query syntax is
+ * available — space = implicit AND, the `OR` keyword IS supported, but `AND`/`NOT`/
+ * parentheses are not). Semantically the result is the same: a 4-char term like
+ * 微积分极 must have all three bigrams 微积, 积分, 分极 present in the document.
+ * Cross-chunk noise is mitigated by encouraging users to add spaces between
+ * conceptual terms; the ViewModel layer additionally falls back to OR when the
+ * implicit-AND query returns < 5 hits.
  */
 object BigramTokenizer {
 
@@ -33,7 +38,11 @@ object BigramTokenizer {
         return out.toString()
     }
 
-    /** Query time. Returns an FTS MATCH expression with AND semantics. */
+    /**
+     * Query time. Returns an FTS MATCH expression with implicit-AND semantics
+     * (space-separated quoted tokens). See class KDoc for why the literal `AND`
+     * keyword can't be used on stock Android SQLite.
+     */
     fun tokenizeForQuery(input: String): String {
         if (input.isBlank()) return ""
         val parts = mutableListOf<String>()
@@ -46,11 +55,11 @@ object BigramTokenizer {
                 appendBigrams(chunk, sb)
                 val bigrams = sb.toString().split(' ').filter { it.isNotBlank() }
                 if (bigrams.isNotEmpty()) {
-                    parts += bigrams.joinToString(" AND ") { "\"$it\"" }
+                    parts += bigrams.joinToString(" ") { "\"$it\"" }
                 }
             }
         }
-        return parts.joinToString(" AND ")
+        return parts.joinToString(" ")
     }
 
     private fun appendBigrams(word: String, out: StringBuilder) {

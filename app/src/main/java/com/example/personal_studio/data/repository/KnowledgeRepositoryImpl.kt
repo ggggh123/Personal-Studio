@@ -75,8 +75,10 @@ class KnowledgeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchOr(query: String): List<KbEntry> {
-        val ftsQ = BigramTokenizer.tokenizeForQuery(query).replace(" AND ", " OR ")
-        if (ftsQ.isBlank()) return emptyList()
+        val baseTokens = BigramTokenizer.tokenizeForQuery(query)
+        if (baseTokens.isBlank()) return emptyList()
+        // baseTokens is now space-separated quoted bigrams (implicit AND); convert to explicit OR.
+        val ftsQ = baseTokens.split(' ').filter { it.isNotBlank() }.joinToString(" OR ")
         val cats = categoryDao.observeAll().first()
         return entryDao.searchOnce(ftsQ).toDomain(cats)
     }
