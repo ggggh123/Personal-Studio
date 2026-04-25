@@ -50,8 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ChatMessage
+import com.example.personal_studio.domain.model.KbDraftSource
 import com.example.personal_studio.domain.model.MessageRole
 import com.example.personal_studio.feature.chat.vm.ChatDetailViewModel
+import com.example.personal_studio.feature.knowledge.ui.SavePreviewModal
+import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeUiState
+import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel
 import com.example.personal_studio.ui.components.AiFrame
 import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.components.ChatImageThumbnail
@@ -78,9 +82,15 @@ fun ChatDetailScreen(
         creationCallback = { factory: ChatDetailViewModel.Factory -> factory.create(sessionId) }
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
-    val saveVm: com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel = hiltViewModel()
+    val saveVm: SaveToKnowledgeViewModel = hiltViewModel()
     val saveState by saveVm.uiState.collectAsStateWithLifecycle()
-    val activeSourceState = remember { mutableStateOf<com.example.personal_studio.domain.model.KbDraftSource?>(null) }
+    // Holds the source the modal is currently working with so retry from the
+    // Error state knows what to re-run. Invariant: when retry is reachable
+    // (state == Error), activeSourceState matches the source that errored, because
+    // Error is only entered from Loading/Saving and both flip activeSourceState
+    // first. If a future change makes Error reachable from elsewhere, fold the
+    // source into Error itself instead of relying on this side-channel.
+    val activeSourceState = remember { mutableStateOf<KbDraftSource?>(null) }
     val listState = rememberLazyListState()
 
     // Attachment sheet + crop overlay local UI state
@@ -202,8 +212,10 @@ fun ChatDetailScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier
                                     .clickable {
-                                        val src = com.example.personal_studio.domain.model.KbDraftSource
-                                            .FromChatMessage(sessionId = sessionId, aiMessageId = m.id)
+                                        val src = KbDraftSource.FromChatMessage(
+                                            sessionId = sessionId,
+                                            aiMessageId = m.id,
+                                        )
                                         activeSourceState.value = src
                                         saveVm.startDraft(src)
                                     }
@@ -329,7 +341,7 @@ fun ChatDetailScreen(
             }
         }
 
-        com.example.personal_studio.feature.knowledge.ui.SavePreviewModal(
+        SavePreviewModal(
             state = saveState,
             onCancel = { saveVm.reset() },
             onConfirm = { draft -> saveVm.commit(draft) },
@@ -337,7 +349,7 @@ fun ChatDetailScreen(
         )
         LaunchedEffect(saveState) {
             val s = saveState
-            if (s is com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeUiState.Saved) {
+            if (s is SaveToKnowledgeUiState.Saved) {
                 onNavigateToKbEntry(s.entryId)
                 saveVm.reset()
             }
