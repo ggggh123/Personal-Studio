@@ -94,19 +94,19 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
         composable(NavRoutes.KNOWLEDGE) {
-            // Phase 4 replaces this with KbHomeScreen.
+            // TODO(P3 Phase 4 Task 25): replace with KbHomeScreen
             KnowledgePlaceholder()
         }
         composable(NavRoutes.KB_MISTAKES) {
-            // Phase 5 replaces this.
+            // TODO(P3 Phase 5 Task 32): replace with KbMistakesScreen
             KnowledgePlaceholder()
         }
         composable(
             route = NavRoutes.KB_DETAIL,
             arguments = listOf(navArgument("entryId") { type = NavType.LongType }),
-        ) { entry ->
-            val id = entry.arguments?.getLong("entryId") ?: 0L
-            // Phase 4 replaces this with KbEntryDetailScreen(id).
+        ) { backStack ->
+            val id = backStack.arguments?.getLong("entryId") ?: return@composable
+            // TODO(P3 Phase 4 Task 28): replace with KbEntryDetailScreen(id)
             androidx.compose.material3.Text("kb entry $id (placeholder)")
         }
         composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
