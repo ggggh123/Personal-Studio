@@ -97,6 +97,11 @@ fun MathMarkdownView(
             // another recomposition and this `update` lambda will run again with
             // pageReady=true. No explicit retry needed.
         },
+        // Without this, every time the composable leaves composition (e.g. user
+        // toggles a sibling edit/preview view) the WebView is dropped without
+        // releasing its native resources. Each instance is several MB of native
+        // heap + a JS context — observable as steady native-heap growth.
+        onRelease = { web -> web.destroy() },
     )
 }
 

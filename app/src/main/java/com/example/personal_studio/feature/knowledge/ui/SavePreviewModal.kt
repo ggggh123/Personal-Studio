@@ -77,8 +77,8 @@ fun SavePreviewModal(
     ) {
         Box(Modifier.fillMaxSize().background(Void)) {
             when (state) {
-                is SaveToKnowledgeUiState.Loading -> Loading()
-                is SaveToKnowledgeUiState.Saving -> Saving()
+                is SaveToKnowledgeUiState.Loading -> Loading(onCancel)
+                is SaveToKnowledgeUiState.Saving -> Saving(onCancel)
                 is SaveToKnowledgeUiState.Error -> ErrorBlock(state.message, onRetry, onCancel)
                 is SaveToKnowledgeUiState.Preview -> PreviewBody(state.draft, onCancel, onConfirm)
                 else -> Unit  // Idle / Saved short-circuited above
@@ -87,19 +87,13 @@ fun SavePreviewModal(
     }
 }
 
-@Composable private fun Loading() {
-    Column(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        CircularProgressIndicator(color = Phosphor)
-        Spacer(Modifier.height(16.dp))
-        Text("$ thinking...", color = FoamDim)
-    }
-}
+@Composable private fun Loading(onCancel: () -> Unit) =
+    InflightSpinner(label = "$ thinking...", onCancel = onCancel)
 
-@Composable private fun Saving() {
+@Composable private fun Saving(onCancel: () -> Unit) =
+    InflightSpinner(label = "$ writing entry...", onCancel = onCancel)
+
+@Composable private fun InflightSpinner(label: String, onCancel: () -> Unit) {
     Column(
         Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -107,7 +101,15 @@ fun SavePreviewModal(
     ) {
         CircularProgressIndicator(color = Phosphor)
         Spacer(Modifier.height(16.dp))
-        Text("$ writing entry...", color = FoamDim)
+        Text(label, color = FoamDim)
+        Spacer(Modifier.height(24.dp))
+        // Visible escape from a slow LLM call. Without this the only way out is the
+        // back gesture, which Android 14 predictive-back hides for non-opt-in apps.
+        Text(
+            "[cancel]",
+            color = FoamDim,
+            modifier = Modifier.clickable { onCancel() }.padding(8.dp),
+        )
     }
 }
 
