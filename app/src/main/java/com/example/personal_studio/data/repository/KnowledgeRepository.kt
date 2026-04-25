@@ -29,6 +29,11 @@ interface KnowledgeRepository {
     suspend fun deleteEntry(id: Long)
     suspend fun upsertCategory(name: String): Long
 
-    // -- LLM bridge (implemented in Phase 2; throws NotImplementedError until then) --
+    // -- LLM bridge --
+    /**
+     * Calls the LLM, parses + retries + fallback. Network errors propagate to the
+     * caller; never throws on JSON parse failure (worst case: returns a fallback
+     * skeleton with `isFallback = true`).
+     */
     suspend fun draftFromSource(source: KbDraftSource): KbEntryDraft
 }

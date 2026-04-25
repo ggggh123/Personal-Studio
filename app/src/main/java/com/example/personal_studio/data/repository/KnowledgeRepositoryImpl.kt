@@ -189,38 +189,41 @@ class KnowledgeRepositoryImpl @Inject constructor(
 
     override suspend fun draftFromSource(source: KbDraftSource): KbEntryDraft {
         val context = contextLoader.load(source)
-        val schema = JSON_SCHEMA
-        val systemMsg = com.example.personal_studio.data.remote.llm.LlmMessage(
-            role = com.example.personal_studio.data.remote.llm.LlmRole.SYSTEM,
-            text = SYSTEM_PROMPT,
-        )
-        val recentTitles = entryDao.recentTitles(50)
-        val categories = categoryDao.observeAll().first().map { it.name }
-        val contextHeader = com.example.personal_studio.data.remote.llm.LlmMessage(
-            role = com.example.personal_studio.data.remote.llm.LlmRole.USER,
-            text = buildContextHeader(categories, recentTitles),
-        )
-        val finalMessages = listOf(systemMsg, contextHeader) + context.messages
+        try {
+            val schema = JSON_SCHEMA
+            val systemMsg = com.example.personal_studio.data.remote.llm.LlmMessage(
+                role = com.example.personal_studio.data.remote.llm.LlmRole.SYSTEM,
+                text = SYSTEM_PROMPT,
+            )
+            val recentTitles = entryDao.recentTitles(50)
+            val categories = categoryDao.observeAll().first().map { it.name }
+            val contextHeader = com.example.personal_studio.data.remote.llm.LlmMessage(
+                role = com.example.personal_studio.data.remote.llm.LlmRole.USER,
+                text = buildContextHeader(categories, recentTitles),
+            )
+            val finalMessages = listOf(systemMsg, contextHeader) + context.messages
 
-        // First attempt
-        val first = runCatching { llm.generateStructured(finalMessages, schema, temperature = 0.3f) }
-            .getOrElse { throw it }                           // network error -> propagate
-        parseStrict(first, source, context)?.let { return it }
+            // First attempt
+            val first = llm.generateStructured(finalMessages, schema, temperature = 0.3f)  // network error -> propagate
+            parseStrict(first, source, context)?.let { return it }
 
-        // Retry with lower temp
-        val second = runCatching { llm.generateStructured(finalMessages, schema, temperature = 0.1f) }
-            .getOrElse { throw it }
-        parseStrict(second, source, context)?.let { return it }
+            // Retry with lower temp
+            val second = llm.generateStructured(finalMessages, schema, temperature = 0.1f)
+            parseStrict(second, source, context)?.let { return it }
 
-        // Fallback skeleton
-        return fallbackDraft(
-            source = source,
-            context = context,
-            rawText = second.ifBlank { first },
-            reason = if (canParseJson(second) || canParseJson(first))
-                KbDraftFallbackReason.MISSING_REQUIRED_FIELDS
-            else KbDraftFallbackReason.JSON_PARSE_FAILED,
-        )
+            // Fallback skeleton
+            return fallbackDraft(
+                source = source,
+                context = context,
+                rawText = second.ifBlank { first },
+                reason = if (canParseJson(second) || canParseJson(first))
+                    KbDraftFallbackReason.MISSING_REQUIRED_FIELDS
+                else KbDraftFallbackReason.JSON_PARSE_FAILED,
+            )
+        } catch (t: Throwable) {
+            imageStore.deleteStaged(context.stagedImagePath)
+            throw t
+        }
     }
 
     private fun buildContextHeader(categories: List<String>, recentTitles: List<String>): String =
@@ -229,7 +232,6 @@ class KnowledgeRepositoryImpl @Inject constructor(
             append(if (categories.isEmpty()) "(空)" else categories.joinToString(", "))
             append("\n\n[已有条目标题（最多 50 条，按 createdAt DESC）]\n")
             if (recentTitles.isEmpty()) append("(空)") else recentTitles.forEach { append("- ").append(it).append('\n') }
-            append("\n\n[输出 schema]\n").append(JSON_SCHEMA)
         }
 
     private fun canParseJson(s: String): Boolean = runCatching {
