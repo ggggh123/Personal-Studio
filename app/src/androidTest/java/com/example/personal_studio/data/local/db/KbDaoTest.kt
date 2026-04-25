@@ -9,7 +9,7 @@ import com.example.personal_studio.data.local.db.entity.KbEntryFtsEntity
 import com.example.personal_studio.data.local.db.entity.KbRelationEntity
 import com.example.personal_studio.data.local.db.entity.KbSourceType
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -29,20 +29,19 @@ class KbDaoTest {
             AppDatabase::class.java,
         )
             .addCallback(KbSeedCallback())
-            .allowMainThreadQueries()
             .build()
     }
 
     @After fun tearDown() = db.close()
 
-    @Test fun seedCategories_inserted_onCreate() = runBlocking {
+    @Test fun seedCategories_inserted_onCreate() = runTest {
         val all = db.kbCategoryDao().observeAll().first()
         assertEquals(7, all.size)
         assertTrue(all.all { it.seeded })
         assertEquals(setOf("数学", "物理", "化学", "生物", "英语", "编程", "其它"), all.map { it.name }.toSet())
     }
 
-    @Test fun insertEntry_thenObserveById_returnsIt() = runBlocking {
+    @Test fun insertEntry_thenObserveById_returnsIt() = runTest {
         val now = System.currentTimeMillis()
         val mathId = db.kbCategoryDao().findByName("数学")!!.id
         val id = db.kbEntryDao().insert(
@@ -66,7 +65,7 @@ class KbDaoTest {
         assertEquals(mathId, out.categoryId)
     }
 
-    @Test fun observeMistakes_filtersByStandardizedQuestionNotNull() = runBlocking {
+    @Test fun observeMistakes_filtersByStandardizedQuestionNotNull() = runTest {
         val now = System.currentTimeMillis()
         val mathId = db.kbCategoryDao().findByName("数学")!!.id
         // notes
@@ -92,7 +91,7 @@ class KbDaoTest {
         assertEquals("题目B", mistakes[0].title)
     }
 
-    @Test fun ftsRoundtrip_indexAndMatch() = runBlocking {
+    @Test fun ftsRoundtrip_indexAndMatch() = runTest {
         val now = System.currentTimeMillis()
         val mathId = db.kbCategoryDao().findByName("数学")!!.id
         val id = db.kbEntryDao().insert(
@@ -118,7 +117,7 @@ class KbDaoTest {
         assertEquals(id, hits[0].id)
     }
 
-    @Test fun deletingEntry_cascadesRelations() = runBlocking {
+    @Test fun deletingEntry_cascadesRelations() = runTest {
         val now = System.currentTimeMillis()
         val mathId = db.kbCategoryDao().findByName("数学")!!.id
         fun mkEntry(title: String) = KbEntryEntity(
