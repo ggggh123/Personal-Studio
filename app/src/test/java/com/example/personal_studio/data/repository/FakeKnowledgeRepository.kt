@@ -8,15 +8,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 open class FakeKnowledgeRepository : KnowledgeRepository {
-    var allEntries = MutableStateFlow<List<KbEntry>>(emptyList())
-    var mistakes = MutableStateFlow<List<KbEntry>>(emptyList())
-    var entryFlow = MutableStateFlow<KbEntry?>(null)
-    var related = MutableStateFlow<List<KbEntry>>(emptyList())
-    var categories = MutableStateFlow<List<KbCategory>>(emptyList())
-    var notesCount = MutableStateFlow(0)
-    var mistakesCount = MutableStateFlow(0)
-    var categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
-    var searchResults = MutableStateFlow<List<KbEntry>>(emptyList())
+    val allEntries = MutableStateFlow<List<KbEntry>>(emptyList())
+    val mistakes = MutableStateFlow<List<KbEntry>>(emptyList())
+    val entryFlow = MutableStateFlow<KbEntry?>(null)
+    val related = MutableStateFlow<List<KbEntry>>(emptyList())
+    val categories = MutableStateFlow<List<KbCategory>>(emptyList())
+    val notesCount = MutableStateFlow(0)
+    val mistakesCount = MutableStateFlow(0)
+    val categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    val searchResults = MutableStateFlow<List<KbEntry>>(emptyList())
     var orSearchResults: List<KbEntry> = emptyList()
 
     var draftToReturn: KbEntryDraft? = null
@@ -25,7 +25,7 @@ open class FakeKnowledgeRepository : KnowledgeRepository {
     var lastSavedDraft: KbEntryDraft? = null
     var lastUpdatedEntry: KbEntry? = null
     var lastDeletedId: Long? = null
-    var upsertedCategories: MutableList<String> = mutableListOf()
+    val upsertedCategories: MutableList<String> = mutableListOf()
 
     override fun observeAllEntries(categoryId: Long?, notesOnly: Boolean): Flow<List<KbEntry>> = allEntries
     override fun observeMistakes(): Flow<List<KbEntry>> = mistakes
