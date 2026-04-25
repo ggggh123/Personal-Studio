@@ -64,5 +64,9 @@ private class FakeLLMProviderThatErrors(private val errorMessage: String) :
     ) = kotlinx.coroutines.flow.flow {
         emit(com.example.personal_studio.data.remote.llm.LlmChunk.Error(errorMessage, false))
     }
-    override suspend fun generateStructured(prompt: String, jsonSchema: String) = "{}"
+    override suspend fun generateStructured(
+        messages: List<com.example.personal_studio.data.remote.llm.LlmMessage>,
+        jsonSchema: String,
+        temperature: Float,
+    ): String = error("test fake — not used")
 }
