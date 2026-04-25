@@ -32,7 +32,7 @@ class KbImageStore @Inject constructor(
         require(staged.exists()) { "staged image not found: $stagedPath" }
         val final = File(baseDir, "$entryId.jpg")
         if (final.exists()) final.delete()
-        staged.renameTo(final)
+        check(staged.renameTo(final)) { "failed to promote $stagedPath -> ${final.absolutePath}" }
         return final.absolutePath
     }
 
@@ -44,6 +44,6 @@ class KbImageStore @Inject constructor(
     /** Best-effort cleanup of a staged temp (cancel path). */
     fun deleteStaged(stagedPath: String?) {
         if (stagedPath.isNullOrBlank()) return
-        runCatching { File(stagedPath).delete() }
+        File(stagedPath).delete()
     }
 }
