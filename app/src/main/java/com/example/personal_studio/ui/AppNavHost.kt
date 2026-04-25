@@ -93,7 +93,22 @@ fun AppNavHost(navController: NavHostController) {
                 onExit = { navController.popBackStack() },
             )
         }
-        composable(NavRoutes.KNOWLEDGE) { KnowledgePlaceholder() }
+        composable(NavRoutes.KNOWLEDGE) {
+            // Phase 4 replaces this with KbHomeScreen.
+            KnowledgePlaceholder()
+        }
+        composable(NavRoutes.KB_MISTAKES) {
+            // Phase 5 replaces this.
+            KnowledgePlaceholder()
+        }
+        composable(
+            route = NavRoutes.KB_DETAIL,
+            arguments = listOf(navArgument("entryId") { type = NavType.LongType }),
+        ) { entry ->
+            val id = entry.arguments?.getLong("entryId") ?: 0L
+            // Phase 4 replaces this with KbEntryDetailScreen(id).
+            androidx.compose.material3.Text("kb entry $id (placeholder)")
+        }
         composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
 
         // --- Scanner single-page smoke flow (Task 14) ---
