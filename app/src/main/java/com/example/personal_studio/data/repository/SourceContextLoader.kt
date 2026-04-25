@@ -9,6 +9,8 @@ import com.example.personal_studio.data.local.db.entity.MessageRole
 import com.example.personal_studio.data.remote.llm.LlmMessage
 import com.example.personal_studio.data.remote.llm.LlmRole
 import com.example.personal_studio.domain.model.KbDraftSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,10 +37,12 @@ class SourceContextLoader @Inject constructor(
         val fallbackTitle: String,
     )
 
-    suspend fun load(source: KbDraftSource): LoadedContext = when (source) {
-        is KbDraftSource.FromChatMessage -> loadChatMessage(source)
-        is KbDraftSource.FromChatSession -> loadChatSession(source)
-        is KbDraftSource.FromScanPage -> loadScanPage(source)
+    suspend fun load(source: KbDraftSource): LoadedContext = withContext(Dispatchers.IO) {
+        when (source) {
+            is KbDraftSource.FromChatMessage -> loadChatMessage(source)
+            is KbDraftSource.FromChatSession -> loadChatSession(source)
+            is KbDraftSource.FromScanPage -> loadScanPage(source)
+        }
     }
 
     private suspend fun loadChatMessage(s: KbDraftSource.FromChatMessage): LoadedContext {
@@ -76,10 +80,11 @@ class SourceContextLoader @Inject constructor(
                 MessageRole.AI -> LlmRole.ASSISTANT
                 MessageRole.SYSTEM -> LlmRole.SYSTEM
             }
-            val msg = LlmMessage(role, m.contentMarkdown)
+            kept += LlmMessage(role, m.contentMarkdown)
             charCount += m.contentMarkdown.length
+            // Stop AFTER the budget is exceeded — this ensures at least the most recent
+            // message is always included, even if it alone exceeds the cap.
             if (charCount > budget) break
-            kept += msg
         }
         kept.reverse()
         kept += LlmMessage(LlmRole.USER, "请把以上对话归档为一张知识卡片。")
