@@ -117,7 +117,7 @@ data class KbRelationEntity(
 
 // ---------- FTS4 影子表（bigram 预切后写入） ----------
 
-@Fts4(tokenizer = "simple")
+@Fts4(tokenizer = "unicode61")
 @Entity(tableName = "kb_entries_fts")
 data class KbEntryFtsEntity(
     @ColumnInfo(name = "rowid") val rowid: Long,    // 与 kb_entries.id 对齐
@@ -131,7 +131,7 @@ data class KbEntryFtsEntity(
 
 - **错题集判定**：`standardizedQuestion != null` 是唯一 discriminator。CHAT_MESSAGE 有图 / SCAN 两种 source 时，AI 在 prompt 里被要求判断"是不是题目"，是题目就填 `standardizedQuestion`；CHAT_SESSION 永远不填（session 是主题摘要不是题目）。
 - **图片解耦**：`originalImagePath` 把源图复制到 `filesDir/kb/<entryId>.jpg`。原 chat message 或 scan page 删掉不会让 KB 条目变残。
-- **FTS 文本预切**：用 `tokenizer = "simple"` + 应用层 bigram 预处理，避开 SQLite 打包 ICU/jieba 的麻烦。详见 §5。
+- **FTS 文本预切**：用 `tokenizer = "unicode61"` + 应用层 bigram 预处理，避开 SQLite 打包 ICU/jieba 的麻烦。详见 §5。（**注意**：`simple` tokenizer 把非 ASCII 字符当分隔符，CJK bigram 会在 index 时被丢；必须用 `unicode61`，它把 CJK 当 letter。这条 caught by Phase 1 真机测试。）
 - **`categoryId` 可空**：数据上允许撑住"用户暂未分类"。UI 把 null 归到 `其它` chip 下。
 - **seeded 分类不可删**：UI 在删除按钮上判断 `seeded == true` 时 disable（DAO 层 SQL 也 guard `WHERE seeded = 0`）。
 
@@ -648,7 +648,12 @@ object BigramTokenizer {
         return out.toString().trim()
     }
 
-    /** Search 时用：构造 FTS MATCH query。同 chunk 内 bigram 用 AND，chunk 之间也用 AND。 */
+    /**
+     * Search 时用：构造 FTS MATCH query。同 chunk 内 bigram 用空格（implicit AND），
+     * chunk 之间也用空格。**不能** 用字面 `AND` 关键字 —— stock Android SQLite 没编入
+     * `SQLITE_ENABLE_FTS3_PARENTHESIS`，FTS3/4 只支持 standard query syntax：
+     * 空格 = implicit AND ✓，`OR` 关键字 ✓，`AND`/`NOT`/括号 ✗（写了会被当字面词，0 命中）。
+     */
     fun tokenizeForQuery(input: String): String {
         if (input.isBlank()) return ""
         val parts = mutableListOf<String>()
@@ -660,10 +665,10 @@ object BigramTokenizer {
                 val sb = StringBuilder()
                 bigrams(chunk, sb)
                 val bg = sb.toString().trim().split(' ').filter { it.isNotBlank() }
-                if (bg.isNotEmpty()) parts.add(bg.joinToString(" AND ") { "\"$it\"" })
+                if (bg.isNotEmpty()) parts.add(bg.joinToString(" ") { "\"$it\"" })
             }
         }
-        return parts.joinToString(" AND ")
+        return parts.joinToString(" ")
     }
 
     private fun bigrams(word: String, out: StringBuilder) {
@@ -714,7 +719,32 @@ fun onSearchChanged(q: String) {
 }
 ```
 
-`searchOr` 是 repo 上的辅助，把 AND 换成 OR 再走一次。
+`searchOr` 是 repo 上的辅助：把 `tokenizeForQuery` 输出（空格分隔的 quoted bigram，
+implicit AND）拆开，用显式 `OR` 关键字重组（standard query syntax 支持 `OR`），再走
+一次查询。
+
+### 5.5 Variance from initial spec
+
+These two corrections were caught by Phase 1 真机测试（Xiaomi 2407FRK8EC, Android 14）—
+the on-device probe showed `MATCH ["判别" AND "别式"] -> 0 hits` while
+`MATCH ["判别"] -> 1 hit`，把两个错误假设打了出来：
+
+1. **`tokenizer = "simple"` 不索引 CJK** — SQLite simple tokenizer 把非 ASCII 字符
+   当 separator，所以 CJK bigram（`判别` 等）在 index 时被丢掉。**Fix**: 改用
+   `unicode61`，它把 CJK 当 letter 正常切。
+2. **stock Android SQLite 的 FTS3/4 不支持字面 `AND`/`NOT`/parentheses** —
+   `SQLITE_ENABLE_FTS3_PARENTHESIS` 没编入。只有 standard query syntax 可用：
+   - 空格 = implicit AND ✓
+   - `OR` 关键字 ✓
+   - `AND` 关键字 ✗（被当字面词搜，0 命中）
+   - `NOT` ✗、`(...)` ✗
+
+**约束 / 后果**：
+- `BigramTokenizer.tokenizeForQuery` 不能再 emit `" AND "`，必须用空格 separator。
+- `KnowledgeRepositoryImpl.searchOr` 不能简单 `replace(" AND ", " OR ")`；要从空格
+  分隔的 quoted bigram 重组为显式 `OR`。
+- 任何未来用到 boolean FTS 表达式的代码（高级搜索、过滤等）都受这条约束 —— 需要
+  `NOT` / 括号时只能在应用层做后处理（拉一批再 filter / 取差集）。
 
 ---
 

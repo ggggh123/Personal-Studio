@@ -328,7 +328,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Fts4
 
-@Fts4(tokenizer = "simple")
+@Fts4(tokenizer = "unicode61")
 @Entity(tableName = "kb_entries_fts")
 data class KbEntryFtsEntity(
     @ColumnInfo(name = "rowid") val rowid: Long,
@@ -597,12 +597,12 @@ class BigramTokenizerTest {
         assertEquals("\"数学\"", BigramTokenizer.tokenizeForQuery("数学"))
     }
 
-    @Test fun `query CJK chunk joins bigrams with AND`() {
-        assertEquals("\"微积\" AND \"积分\"", BigramTokenizer.tokenizeForQuery("微积分"))
+    @Test fun `query CJK chunk joins bigrams with implicit AND (space)`() {
+        assertEquals("\"微积\" \"积分\"", BigramTokenizer.tokenizeForQuery("微积分"))
     }
 
-    @Test fun `query multiple chunks join with AND`() {
-        assertEquals("\"微积\" AND \"积分\" AND \"极限\"", BigramTokenizer.tokenizeForQuery("微积分 极限"))
+    @Test fun `query multiple chunks join with implicit AND (space)`() {
+        assertEquals("\"微积\" \"积分\" \"极限\"", BigramTokenizer.tokenizeForQuery("微积分 极限"))
     }
 
     @Test fun `query ASCII word is lowercased and quoted`() {
@@ -629,10 +629,15 @@ package com.example.personal_studio.core.bigram
  *  - ASCII chunks (`code < 128`) are lowercased and kept whole.
  *  - CJK chunks are split into sliding bigrams (length 1 → kept as the single char).
  *
- * The query side joins per-chunk bigrams with AND so a 4-char term like 微积分极 must
- * have all three bigrams 微积, 积分, 分极 present in the document. Cross-chunk noise
- * is mitigated by encouraging users to add spaces between conceptual terms; the
- * ViewModel layer additionally falls back to OR when the AND query returns < 5 hits.
+ * The query side joins per-chunk bigrams with space-separated implicit AND, since
+ * stock Android SQLite FTS3/4 doesn't support the literal `AND` keyword (it's built
+ * without `SQLITE_ENABLE_FTS3_PARENTHESIS`, so only standard query syntax is
+ * available — space = implicit AND, the `OR` keyword IS supported, but `AND`/`NOT`/
+ * parentheses are not). Semantically the result is the same: a 4-char term like
+ * 微积分极 must have all three bigrams 微积, 积分, 分极 present in the document.
+ * Cross-chunk noise is mitigated by encouraging users to add spaces between
+ * conceptual terms; the ViewModel layer additionally falls back to OR when the
+ * implicit-AND query returns < 5 hits.
  */
 object BigramTokenizer {
 
@@ -654,7 +659,11 @@ object BigramTokenizer {
         return out.toString()
     }
 
-    /** Query time. Returns an FTS MATCH expression with AND semantics. */
+    /**
+     * Query time. Returns an FTS MATCH expression with implicit-AND semantics
+     * (space-separated quoted tokens). See class KDoc for why the literal `AND`
+     * keyword can't be used on stock Android SQLite.
+     */
     fun tokenizeForQuery(input: String): String {
         if (input.isBlank()) return ""
         val parts = mutableListOf<String>()
@@ -667,11 +676,11 @@ object BigramTokenizer {
                 appendBigrams(chunk, sb)
                 val bigrams = sb.toString().split(' ').filter { it.isNotBlank() }
                 if (bigrams.isNotEmpty()) {
-                    parts += bigrams.joinToString(" AND ") { "\"$it\"" }
+                    parts += bigrams.joinToString(" ") { "\"$it\"" }
                 }
             }
         }
-        return parts.joinToString(" AND ")
+        return parts.joinToString(" ")
     }
 
     private fun appendBigrams(word: String, out: StringBuilder) {
@@ -994,7 +1003,7 @@ class KbDaoTest {
                 standardizedQuestionBigrams = "",
             ),
         )
-        val hits = db.kbEntryDao().searchOnce("\"判别\" AND \"别式\"")
+        val hits = db.kbEntryDao().searchOnce("\"判别\" \"别式\"")
         assertEquals(1, hits.size)
         assertEquals(id, hits[0].id)
     }
@@ -1235,8 +1244,11 @@ class KnowledgeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchOr(query: String): List<KbEntry> {
-        val ftsQ = BigramTokenizer.tokenizeForQuery(query).replace(" AND ", " OR ")
-        if (ftsQ.isBlank()) return emptyList()
+        val baseTokens = BigramTokenizer.tokenizeForQuery(query)
+        if (baseTokens.isBlank()) return emptyList()
+        // baseTokens is now space-separated quoted bigrams (implicit AND); convert to explicit OR.
+        // (Stock Android SQLite FTS3/4 supports the OR keyword in standard query syntax.)
+        val ftsQ = baseTokens.split(' ').filter { it.isNotBlank() }.joinToString(" OR ")
         val cats = categoryDao.observeAll().let { flow ->
             // first emission is sufficient
             kotlinx.coroutines.flow.first(flow)
