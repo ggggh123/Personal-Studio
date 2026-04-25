@@ -3,6 +3,7 @@ package com.example.personal_studio.data.remote.llm
 import android.util.Base64
 import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
@@ -98,7 +99,7 @@ class OpenAiCompatibleProvider(
         messages: List<LlmMessage>,
         jsonSchema: String,
         temperature: Float,
-    ): String {
+    ): String = withContext(Dispatchers.IO) {
         val key = resolveApiKey() ?: error("No API key configured")
         val endpoint = completionsUrl(resolveBaseUrl())
         val model = resolveModel()
@@ -114,7 +115,7 @@ class OpenAiCompatibleProvider(
                 Return only the JSON, no Markdown fences, no prose.
             """.trimIndent(),
         )
-        val finalMessages = listOf(schemaInstruction) + messages
+        val finalMessages = mergeSchemaInstruction(messages, schemaInstruction)
 
         val body = buildJsonObject {
             put("model", model)
@@ -129,7 +130,7 @@ class OpenAiCompatibleProvider(
         }
 
         val request = buildRequest(endpoint, key, body)
-        return httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).execute().use { response ->
             val responseBody = response.body?.string().orEmpty()
             if (!response.isSuccessful) error("HTTP ${response.code}: $responseBody")
             val root = json.parseToJsonElement(responseBody).jsonObject
@@ -141,6 +142,24 @@ class OpenAiCompatibleProvider(
             content
         }
     }
+
+    /**
+     * If the caller's messages start with a SYSTEM turn, append the schema instruction
+     * to its text (keeping a single SYSTEM message). Otherwise prepend the instruction
+     * as its own SYSTEM message. This avoids "two SYSTEM turns" which some
+     * OpenAI-compat backends drop or downgrade.
+     */
+    private fun mergeSchemaInstruction(
+        messages: List<LlmMessage>,
+        schemaInstruction: LlmMessage,
+    ): List<LlmMessage> =
+        if (messages.firstOrNull()?.role == LlmRole.SYSTEM) {
+            val first = messages.first()
+            val merged = first.copy(text = first.text + "\n\n" + schemaInstruction.text)
+            listOf(merged) + messages.drop(1)
+        } else {
+            listOf(schemaInstruction) + messages
+        }
 
     // ───────────────────────────────────── internals ─────────────────────────────────────
 
