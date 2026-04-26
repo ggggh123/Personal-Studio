@@ -32,7 +32,13 @@ class KbEntryDetailViewModelTest {
                 createdAt = 0, updatedAt = 0,
             )
         }
-        val vm = KbEntryDetailViewModel(repo, SavedStateHandle(mapOf("entryId" to 7L)))
+        val vm = KbEntryDetailViewModel(
+            repo = repo,
+            updateUseCase = com.example.personal_studio.domain.knowledge.UpdateEntryUseCase(repo),
+            deleteUseCase = com.example.personal_studio.domain.knowledge.DeleteEntryUseCase(repo),
+            regenerateUseCase = com.example.personal_studio.domain.knowledge.RegenerateEntryUseCase(repo),
+            savedStateHandle = SavedStateHandle(mapOf("entryId" to 7L)),
+        )
         // stateIn(WhileSubscribed) only starts the upstream once a collector subscribes,
         // so we must drive subscription via Turbine — same convention as KbHomeViewModelTest.
         vm.uiState.test {
