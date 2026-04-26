@@ -8,6 +8,7 @@ import com.example.personal_studio.data.repository.ChatRepository
 import com.example.personal_studio.domain.model.MessageRole
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import java.io.File
 import javax.inject.Inject
 
 sealed interface SendChunk {
@@ -50,15 +51,11 @@ class SendMessageUseCase @Inject constructor(
                     MessageRole.AI -> LlmRole.ASSISTANT
                     MessageRole.SYSTEM -> LlmRole.SYSTEM
                 }
-                // Only re-send the LATEST user message's image. Vision models don't need
-                // historical images replayed every turn — sending them inflates upload bandwidth
-                // quadratically and provides no usable context for the current question.
-                val images = if (m === history.last() && m.attachedImagePath != null) {
-                    runCatching { listOf(repo.loadAttachedImageBytes(m.attachedImagePath!!)) }
-                        .getOrElse { emptyList() }
-                } else {
-                    emptyList()
-                }
+                val images = m.attachedImagePath
+                    ?.let { File(it) }
+                    ?.takeIf { it.exists() }
+                    ?.let { listOf(it.readBytes()) }
+                    ?: emptyList()
                 add(LlmMessage(role, m.contentMarkdown, images))
             }
         }
