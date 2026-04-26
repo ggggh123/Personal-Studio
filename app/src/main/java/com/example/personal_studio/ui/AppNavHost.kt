@@ -95,8 +95,10 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
         composable(NavRoutes.KNOWLEDGE) {
-            // TODO(P3 Phase 4 Task 25): replace with KbHomeScreen
-            KnowledgePlaceholder()
+            com.example.personal_studio.feature.knowledge.ui.KbHomeScreen(
+                onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
+                onOpenMistakes = { navController.navigate(NavRoutes.KB_MISTAKES) },
+            )
         }
         composable(NavRoutes.KB_MISTAKES) {
             // TODO(P3 Phase 5 Task 32): replace with KbMistakesScreen
