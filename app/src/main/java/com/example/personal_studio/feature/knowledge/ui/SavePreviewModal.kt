@@ -142,6 +142,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
     var standardizedQuestion by remember { mutableStateOf(initial.standardizedQuestion.orEmpty()) }
     var summary by remember { mutableStateOf(initial.summaryMarkdown) }
     var editingSummaryRaw by remember { mutableStateOf(false) }
+    var editingStandardizedQuestionRaw by remember { mutableStateOf(false) }
     var related by remember { mutableStateOf(initial.relatedEntryTitles) }
 
     Column(Modifier.fillMaxSize()) {
@@ -206,8 +207,21 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
             item { FieldLabel("category"); LineField(category) { category = it } }
             if (standardizedQuestion.isNotBlank() || initial.standardizedQuestion != null) {
                 item {
-                    FieldLabel("standardized question")
-                    MultilineField(standardizedQuestion) { standardizedQuestion = it }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FieldLabel("standardized question", Modifier.weight(1f))
+                        Text(
+                            if (editingStandardizedQuestionRaw) "[preview]" else "[edit raw markdown]",
+                            color = FoamDim,
+                            modifier = Modifier
+                                .clickable { editingStandardizedQuestionRaw = !editingStandardizedQuestionRaw }
+                                .padding(8.dp),
+                        )
+                    }
+                    if (editingStandardizedQuestionRaw) {
+                        MultilineField(standardizedQuestion) { standardizedQuestion = it }
+                    } else {
+                        MathMarkdownView(markdown = standardizedQuestion, modifier = Modifier.fillMaxWidth())
+                    }
                 }
             }
             item {

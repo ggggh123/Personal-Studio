@@ -108,7 +108,10 @@ fun AppNavHost(navController: NavHostController) {
         ) { backStack ->
             val id = backStack.arguments?.getLong("entryId") ?: return@composable
             // TODO(P3 Phase 4 Task 28): replace with KbEntryDetailScreen(id)
-            androidx.compose.material3.Text("kb entry $id (placeholder)")
+            com.example.personal_studio.feature.knowledge.ui.KbEntryDetailPlaceholderScreen(
+                entryId = id,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
 
