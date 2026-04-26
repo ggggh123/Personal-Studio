@@ -97,13 +97,6 @@ fun AppNavHost(navController: NavHostController) {
         composable(NavRoutes.KNOWLEDGE) {
             com.example.personal_studio.feature.knowledge.ui.KbHomeScreen(
                 onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
-                onOpenMistakes = { navController.navigate(NavRoutes.KB_MISTAKES) },
-            )
-        }
-        composable(NavRoutes.KB_MISTAKES) {
-            com.example.personal_studio.feature.knowledge.ui.KbMistakesScreen(
-                onBack = { navController.popBackStack() },
-                onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
             )
         }
         composable(

@@ -15,16 +15,24 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class CategoryWithCount(val category: KbCategory, val count: Int)
 
+/**
+ * Three-state browse-list filter for KbHome. Mutually exclusive — selecting one
+ * deselects the others. ALL is the default so the user sees everything inline
+ * (notes + mistakes together) without having to discover a separate sub-screen.
+ */
+enum class KbHomeFilter { ALL, NOTES_ONLY, MISTAKES_ONLY }
+
 data class KbHomeUiState(
     val searchQuery: String = "",
     val selectedCategoryId: Long? = null,
-    val showNotes: Boolean = true,
+    val filter: KbHomeFilter = KbHomeFilter.ALL,
     val notesCount: Int = 0,
     val mistakesCount: Int = 0,
     val categories: List<CategoryWithCount> = emptyList(),
@@ -47,36 +55,46 @@ class KbHomeViewModel @Inject constructor(
 
     private val searchQuery = MutableStateFlow("")
     private val selectedCategoryId = MutableStateFlow<Long?>(null)
-    private val showNotes = MutableStateFlow(true)
+    private val filter = MutableStateFlow(KbHomeFilter.ALL)
     private val rescuedEntries = MutableStateFlow<List<KbEntry>?>(null)
 
     /**
      * When [searchQuery] is blank we observe the browse-mode list (filtered by
-     * category + notes-only flag); otherwise we forward to FTS search.
+     * category + the active [KbHomeFilter]); otherwise we forward to FTS search.
      * The 150 ms debounce on [searchQuery] keeps the FTS path off every keystroke
      * while still feeling responsive.
      *
-     * Semantics: [showNotes] = true means "notes section, hide mistakes". The DAO
-     * predicate is `(:notesOnly = 0 OR standardizedQuestion IS NULL)`, so passing
-     * `notesOnly = showNotes` (no inversion) gives:
-     *   - showNotes=true  → notesOnly=true  → only rows with NULL standardizedQuestion
-     *   - showNotes=false → notesOnly=false → everything
-     * Matches user intent. Don't add a `!`.
+     * Filter mapping:
+     *   - ALL           → observeAllEntries(catId, notesOnly = false)  (everything)
+     *   - NOTES_ONLY    → observeAllEntries(catId, notesOnly = true)   (DAO predicate
+     *                     `(:notesOnly = 0 OR standardizedQuestion IS NULL)` keeps
+     *                     only rows with NULL standardizedQuestion).
+     *   - MISTAKES_ONLY → observeMistakes(); the dedicated mistakes flow is
+     *                     category-agnostic, so we post-filter by [catId] when set.
      */
     private val entriesFlow = combine(
         searchQuery.debounce(150).distinctUntilChanged(),
         selectedCategoryId,
-        showNotes,
-    ) { q, catId, notes -> Triple(q, catId, notes) }
-        .flatMapLatest { (q, catId, notes) ->
-            if (q.isBlank()) repo.observeAllEntries(catId, notesOnly = notes)
-            else repo.search(q)
+        filter,
+    ) { q, catId, f -> Triple(q, catId, f) }
+        .flatMapLatest { (q, catId, f) ->
+            if (q.isNotBlank()) {
+                repo.search(q)
+            } else {
+                when (f) {
+                    KbHomeFilter.ALL -> repo.observeAllEntries(catId, notesOnly = false)
+                    KbHomeFilter.NOTES_ONLY -> repo.observeAllEntries(catId, notesOnly = true)
+                    KbHomeFilter.MISTAKES_ONLY ->
+                        if (catId == null) repo.observeMistakes()
+                        else repo.observeMistakes().map { all -> all.filter { it.categoryId == catId } }
+                }
+            }
         }
 
     val uiState: StateFlow<KbHomeUiState> = combine(
         searchQuery,
         selectedCategoryId,
-        showNotes,
+        filter,
         repo.observeNotesCount(),
         repo.observeMistakesCount(),
         repo.observeCategories(),
@@ -87,7 +105,7 @@ class KbHomeViewModel @Inject constructor(
         @Suppress("UNCHECKED_CAST")
         val q = values[0] as String
         val catId = values[1] as Long?
-        val notes = values[2] as Boolean
+        val f = values[2] as KbHomeFilter
         val notesCount = values[3] as Int
         val mistakesCount = values[4] as Int
         val cats = values[5] as List<KbCategory>
@@ -97,7 +115,7 @@ class KbHomeViewModel @Inject constructor(
         KbHomeUiState(
             searchQuery = q,
             selectedCategoryId = catId,
-            showNotes = notes,
+            filter = f,
             notesCount = notesCount,
             mistakesCount = mistakesCount,
             categories = cats.map { CategoryWithCount(it, counts[it.id] ?: 0) },
@@ -113,7 +131,7 @@ class KbHomeViewModel @Inject constructor(
         rescuedEntries.value = null
     }
     fun onSelectCategory(id: Long?) { selectedCategoryId.value = id }
-    fun onToggleNotes() { showNotes.value = !showNotes.value }
+    fun setFilter(newFilter: KbHomeFilter) { filter.value = newFilter }
 
     /**
      * AND-mode FTS search returned < [SPARSE_THRESHOLD] hits — fall back to OR

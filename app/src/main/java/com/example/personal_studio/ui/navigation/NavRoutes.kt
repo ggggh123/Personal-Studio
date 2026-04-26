@@ -45,7 +45,6 @@ object NavRoutes {
         "scanner/enhance?tmp=${Uri.encode(tmp)}&corners=${Uri.encode(corners)}"
 
     // Knowledge Base routes (P3)
-    const val KB_MISTAKES = "knowledge/mistakes"
     const val KB_DETAIL = "knowledge/detail/{entryId}"
     fun kbDetail(entryId: Long) = "knowledge/detail/$entryId"
 }

@@ -56,17 +56,17 @@ class KbHomeViewModelTest {
         }
     }
 
-    @Test fun toggleNotes_flipsShowNotesFlag() = runTest {
+    @Test fun setFilter_changesFilter() = runTest {
         val repo = FakeKnowledgeRepository()
         val vm = KbHomeViewModel(repo)
         vm.uiState.test {
             var s = awaitItem()
-            // Initial showNotes is true.
-            assertTrue(s.showNotes)
-            vm.onToggleNotes()
-            // Drain emissions until the flag actually flipped.
-            while (s.showNotes) s = awaitItem()
-            assertEquals(false, s.showNotes)
+            // Default filter is ALL.
+            assertEquals(KbHomeFilter.ALL, s.filter)
+            vm.setFilter(KbHomeFilter.MISTAKES_ONLY)
+            // Drain emissions until the filter actually changed.
+            while (s.filter != KbHomeFilter.MISTAKES_ONLY) s = awaitItem()
+            assertEquals(KbHomeFilter.MISTAKES_ONLY, s.filter)
             cancelAndIgnoreRemainingEvents()
         }
     }

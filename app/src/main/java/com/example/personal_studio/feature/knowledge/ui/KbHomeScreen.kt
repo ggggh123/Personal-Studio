@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.knowledge.ui.components.CategoryChipRow
 import com.example.personal_studio.feature.knowledge.ui.components.KbEntryRow
 import com.example.personal_studio.feature.knowledge.ui.components.KbSearchBar
+import com.example.personal_studio.feature.knowledge.vm.KbHomeFilter
 import com.example.personal_studio.feature.knowledge.vm.KbHomeViewModel
 import com.example.personal_studio.ui.placeholder.KnowledgePlaceholder
 import com.example.personal_studio.ui.theme.Foam
@@ -45,7 +46,6 @@ import com.example.personal_studio.ui.theme.Void
 @Composable
 fun KbHomeScreen(
     onOpenEntry: (Long) -> Unit,
-    onOpenMistakes: () -> Unit,
 ) {
     val vm: KbHomeViewModel = hiltViewModel()
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -55,14 +55,25 @@ fun KbHomeScreen(
         Column(Modifier.fillMaxSize()) {
             KbSearchBar(query = state.searchQuery, onQueryChange = vm::onSearchChange)
 
-            // Top stats row: [notes N] [mistakes N]
+            // Top stats row: 3 mutually-exclusive filter chips. ALL is the default
+            // so notes + mistakes show inline; tapping a selected chip clears back
+            // to ALL (acts as a deselect).
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StatChip("notes", state.notesCount, selected = state.showNotes) { vm.onToggleNotes() }
+                val total = state.notesCount + state.mistakesCount
+                StatChip("all", total, selected = state.filter == KbHomeFilter.ALL) {
+                    vm.setFilter(KbHomeFilter.ALL)
+                }
                 Spacer(Modifier.width(12.dp))
-                StatChip("mistakes", state.mistakesCount, selected = false) { onOpenMistakes() }
+                StatChip("notes", state.notesCount, selected = state.filter == KbHomeFilter.NOTES_ONLY) {
+                    vm.setFilter(if (state.filter == KbHomeFilter.NOTES_ONLY) KbHomeFilter.ALL else KbHomeFilter.NOTES_ONLY)
+                }
+                Spacer(Modifier.width(12.dp))
+                StatChip("mistakes", state.mistakesCount, selected = state.filter == KbHomeFilter.MISTAKES_ONLY) {
+                    vm.setFilter(if (state.filter == KbHomeFilter.MISTAKES_ONLY) KbHomeFilter.ALL else KbHomeFilter.MISTAKES_ONLY)
+                }
             }
 
             CategoryChipRow(
