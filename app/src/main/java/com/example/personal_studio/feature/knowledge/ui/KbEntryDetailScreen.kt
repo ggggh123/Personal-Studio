@@ -23,12 +23,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.personal_studio.domain.model.KbEntry
 import com.example.personal_studio.feature.knowledge.ui.components.RelatedEntriesSection
 import com.example.personal_studio.feature.knowledge.vm.KbEntryDetailUiState
@@ -41,6 +43,7 @@ import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
+import java.io.File
 
 /**
  * KB entry detail screen — Phase 4 baseline (normal-entry variant only).
@@ -96,7 +99,9 @@ private fun Loaded(
     val e = state.entry
     LazyColumn(Modifier.fillMaxSize()) {
         item { MetadataRow(e, onOpenSource) }
-        // Phase 5 (Task 33) inserts a MistakeHeader item here when e.isMistake.
+        if (e.isMistake) {
+            item { MistakeHeader(e) }
+        }
         item {
             MathMarkdownView(
                 markdown = e.summaryMarkdown,
@@ -135,5 +140,27 @@ private fun MetadataRow(e: KbEntry, onOpenSource: (KbEntry) -> Unit) {
                 .clickable { onOpenSource(e) }
                 .padding(8.dp),
         )
+    }
+}
+
+@Composable
+private fun MistakeHeader(e: KbEntry) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        e.originalImagePath?.let { path ->
+            AsyncImage(
+                model = File(path),
+                contentDescription = "原图",
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+        Text("## 题目", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        MathMarkdownView(
+            markdown = e.standardizedQuestion.orEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(16.dp))
     }
 }
