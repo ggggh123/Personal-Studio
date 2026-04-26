@@ -109,10 +109,22 @@ fun AppNavHost(navController: NavHostController) {
             arguments = listOf(navArgument("entryId") { type = NavType.LongType }),
         ) { backStack ->
             val id = backStack.arguments?.getLong("entryId") ?: return@composable
-            // TODO(P3 Phase 4 Task 28): replace with KbEntryDetailScreen(id)
-            com.example.personal_studio.feature.knowledge.ui.KbEntryDetailPlaceholderScreen(
-                entryId = id,
+            com.example.personal_studio.feature.knowledge.ui.KbEntryDetailScreen(
                 onBack = { navController.popBackStack() },
+                onOpenSource = { entry ->
+                    when (entry.source) {
+                        com.example.personal_studio.domain.model.KbSource.CHAT_MESSAGE,
+                        com.example.personal_studio.domain.model.KbSource.CHAT_SESSION ->
+                            entry.sourceChatSessionId?.let { sid ->
+                                navController.navigate(NavRoutes.chatDetail(sid))
+                            }
+                        com.example.personal_studio.domain.model.KbSource.SCAN ->
+                            // Phase 5 (Task 35) wires real scan-page-from-id navigation.
+                            // For now jump to scanner library so user has a destination.
+                            navController.navigate(NavRoutes.SCANNER)
+                    }
+                },
+                onOpenRelated = { relId -> navController.navigate(NavRoutes.kbDetail(relId)) },
             )
         }
         composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
