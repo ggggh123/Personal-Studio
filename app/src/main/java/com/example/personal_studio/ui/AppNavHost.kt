@@ -78,6 +78,7 @@ fun AppNavHost(navController: NavHostController) {
             PageEditScreen(
                 pageId = pageId,
                 onBack = { navController.popBackStack() },
+                onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
             )
         }
         composable(
