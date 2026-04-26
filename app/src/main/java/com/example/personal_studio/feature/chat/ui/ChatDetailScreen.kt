@@ -160,8 +160,22 @@ fun ChatDetailScreen(
             route = "chat",
             subtitle = buildSubtitle(state.session?.title, state.activeModel),
             trailing = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "[+ archive session]",
+                        color = Phosphor,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .clickable {
+                                val src = KbDraftSource.FromChatSession(sessionId = sessionId)
+                                activeSourceState.value = src
+                                saveVm.startDraft(src)
+                            }
+                            .padding(8.dp),
+                    )
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                    }
                 }
             }
         )
