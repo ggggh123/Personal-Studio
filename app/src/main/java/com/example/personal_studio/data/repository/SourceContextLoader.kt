@@ -128,7 +128,10 @@ class SourceContextLoader @Inject constructor(
 
     private suspend fun loadScanPage(s: KbDraftSource.FromScanPage): LoadedContext {
         val page = scanPageDao.get(s.pageId) ?: error("scan page ${s.pageId} not found")
-        val doc = scanDocumentDao.getById(s.docId)
+        // RegenerateEntryUseCase passes docId = -1L because the entry doesn't store
+        // it; fall back to the page's docId so re-runs work for SCAN entries.
+        val effectiveDocId = if (s.docId > 0) s.docId else page.docId
+        val doc = scanDocumentDao.getById(effectiveDocId)
         val docTitle = doc?.title ?: "扫描文档"
         val imageBytes = File(page.enhancedImagePath).readBytes()
         val staged = imageStore.stageCopy(page.enhancedImagePath)
