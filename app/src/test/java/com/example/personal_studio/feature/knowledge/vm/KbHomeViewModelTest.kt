@@ -2,6 +2,7 @@ package com.example.personal_studio.feature.knowledge.vm
 
 import app.cash.turbine.test
 import com.example.personal_studio.data.repository.FakeKnowledgeRepository
+import com.example.personal_studio.domain.knowledge.SearchKbUseCase
 import com.example.personal_studio.domain.model.KbCategory
 import com.example.personal_studio.domain.model.KbEntry
 import com.example.personal_studio.domain.model.KbSource
@@ -41,7 +42,7 @@ class KbHomeViewModelTest {
         repo.mistakesCount.value = 1
         repo.categoryCounts.value = mapOf(1L to 1, 2L to 0)
 
-        val vm = KbHomeViewModel(repo)
+        val vm = KbHomeViewModel(repo, SearchKbUseCase(repo))
         vm.uiState.test {
             // First emission may be the initial empty state from stateIn's seed; skip until populated.
             var s = awaitItem()
@@ -58,7 +59,7 @@ class KbHomeViewModelTest {
 
     @Test fun setFilter_changesFilter() = runTest {
         val repo = FakeKnowledgeRepository()
-        val vm = KbHomeViewModel(repo)
+        val vm = KbHomeViewModel(repo, SearchKbUseCase(repo))
         vm.uiState.test {
             var s = awaitItem()
             // Default filter is ALL.
@@ -74,7 +75,7 @@ class KbHomeViewModelTest {
     @Test fun selectCategory_setsFilter() = runTest {
         val repo = FakeKnowledgeRepository()
         repo.categories.value = listOf(KbCategory(1, "数学", true))
-        val vm = KbHomeViewModel(repo)
+        val vm = KbHomeViewModel(repo, SearchKbUseCase(repo))
         vm.uiState.test {
             awaitItem()
             vm.onSelectCategory(1L)
@@ -90,7 +91,10 @@ class KbHomeViewModelTest {
         // Distinct fixtures so we can tell which path served the result.
         repo.allEntries.value = listOf(mkEntry(100), mkEntry(101))
         repo.searchResults.value = listOf(mkEntry(200))
-        val vm = KbHomeViewModel(repo)
+        // OR fixture must agree with AND so the use case's auto-rescue doesn't
+        // swap the result out from under us when AND is sparse.
+        repo.orSearchResults = listOf(mkEntry(200))
+        val vm = KbHomeViewModel(repo, SearchKbUseCase(repo))
         vm.uiState.test {
             // Drain to populated browse state.
             var s = awaitItem()
@@ -115,26 +119,18 @@ class KbHomeViewModelTest {
         }
     }
 
-    @Test fun rescueSearchIfSparse_setsRescuedEntries_andClearsOnNewQuery() = runTest {
+    @Test fun searchAutoRescuesOrWhenAndIsSparse() = runTest {
         val repo = FakeKnowledgeRepository()
-        repo.searchResults.value = listOf(mkEntry(1))   // AND returns 1 (< SPARSE_THRESHOLD=5)
-        repo.orSearchResults = (10L..15L).map { mkEntry(it) }  // OR returns 6 (> 1)
-        val vm = KbHomeViewModel(repo)
+        repo.searchResults.value = listOf(mkEntry(1))    // AND returns 1 (< SPARSE_THRESHOLD=5)
+        repo.orSearchResults = (10L..15L).map { mkEntry(it) }   // OR returns 6
+        val vm = KbHomeViewModel(repo, SearchKbUseCase(repo))
         vm.uiState.test {
             var s = awaitItem()
             vm.onSearchChange("微积分")
             while (!s.isSearching) s = awaitItem()
-            // Wait for the AND result to land in entries.
-            while (s.entries.singleOrNull()?.id != 1L) s = awaitItem()
-
-            vm.rescueSearchIfSparse()
-            while (s.rescuedEntries == null) s = awaitItem()
-            assertEquals(6, s.rescuedEntries!!.size)
-
-            // Typing again must clear stale rescue.
-            vm.onSearchChange("微积分 极限")
-            while (s.rescuedEntries != null) s = awaitItem()
-            assertEquals(null, s.rescuedEntries)
+            // Use case auto-rescues — wait for OR results to land in entries (size 6)
+            while (s.entries.size != 6) s = awaitItem()
+            assertEquals(6, s.entries.size)
             cancelAndIgnoreRemainingEvents()
         }
     }

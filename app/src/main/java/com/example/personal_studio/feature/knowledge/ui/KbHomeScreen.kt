@@ -37,11 +37,9 @@ import com.example.personal_studio.ui.theme.Void
 
 /**
  * KB tab default landing. Hosts KbHomeViewModel; renders search bar + counts row +
- * category chips + entries list. The list shows the rescued OR-mode results (when
- * present) instead of the strict AND results.
- *
- * Phase 4 baseline. Phase 6 / Task 44 wires SearchKbUseCase for the AND→OR rescue
- * trigger that replaces the current best-effort behavior.
+ * category chips + entries list. AND→OR rescue is transparent: SearchKbUseCase
+ * (wired into the VM) folds the OR fallback into [state.entries] when AND is
+ * sparse, so the screen never has to choose between two result lists.
  */
 @Composable
 fun KbHomeScreen(
@@ -49,7 +47,7 @@ fun KbHomeScreen(
 ) {
     val vm: KbHomeViewModel = hiltViewModel()
     val state by vm.uiState.collectAsStateWithLifecycle()
-    val displayedEntries = state.rescuedEntries ?: state.entries
+    val displayedEntries = state.entries
 
     Box(Modifier.fillMaxSize().background(Void)) {
         Column(Modifier.fillMaxSize()) {
