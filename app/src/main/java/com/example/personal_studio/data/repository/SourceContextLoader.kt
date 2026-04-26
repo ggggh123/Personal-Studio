@@ -70,26 +70,60 @@ class SourceContextLoader @Inject constructor(
 
     private suspend fun loadChatSession(s: KbDraftSource.FromChatSession): LoadedContext {
         val all = chatMessageDao.getAllForSession(s.sessionId)
-        // Drop earliest messages until under a soft codepoint budget; preserve last N.
+        // Pack the conversation into ONE USER message so the model treats it as a
+        // text-to-summarize task, not a continuing dialogue. Earlier multi-turn
+        // formatting caused the model to focus only on the latest exchange.
+        // Truncate from the OLDEST end if over budget so the most recent rounds
+        // stay intact.
         val budget = TOTAL_CHARS_BUDGET
-        val kept = mutableListOf<LlmMessage>()
+        val keptOldestFirst = mutableListOf<com.example.personal_studio.data.local.db.entity.ChatMessageEntity>()
         var charCount = 0
         for (m in all.asReversed()) {
-            val role = when (m.role) {
-                MessageRole.USER -> LlmRole.USER
-                MessageRole.AI -> LlmRole.ASSISTANT
-                MessageRole.SYSTEM -> LlmRole.SYSTEM
-            }
-            kept += LlmMessage(role, m.contentMarkdown)
+            keptOldestFirst += m
             charCount += m.contentMarkdown.length
-            // Stop AFTER the budget is exceeded — this ensures at least the most recent
-            // message is always included, even if it alone exceeds the cap.
             if (charCount > budget) break
         }
-        kept.reverse()
-        kept += LlmMessage(LlmRole.USER, "请把以上对话归档为一张知识卡片。")
+        keptOldestFirst.reverse()
+
+        val convoText = buildString {
+            append("以下是一段共 ")
+            append(keptOldestFirst.size)
+            append(" 条消息的完整对话（按时间顺序）。请整体归纳为一张知识卡片，不要只关注最后一轮。\n\n")
+            // Pair user→ai turns into rounds; SYSTEM messages just get inlined.
+            var roundNo = 0
+            var i = 0
+            while (i < keptOldestFirst.size) {
+                val m = keptOldestFirst[i]
+                when (m.role) {
+                    MessageRole.USER -> {
+                        roundNo += 1
+                        append("### 第 ").append(roundNo).append(" 轮\n")
+                        append("**用户**：").append(m.contentMarkdown).append('\n')
+                        // Greedy-pair with the next AI message if one follows.
+                        val next = keptOldestFirst.getOrNull(i + 1)
+                        if (next != null && next.role == MessageRole.AI) {
+                            append("**AI**：").append(next.contentMarkdown).append("\n\n")
+                            i += 2
+                            continue
+                        }
+                        append('\n')
+                    }
+                    MessageRole.AI -> {
+                        // Orphan AI message (shouldn't normally happen).
+                        append("**AI**：").append(m.contentMarkdown).append("\n\n")
+                    }
+                    MessageRole.SYSTEM -> {
+                        append("_(system: ").append(m.contentMarkdown).append(")_\n\n")
+                    }
+                }
+                i += 1
+            }
+            append("---\n请基于以上完整对话生成知识卡片。")
+        }
+
+        val messages = listOf(LlmMessage(LlmRole.USER, convoText))
         val sessionTitle = chatSessionDao.getById(s.sessionId)?.title ?: "会话"
-        return LoadedContext(kept, stagedImagePath = null, fallbackTitle = sessionTitle)
+        return LoadedContext(messages, stagedImagePath = null, fallbackTitle = sessionTitle)
     }
 
     private suspend fun loadScanPage(s: KbDraftSource.FromScanPage): LoadedContext {
