@@ -40,6 +40,7 @@ import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
+import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
@@ -186,6 +187,39 @@ private fun ReviewView(
     }
 
     Column(Modifier.fillMaxSize().background(Void)) {
+        // Secondary actions (retake / archive / delete) live in the topbar's
+        // trailing slot so the area below the image stays focused on the
+        // filter chips + primary [cancel]/[confirm] pair.
+        TerminalTopBar(
+            route = "scans/edit",
+            subtitle = state.page?.let { "# page #${it.id}" },
+            trailing = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "[↻ retake]",
+                        color = Amber,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable(onClick = onRetake),
+                    )
+                    Text(
+                        "[+ archive]",
+                        color = Phosphor,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable(onClick = onArchive),
+                    )
+                    Text(
+                        "[x delete page]",
+                        color = Carmine,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable(onClick = onDelete),
+                    )
+                }
+            },
+        )
+
         Box(
             Modifier
                 .weight(1f)
@@ -217,33 +251,6 @@ private fun ReviewView(
                     modifier = Modifier.clickable { onSelectFilter(f) },
                 )
             }
-        }
-
-        // Secondary actions (retake / archive / delete) on their own row so the primary
-        // [cancel] / [confirm] pair at the bottom stays uncluttered.
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "[↻ retake]",
-                color = Amber,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onRetake),
-            )
-            Text(
-                "[+ archive]",
-                color = Phosphor,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onArchive),
-            )
-            Text(
-                "[x delete page]",
-                color = Carmine,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onDelete),
-            )
         }
 
         Row(
