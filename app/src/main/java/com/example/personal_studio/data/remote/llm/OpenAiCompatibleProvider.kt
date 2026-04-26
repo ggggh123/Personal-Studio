@@ -274,7 +274,9 @@ class OpenAiCompatibleProvider(
             OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                // Match readTimeout. Even after downscaling, slow uplinks (e.g. CN mobile)
+                // and the no-stream JSON-mode path used by generateStructured benefit from headroom.
+                .writeTimeout(120, TimeUnit.SECONDS)
                 .build()
     }
 }

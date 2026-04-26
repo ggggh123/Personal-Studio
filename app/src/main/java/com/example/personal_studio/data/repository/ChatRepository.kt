@@ -1,5 +1,6 @@
 package com.example.personal_studio.data.repository
 
+import com.example.personal_studio.data.image.ImageDownscaler
 import com.example.personal_studio.data.local.db.dao.ChatMessageDao
 import com.example.personal_studio.data.local.db.dao.ChatSessionDao
 import com.example.personal_studio.data.local.db.entity.ChatMessageEntity
@@ -7,8 +8,10 @@ import com.example.personal_studio.data.local.db.entity.ChatSessionEntity
 import com.example.personal_studio.domain.model.ChatMessage
 import com.example.personal_studio.domain.model.ChatSession
 import com.example.personal_studio.domain.model.MessageRole
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,6 +34,13 @@ interface ChatRepository {
         tokenCount: Int? = null,
         modelUsed: String? = null,
     ): Long
+
+    /**
+     * Reads an attached image off disk and returns vision-ready bytes (downscaled
+     * + JPEG-recoded). The boundary lives on the repo so the domain layer stays
+     * free of android.graphics.* dependencies.
+     */
+    suspend fun loadAttachedImageBytes(path: String): ByteArray
 }
 
 @Singleton
@@ -91,6 +101,9 @@ class ChatRepositoryImpl @Inject constructor(
         sessionDao.touch(sessionId, now)
         return id
     }
+
+    override suspend fun loadAttachedImageBytes(path: String): ByteArray =
+        withContext(Dispatchers.IO) { ImageDownscaler.downscaleToBytes(path) }
 }
 
 // Mapping helpers

@@ -1,5 +1,6 @@
 package com.example.personal_studio.data.repository
 
+import com.example.personal_studio.data.image.ImageDownscaler
 import com.example.personal_studio.data.kb.KbImageStore
 import com.example.personal_studio.data.local.db.dao.ChatMessageDao
 import com.example.personal_studio.data.local.db.dao.ChatSessionDao
@@ -58,7 +59,9 @@ class SourceContextLoader @Inject constructor(
             append("\n\n### AI 回答\n")
             append(ai.contentMarkdown)
         }
-        val imageBytes = precedingUser?.attachedImagePath?.let { File(it).takeIf(File::exists)?.readBytes() }
+        val imageBytes = precedingUser?.attachedImagePath
+            ?.takeIf { File(it).exists() }
+            ?.let { runCatching { ImageDownscaler.downscaleToBytes(it) }.getOrNull() }
         val staged = precedingUser?.attachedImagePath?.let { imageStore.stageCopy(it) }
 
         val messages = listOf(
@@ -96,7 +99,7 @@ class SourceContextLoader @Inject constructor(
         val page = scanPageDao.get(s.pageId) ?: error("scan page ${s.pageId} not found")
         val doc = scanDocumentDao.getById(s.docId)
         val docTitle = doc?.title ?: "扫描文档"
-        val imageBytes = File(page.enhancedImagePath).readBytes()
+        val imageBytes = ImageDownscaler.downscaleToBytes(page.enhancedImagePath)
         val staged = imageStore.stageCopy(page.enhancedImagePath)
         val text = "请识别图中内容并归档为一张知识卡片。如果是题目，按题目处理（isQuestion=true）。文档标题：$docTitle"
         val messages = listOf(LlmMessage(LlmRole.USER, text, images = listOf(imageBytes)))

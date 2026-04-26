@@ -70,4 +70,7 @@ class FakeChatRepository : ChatRepository {
         }.sortedByDescending { it.updatedAt }
         return id
     }
+
+    /** Tests don't exercise the network path; return empty bytes so callers can construct messages. */
+    override suspend fun loadAttachedImageBytes(path: String): ByteArray = ByteArray(0)
 }
