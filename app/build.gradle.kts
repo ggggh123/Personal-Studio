@@ -146,6 +146,9 @@ dependencies {
     // Drag-to-reorder for the scan detail page grid
     implementation(libs.reorderable)
 
+    // Coil — image loading for KB thumbnails (File source via AsyncImage)
+    implementation(libs.coil.compose)
+
     // Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

@@ -39,6 +39,9 @@ onnxruntime = "1.20.0"
 # Drag-to-reorder for Compose LazyGrid/Column (used in scan detail screen)
 reorderable = "3.1.0"
 
+# Image loading (used by KB UI for thumbnail rendering from File)
+coil = "2.7.0"
+
 # Testing
 junit = "4.13.2"
 junitExt = "1.2.1"
@@ -104,6 +107,9 @@ onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime
 
 # Reorderable (Compose drag-to-reorder for lists and grids)
 reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
+
+# Coil (image loading for KB thumbnails — File-source via AsyncImage)
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
