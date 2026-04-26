@@ -20,7 +20,6 @@ import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScr
 import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
-import com.example.personal_studio.ui.placeholder.KnowledgePlaceholder
 import com.example.personal_studio.ui.placeholder.TimelinePlaceholder
 import java.io.File
 
@@ -101,8 +100,10 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
         composable(NavRoutes.KB_MISTAKES) {
-            // TODO(P3 Phase 5 Task 32): replace with KbMistakesScreen
-            KnowledgePlaceholder()
+            com.example.personal_studio.feature.knowledge.ui.KbMistakesScreen(
+                onBack = { navController.popBackStack() },
+                onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
+            )
         }
         composable(
             route = NavRoutes.KB_DETAIL,
