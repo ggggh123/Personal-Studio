@@ -11,7 +11,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -31,6 +30,13 @@ data class KbHomeUiState(
     val categories: List<CategoryWithCount> = emptyList(),
     val entries: List<KbEntry> = emptyList(),
     val isSearching: Boolean = false,
+    /**
+     * Non-null when the strict AND-search returned < SPARSE_THRESHOLD hits AND
+     * the OR rescue found more. UI shows these instead of [entries] when present.
+     * Cleared on every [onSearchChange] so a stale rescue from a previous query
+     * can't leak into a new one.
+     */
+    val rescuedEntries: List<KbEntry>? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -42,6 +48,7 @@ class KbHomeViewModel @Inject constructor(
     private val searchQuery = MutableStateFlow("")
     private val selectedCategoryId = MutableStateFlow<Long?>(null)
     private val showNotes = MutableStateFlow(true)
+    private val rescuedEntries = MutableStateFlow<List<KbEntry>?>(null)
 
     /**
      * When [searchQuery] is blank we observe the browse-mode list (filtered by
@@ -49,10 +56,12 @@ class KbHomeViewModel @Inject constructor(
      * The 150 ms debounce on [searchQuery] keeps the FTS path off every keystroke
      * while still feeling responsive.
      *
-     * Note: [showNotes] = true means "show notes only, hide mistakes" → repo's
-     * `notesOnly = !showNotes` is intentionally inverted. (When showNotes is
-     * true, the user wants the notes section, which excludes mistakes; when
-     * false, they want everything.)
+     * Semantics: [showNotes] = true means "notes section, hide mistakes". The DAO
+     * predicate is `(:notesOnly = 0 OR standardizedQuestion IS NULL)`, so passing
+     * `notesOnly = showNotes` (no inversion) gives:
+     *   - showNotes=true  → notesOnly=true  → only rows with NULL standardizedQuestion
+     *   - showNotes=false → notesOnly=false → everything
+     * Matches user intent. Don't add a `!`.
      */
     private val entriesFlow = combine(
         searchQuery.debounce(150).distinctUntilChanged(),
@@ -73,6 +82,7 @@ class KbHomeViewModel @Inject constructor(
         repo.observeCategories(),
         repo.observeCategoryCounts(),
         entriesFlow,
+        rescuedEntries,
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val q = values[0] as String
@@ -83,6 +93,7 @@ class KbHomeViewModel @Inject constructor(
         val cats = values[5] as List<KbCategory>
         val counts = values[6] as Map<Long, Int>
         val entries = values[7] as List<KbEntry>
+        val rescued = values[8] as List<KbEntry>?
         KbHomeUiState(
             searchQuery = q,
             selectedCategoryId = catId,
@@ -92,30 +103,36 @@ class KbHomeViewModel @Inject constructor(
             categories = cats.map { CategoryWithCount(it, counts[it.id] ?: 0) },
             entries = entries,
             isSearching = q.isNotBlank(),
+            rescuedEntries = rescued,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), KbHomeUiState())
 
-    fun onSearchChange(q: String) { searchQuery.value = q }
+    fun onSearchChange(q: String) {
+        searchQuery.value = q
+        // Stale rescue from the previous query must not leak into a new search.
+        rescuedEntries.value = null
+    }
     fun onSelectCategory(id: Long?) { selectedCategoryId.value = id }
     fun onToggleNotes() { showNotes.value = !showNotes.value }
 
     /**
-     * AND-mode FTS search returned few hits — fall back to OR for one-shot rescue.
-     * Surfaces results via [rescuedEntries] so the UI can swap in the broader set
-     * without disturbing the strict-search Flow.
+     * AND-mode FTS search returned < [SPARSE_THRESHOLD] hits — fall back to OR
+     * for one-shot rescue. Result lands in [KbHomeUiState.rescuedEntries].
      */
-    private val _rescuedEntries = MutableStateFlow<List<KbEntry>?>(null)
-    val rescuedEntries: StateFlow<List<KbEntry>?> = _rescuedEntries.asStateFlow()
-
     fun rescueSearchIfSparse() {
         val q = searchQuery.value
         if (q.isBlank()) return
         viewModelScope.launch {
             val current = uiState.value.entries
-            if (current.size < 5) {
+            if (current.size < SPARSE_THRESHOLD) {
                 val or = repo.searchOr(q)
-                if (or.size > current.size) _rescuedEntries.value = or
+                if (or.size > current.size) rescuedEntries.value = or
             }
         }
+    }
+
+    companion object {
+        /** Threshold below which AND-mode search results trigger an OR-mode rescue. */
+        const val SPARSE_THRESHOLD = 5
     }
 }

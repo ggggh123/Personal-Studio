@@ -84,4 +84,58 @@ class KbHomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test fun searchQuery_typeAndClear_swapsBetweenSearchAndBrowse() = runTest {
+        val repo = FakeKnowledgeRepository()
+        // Distinct fixtures so we can tell which path served the result.
+        repo.allEntries.value = listOf(mkEntry(100), mkEntry(101))
+        repo.searchResults.value = listOf(mkEntry(200))
+        val vm = KbHomeViewModel(repo)
+        vm.uiState.test {
+            // Drain to populated browse state.
+            var s = awaitItem()
+            while (s.entries.isEmpty()) s = awaitItem()
+            assertEquals(setOf(100L, 101L), s.entries.map { it.id }.toSet())
+            assertEquals(false, s.isSearching)
+
+            // Type → switches to search-mode entries.
+            vm.onSearchChange("math")
+            while (!s.isSearching || s.entries.singleOrNull()?.id != 200L) s = awaitItem()
+            assertTrue(s.isSearching)
+            assertEquals(listOf(200L), s.entries.map { it.id })
+
+            // Clear → switches back to browse-mode entries.
+            vm.onSearchChange("")
+            while (s.isSearching || s.entries.map { it.id }.toSet() != setOf(100L, 101L)) {
+                s = awaitItem()
+            }
+            assertEquals(false, s.isSearching)
+            assertEquals(setOf(100L, 101L), s.entries.map { it.id }.toSet())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun rescueSearchIfSparse_setsRescuedEntries_andClearsOnNewQuery() = runTest {
+        val repo = FakeKnowledgeRepository()
+        repo.searchResults.value = listOf(mkEntry(1))   // AND returns 1 (< SPARSE_THRESHOLD=5)
+        repo.orSearchResults = (10L..15L).map { mkEntry(it) }  // OR returns 6 (> 1)
+        val vm = KbHomeViewModel(repo)
+        vm.uiState.test {
+            var s = awaitItem()
+            vm.onSearchChange("微积分")
+            while (!s.isSearching) s = awaitItem()
+            // Wait for the AND result to land in entries.
+            while (s.entries.singleOrNull()?.id != 1L) s = awaitItem()
+
+            vm.rescueSearchIfSparse()
+            while (s.rescuedEntries == null) s = awaitItem()
+            assertEquals(6, s.rescuedEntries!!.size)
+
+            // Typing again must clear stale rescue.
+            vm.onSearchChange("微积分 极限")
+            while (s.rescuedEntries != null) s = awaitItem()
+            assertEquals(null, s.rescuedEntries)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

@@ -3172,7 +3172,7 @@ class KbHomeViewModel @Inject constructor(
         showNotes,
     ) { q, catId, notes -> Triple(q, catId, notes) }
         .flatMapLatest { (q, catId, notes) ->
-            if (q.isBlank()) repo.observeAllEntries(catId, notesOnly = !notes /* showNotes inverts notesOnly? */)
+            if (q.isBlank()) repo.observeAllEntries(catId, notesOnly = notes)
             else repo.search(q)
         }
 
@@ -3232,7 +3232,7 @@ class KbHomeViewModel @Inject constructor(
 }
 ```
 
-> Implementation note: the `observeAllEntries(categoryId, notesOnly = !showNotes)` mapping is intentional — when `showNotes = true` we hide mistakes (notesOnly = true), and when `showNotes = false` we show everything. The sample test above stays loose to allow either convention; tighten when you wire the UI in Task 25.
+> Implementation note: pass `notesOnly = showNotes` directly (no inversion). The DAO predicate is `(:notesOnly = 0 OR standardizedQuestion IS NULL)`, so `notesOnly=true` filters to rows with NULL standardizedQuestion (mistakes hidden) and `notesOnly=false` shows everything — exactly what `showNotes` means at the UI layer.
 
 - [ ] **Step 4: Tests pass**
 
