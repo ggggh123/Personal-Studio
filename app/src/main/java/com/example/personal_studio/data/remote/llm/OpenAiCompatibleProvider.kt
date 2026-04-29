@@ -3,6 +3,7 @@ package com.example.personal_studio.data.remote.llm
 import android.util.Base64
 import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
@@ -94,30 +95,34 @@ class OpenAiCompatibleProvider(
         .flowOn(Dispatchers.IO)
         .catch { t -> emit(LlmChunk.Error(t.message ?: "Unknown LLM error", retryable = true)) }
 
-    override suspend fun generateStructured(prompt: String, jsonSchema: String): String {
+    override suspend fun generateStructured(
+        messages: List<LlmMessage>,
+        jsonSchema: String,
+        temperature: Float,
+    ): String = withContext(Dispatchers.IO) {
         val key = resolveApiKey() ?: error("No API key configured")
         val endpoint = completionsUrl(resolveBaseUrl())
         val model = resolveModel()
 
-        val instructed = """
-            You must respond with valid JSON conforming to this schema:
-            $jsonSchema
+        // Wrap caller messages: prepend a system instruction reminding the model to emit JSON
+        // matching the schema, then forward the original messages (which may carry images).
+        val schemaInstruction = LlmMessage(
+            role = LlmRole.SYSTEM,
+            text = """
+                You must respond with valid JSON conforming to this schema:
+                $jsonSchema
 
-            Return only the JSON, no Markdown fences, no prose.
-
-            Task:
-            $prompt
-        """.trimIndent()
+                Return only the JSON, no Markdown fences, no prose.
+            """.trimIndent(),
+        )
+        val finalMessages = mergeSchemaInstruction(messages, schemaInstruction)
 
         val body = buildJsonObject {
             put("model", model)
-            put("temperature", 0.2)
+            put("temperature", temperature.toDouble())
             put("stream", false)
             putJsonArray("messages") {
-                add(buildJsonObject {
-                    put("role", "user")
-                    put("content", instructed)
-                })
+                finalMessages.forEach { m -> add(serializeMessage(m)) }
             }
             putJsonObject("response_format") {
                 put("type", "json_object")
@@ -125,7 +130,7 @@ class OpenAiCompatibleProvider(
         }
 
         val request = buildRequest(endpoint, key, body)
-        return httpClient.newCall(request).execute().use { response ->
+        httpClient.newCall(request).execute().use { response ->
             val responseBody = response.body?.string().orEmpty()
             if (!response.isSuccessful) error("HTTP ${response.code}: $responseBody")
             val root = json.parseToJsonElement(responseBody).jsonObject
@@ -137,6 +142,24 @@ class OpenAiCompatibleProvider(
             content
         }
     }
+
+    /**
+     * If the caller's messages start with a SYSTEM turn, append the schema instruction
+     * to its text (keeping a single SYSTEM message). Otherwise prepend the instruction
+     * as its own SYSTEM message. This avoids "two SYSTEM turns" which some
+     * OpenAI-compat backends drop or downgrade.
+     */
+    private fun mergeSchemaInstruction(
+        messages: List<LlmMessage>,
+        schemaInstruction: LlmMessage,
+    ): List<LlmMessage> =
+        if (messages.firstOrNull()?.role == LlmRole.SYSTEM) {
+            val first = messages.first()
+            val merged = first.copy(text = first.text + "\n\n" + schemaInstruction.text)
+            listOf(merged) + messages.drop(1)
+        } else {
+            listOf(schemaInstruction) + messages
+        }
 
     // ───────────────────────────────────── internals ─────────────────────────────────────
 
@@ -251,7 +274,9 @@ class OpenAiCompatibleProvider(
             OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(120, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
+                // 2 minutes for upload — vision requests on Chinese mobile uplink
+                // routinely send multi-MB image payloads; 30s wasn't enough.
+                .writeTimeout(120, TimeUnit.SECONDS)
                 .build()
     }
 }

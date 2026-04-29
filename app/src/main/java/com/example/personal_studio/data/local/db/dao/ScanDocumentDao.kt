@@ -54,4 +54,7 @@ interface ScanDocumentDao {
 
     @Query("DELETE FROM scan_documents WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM scan_documents WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Long): ScanDocumentEntity?
 }

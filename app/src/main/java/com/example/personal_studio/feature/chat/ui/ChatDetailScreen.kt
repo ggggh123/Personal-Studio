@@ -50,8 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ChatMessage
+import com.example.personal_studio.domain.model.KbDraftSource
 import com.example.personal_studio.domain.model.MessageRole
 import com.example.personal_studio.feature.chat.vm.ChatDetailViewModel
+import com.example.personal_studio.feature.knowledge.ui.SavePreviewModal
+import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeUiState
+import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel
 import com.example.personal_studio.ui.components.AiFrame
 import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.components.ChatImageThumbnail
@@ -72,11 +76,21 @@ import java.io.File
 fun ChatDetailScreen(
     sessionId: Long,
     onBack: () -> Unit,
+    onNavigateToKbEntry: (Long) -> Unit,
 ) {
     val vm: ChatDetailViewModel = hiltViewModel(
         creationCallback = { factory: ChatDetailViewModel.Factory -> factory.create(sessionId) }
     )
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val saveVm: SaveToKnowledgeViewModel = hiltViewModel()
+    val saveState by saveVm.uiState.collectAsStateWithLifecycle()
+    // Holds the source the modal is currently working with so retry from the
+    // Error state knows what to re-run. Invariant: when retry is reachable
+    // (state == Error), activeSourceState matches the source that errored, because
+    // Error is only entered from Loading/Saving and both flip activeSourceState
+    // first. If a future change makes Error reachable from elsewhere, fold the
+    // source into Error itself instead of relying on this side-channel.
+    val activeSourceState = remember { mutableStateOf<KbDraftSource?>(null) }
     val listState = rememberLazyListState()
 
     // Attachment sheet + crop overlay local UI state
@@ -146,8 +160,22 @@ fun ChatDetailScreen(
             route = "chat",
             subtitle = buildSubtitle(state.session?.title, state.activeModel),
             trailing = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "[+ archive session]",
+                        color = Phosphor,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .clickable {
+                                val src = KbDraftSource.FromChatSession(sessionId = sessionId)
+                                activeSourceState.value = src
+                                saveVm.startDraft(src)
+                            }
+                            .padding(8.dp),
+                    )
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                    }
                 }
             }
         )
@@ -184,6 +212,28 @@ fun ChatDetailScreen(
                                 markdown = m.contentMarkdown,
                                 initialHeightDp = aiMessageHeights[m.id] ?: 60,
                                 onHeightChanged = { h -> aiMessageHeights[m.id] = h },
+                            )
+                        }
+                        // [+ archive] row — only on completed AI messages (not the
+                        // streaming placeholder, which has no real id yet).
+                        Row(
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "[+ archive]",
+                                color = Phosphor,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .clickable {
+                                        val src = KbDraftSource.FromChatMessage(
+                                            sessionId = sessionId,
+                                            aiMessageId = m.id,
+                                        )
+                                        activeSourceState.value = src
+                                        saveVm.startDraft(src)
+                                    }
+                                    .padding(8.dp),
                             )
                         }
                     }
@@ -302,6 +352,20 @@ fun ChatDetailScreen(
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = { showAttachmentSheet = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "attach", tint = Cyan)
+            }
+        }
+
+        SavePreviewModal(
+            state = saveState,
+            onCancel = { saveVm.reset() },
+            onConfirm = { draft -> saveVm.commit(draft) },
+            onRetry = { activeSourceState.value?.let { saveVm.retry(it) } },
+        )
+        LaunchedEffect(saveState) {
+            val s = saveState
+            if (s is SaveToKnowledgeUiState.Saved) {
+                onNavigateToKbEntry(s.entryId)
+                saveVm.reset()
             }
         }
     }

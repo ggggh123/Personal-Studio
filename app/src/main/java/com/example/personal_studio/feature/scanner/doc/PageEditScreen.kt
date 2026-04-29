@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,10 +32,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.domain.model.KbDraftSource
 import com.example.personal_studio.domain.model.ScanFilter
+import com.example.personal_studio.feature.knowledge.ui.SavePreviewModal
+import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeUiState
+import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
+import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
@@ -71,6 +77,7 @@ private sealed interface EditStep {
 fun PageEditScreen(
     pageId: Long,
     onBack: () -> Unit,
+    onNavigateToKbEntry: (Long) -> Unit,
 ) {
     val vm: PageEditViewModel = hiltViewModel(
         creationCallback = { f: PageEditViewModel.Factory -> f.create(pageId) }
@@ -80,6 +87,14 @@ fun PageEditScreen(
     val tmpDir = remember { File(context.filesDir, "scans/tmp").apply { mkdirs() } }
     var step by remember { mutableStateOf<EditStep>(EditStep.Review) }
     var showDelete by remember { mutableStateOf(false) }
+
+    // KB archive flow — same pattern as ChatDetailScreen (Task 21).
+    val saveVm: SaveToKnowledgeViewModel = hiltViewModel()
+    val saveState by saveVm.uiState.collectAsStateWithLifecycle()
+    // Holds the source the modal is currently working with so retry from the
+    // Error state knows what to re-run. Same invariant as ChatDetailScreen:
+    // Error is only entered from Loading/Saving for this exact source.
+    val activeSourceState = remember { mutableStateOf<KbDraftSource?>(null) }
 
     when (val s = step) {
         EditStep.Review -> ReviewView(
@@ -92,6 +107,15 @@ fun PageEditScreen(
             onCancel = onBack,
             onRetake = { step = EditStep.Capturing(System.identityHashCode(step)) },
             onDelete = { showDelete = true },
+            onArchive = {
+                // Only archive once the page has loaded; docId + pageId both
+                // come off the loaded ScanPage so SourceContextLoader has a
+                // direct mapping (no -1L inference fallback needed here).
+                val page = state.page ?: return@ReviewView
+                val src = KbDraftSource.FromScanPage(docId = page.docId, pageId = page.id)
+                activeSourceState.value = src
+                saveVm.startDraft(src)
+            },
         )
         is EditStep.Capturing -> CameraCaptureScreen(
             outputDir = tmpDir,
@@ -128,6 +152,20 @@ fun PageEditScreen(
             },
         )
     }
+
+    SavePreviewModal(
+        state = saveState,
+        onCancel = { saveVm.reset() },
+        onConfirm = { draft -> saveVm.commit(draft) },
+        onRetry = { activeSourceState.value?.let { saveVm.retry(it) } },
+    )
+    LaunchedEffect(saveState) {
+        val s = saveState
+        if (s is SaveToKnowledgeUiState.Saved) {
+            onNavigateToKbEntry(s.entryId)
+            saveVm.reset()
+        }
+    }
 }
 
 @Composable
@@ -138,6 +176,7 @@ private fun ReviewView(
     onCancel: () -> Unit,
     onRetake: () -> Unit,
     onDelete: () -> Unit,
+    onArchive: () -> Unit,
 ) {
     val zoom = rememberZoomableBoxState()
     // Filter switches reset zoom so a lingering pan/scale from the previous
@@ -148,6 +187,39 @@ private fun ReviewView(
     }
 
     Column(Modifier.fillMaxSize().background(Void)) {
+        // Secondary actions (retake / archive / delete) live in the topbar's
+        // trailing slot so the area below the image stays focused on the
+        // filter chips + primary [cancel]/[confirm] pair.
+        TerminalTopBar(
+            route = "scans/edit",
+            subtitle = state.page?.let { "# page #${it.id}" },
+            trailing = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "[↻ retake]",
+                        color = Amber,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable(onClick = onRetake),
+                    )
+                    Text(
+                        "[+ archive]",
+                        color = Phosphor,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable(onClick = onArchive),
+                    )
+                    Text(
+                        "[x delete page]",
+                        color = Carmine,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable(onClick = onDelete),
+                    )
+                }
+            },
+        )
+
         Box(
             Modifier
                 .weight(1f)
@@ -179,27 +251,6 @@ private fun ReviewView(
                     modifier = Modifier.clickable { onSelectFilter(f) },
                 )
             }
-        }
-
-        // Secondary actions (retake / delete) on their own row so the primary
-        // [cancel] / [confirm] pair at the bottom stays uncluttered.
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "[↻ retake]",
-                color = Amber,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onRetake),
-            )
-            Text(
-                "[x delete page]",
-                color = Carmine,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onDelete),
-            )
         }
 
         Row(

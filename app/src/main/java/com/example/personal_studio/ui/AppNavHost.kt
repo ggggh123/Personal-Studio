@@ -20,7 +20,6 @@ import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScr
 import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
-import com.example.personal_studio.ui.placeholder.KnowledgePlaceholder
 import com.example.personal_studio.ui.placeholder.TimelinePlaceholder
 import java.io.File
 
@@ -45,7 +44,8 @@ fun AppNavHost(navController: NavHostController) {
             val sessionId = backStack.arguments?.getLong("sessionId") ?: 0L
             ChatDetailScreen(
                 sessionId = sessionId,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
             )
         }
 
@@ -78,6 +78,7 @@ fun AppNavHost(navController: NavHostController) {
             PageEditScreen(
                 pageId = pageId,
                 onBack = { navController.popBackStack() },
+                onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
             )
         }
         composable(
@@ -93,7 +94,34 @@ fun AppNavHost(navController: NavHostController) {
                 onExit = { navController.popBackStack() },
             )
         }
-        composable(NavRoutes.KNOWLEDGE) { KnowledgePlaceholder() }
+        composable(NavRoutes.KNOWLEDGE) {
+            com.example.personal_studio.feature.knowledge.ui.KbHomeScreen(
+                onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
+            )
+        }
+        composable(
+            route = NavRoutes.KB_DETAIL,
+            arguments = listOf(navArgument("entryId") { type = NavType.LongType }),
+        ) { backStack ->
+            val id = backStack.arguments?.getLong("entryId") ?: return@composable
+            com.example.personal_studio.feature.knowledge.ui.KbEntryDetailScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSource = { entry ->
+                    when (entry.source) {
+                        com.example.personal_studio.domain.model.KbSource.CHAT_MESSAGE,
+                        com.example.personal_studio.domain.model.KbSource.CHAT_SESSION ->
+                            entry.sourceChatSessionId?.let { sid ->
+                                navController.navigate(NavRoutes.chatDetail(sid))
+                            }
+                        com.example.personal_studio.domain.model.KbSource.SCAN ->
+                            // Phase 5 (Task 35) wires real scan-page-from-id navigation.
+                            // For now jump to scanner library so user has a destination.
+                            navController.navigate(NavRoutes.SCANNER)
+                    }
+                },
+                onOpenRelated = { relId -> navController.navigate(NavRoutes.kbDetail(relId)) },
+            )
+        }
         composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
 
         // --- Scanner single-page smoke flow (Task 14) ---

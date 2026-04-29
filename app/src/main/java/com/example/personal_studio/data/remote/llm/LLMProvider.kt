@@ -12,34 +12,16 @@ data class LlmMessage(
 )
 
 /**
- * Provider-agnostic LLM contract.
- *
- * Implementations should only need to implement [generate] + [generateStructured].
- * The single-prompt convenience wrappers are provided here as default implementations
- * so callers like Settings "test ping" and the title generator don't need to build a
- * messages list.
- *
- * Implementations in this project:
- *  - [OpenRouterProvider] — OpenAI-compatible API (default)
+ * Provider-agnostic LLM contract. Two structured-output entry points:
+ *  - the **multi-message** overload supports vision + system/user history
+ *  - the legacy single-prompt overload remains for back-compat (defaults to wrapping
+ *    the prompt in a single USER message and delegating to the new overload)
  */
 interface LLMProvider {
-    /** Human-readable name for UI/debug. */
     val name: String
 
-    /**
-     * Multi-turn streaming generation — the primary entry point.
-     *
-     * Callers pass the full conversation history (including the current user turn)
-     * so the model has context. Returns a cold [Flow] that emits [LlmChunk.Text]
-     * deltas as the server streams them, terminated by exactly one [LlmChunk.Done]
-     * on success or one [LlmChunk.Error] on failure.
-     */
-    fun generate(
-        messages: List<LlmMessage>,
-        temperature: Float = 0.7f,
-    ): Flow<LlmChunk>
+    fun generate(messages: List<LlmMessage>, temperature: Float = 0.7f): Flow<LlmChunk>
 
-    /** One-shot text generation. Default delegates to [generate]. */
     fun generateText(
         prompt: String,
         systemPrompt: String? = null,
@@ -52,7 +34,6 @@ interface LLMProvider {
         temperature = temperature,
     )
 
-    /** One-shot multimodal generation. Default delegates to [generate]. */
     fun generateMultimodal(
         prompt: String,
         images: List<ByteArray>,
@@ -67,12 +48,20 @@ interface LLMProvider {
     )
 
     /**
-     * Non-streaming structured output. Implementations should instruct the model
-     * to return JSON matching [jsonSchema] and return the raw JSON string.
-     * Callers handle parsing + retry-on-failure policy.
+     * Multi-message structured output. Implementations should set
+     * `response_format = json_object` (OpenAI-compatible) and assemble vision
+     * content parts when an LlmMessage carries images.
      */
     suspend fun generateStructured(
-        prompt: String,
+        messages: List<LlmMessage>,
         jsonSchema: String,
+        temperature: Float = 0.3f,
     ): String
+
+    /** Legacy single-prompt overload. Delegates to the multi-message form. */
+    suspend fun generateStructured(prompt: String, jsonSchema: String): String =
+        generateStructured(
+            messages = listOf(LlmMessage(LlmRole.USER, prompt)),
+            jsonSchema = jsonSchema,
+        )
 }

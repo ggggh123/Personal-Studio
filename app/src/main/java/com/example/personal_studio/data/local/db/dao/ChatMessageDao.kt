@@ -21,4 +21,7 @@ interface ChatMessageDao {
 
     @Query("DELETE FROM chat_messages WHERE sessionId = :sessionId")
     suspend fun deleteBySession(sessionId: Long)
+
+    @Query("SELECT * FROM chat_messages WHERE sessionId = :sessionId ORDER BY id ASC")
+    suspend fun getAllForSession(sessionId: Long): List<ChatMessageEntity>
 }

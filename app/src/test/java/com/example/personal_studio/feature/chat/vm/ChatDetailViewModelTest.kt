@@ -74,7 +74,11 @@ class ChatDetailViewModelTest {
             ) = kotlinx.coroutines.flow.flow {
                 emit(com.example.personal_studio.data.remote.llm.LlmChunk.Error("boom", true))
             }
-            override suspend fun generateStructured(p: String, sch: String) = "{}"
+            override suspend fun generateStructured(
+                messages: List<com.example.personal_studio.data.remote.llm.LlmMessage>,
+                jsonSchema: String,
+                temperature: Float,
+            ): String = error("test fake — not used")
         }
         val vm = ChatDetailViewModel(
             sessionId = sid,
