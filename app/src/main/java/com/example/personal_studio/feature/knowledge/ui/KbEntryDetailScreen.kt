@@ -213,6 +213,25 @@ fun KbEntryDetailScreen(
                 },
             )
         }
+
+        // Busy overlay: any in-flight op (especially regenerate, which may take
+        // 30-60s) parks the screen behind a dim scrim with a phosphor spinner so
+        // the user knows something is happening + can't fire concurrent ops.
+        if (isBusy) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f))
+                    .clickable(enabled = false, onClick = {}),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Phosphor)
+                    Spacer(Modifier.height(12.dp))
+                    Text("$ working...", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
     }
 }
 

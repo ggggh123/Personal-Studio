@@ -52,7 +52,17 @@ fun MathMarkdownView(
     // initial-scale=1) are equivalent to dp. Do NOT convert via density — that treats
     // the value as physical px and under-sizes by the display density factor,
     // clipping the bottom of the content.
-    var heightDp by remember(markdown) { mutableStateOf(initialHeightDp) }
+    //
+    // We deliberately do NOT key remember on `markdown`: when content changes
+    // (e.g. regenerate overwrites the summary), the WebView is reused via the
+    // update block calling setContent, and the JS-side ResizeObserver will fire
+    // onRendered with the new height. Resetting heightDp to initialHeightDp
+    // here would make the host LazyColumn briefly measure the item at 60dp and,
+    // because measurement only re-runs on state change, the item could remain
+    // at 60dp until the next ResizeObserver tick — visually clipping the
+    // re-rendered content. Keeping the previous height as the smooth-update
+    // hint avoids that.
+    var heightDp by remember { mutableStateOf(initialHeightDp) }
     var pageReady by remember { mutableStateOf(false) }
 
     AndroidView(
