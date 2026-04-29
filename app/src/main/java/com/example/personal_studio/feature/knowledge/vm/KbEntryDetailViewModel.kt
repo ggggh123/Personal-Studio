@@ -9,6 +9,7 @@ import com.example.personal_studio.domain.knowledge.RegenerateEntryUseCase
 import com.example.personal_studio.domain.knowledge.UpdateEntryUseCase
 import com.example.personal_studio.domain.model.KbEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -49,6 +50,18 @@ class KbEntryDetailViewModel @Inject constructor(
     val isBusy: StateFlow<Boolean> = _busy.asStateFlow()
 
     /**
+     * Last error message from a failed op (regenerate timeout, save failure, etc.).
+     * UI shows it as a toast/banner and calls [clearError] when dismissed. Without
+     * this, exceptions in op coroutines would propagate to viewModelScope's default
+     * handler and crash the process — which is what regenerate timeouts caused
+     * before this field existed.
+     */
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    fun clearError() { _errorMessage.value = null }
+
+    /**
      * Cold passthrough of category list for the CategoryPickerSheet. UI side
      * uses [collectAsStateWithLifecycle] which handles subscription lifecycle.
      */
@@ -66,17 +79,15 @@ class KbEntryDetailViewModel @Inject constructor(
 
     fun delete(onDone: () -> Unit) {
         viewModelScope.launch {
-            _busy.value = true
-            try { deleteUseCase(entryId) } finally { _busy.value = false }
-            onDone()
+            val ok = runOp("删除失败") { deleteUseCase(entryId) }
+            if (ok) onDone()
         }
     }
 
     fun regenerate() {
         viewModelScope.launch {
             val current = (uiState.value as? KbEntryDetailUiState.Loaded)?.entry ?: return@launch
-            _busy.value = true
-            try { regenerateUseCase(current) } finally { _busy.value = false }
+            runOp("重新生成失败") { regenerateUseCase(current) }
         }
     }
 
@@ -90,8 +101,30 @@ class KbEntryDetailViewModel @Inject constructor(
     private fun mutate(block: (KbEntry) -> KbEntry) {
         val current = (uiState.value as? KbEntryDetailUiState.Loaded)?.entry ?: return
         viewModelScope.launch {
-            _busy.value = true
-            try { updateUseCase(block(current)) } finally { _busy.value = false }
+            runOp("保存失败") { updateUseCase(block(current)) }
+        }
+    }
+
+    /**
+     * Runs [op] under busy state, catches and surfaces any non-cancellation
+     * exception via [errorMessage], and ensures busy clears on every path.
+     * Returns true on success, false on failure.
+     */
+    private suspend fun runOp(failurePrefix: String, op: suspend () -> Unit): Boolean {
+        _busy.value = true
+        return try {
+            op()
+            true
+        } catch (e: CancellationException) {
+            // Coroutine cancellation must always re-throw so structured concurrency
+            // works as designed. NOT a user-facing error.
+            throw e
+        } catch (t: Throwable) {
+            android.util.Log.e("KbEntryDetailVM", "$failurePrefix: ${t.message}", t)
+            _errorMessage.value = "$failurePrefix：${t.message ?: t.javaClass.simpleName}"
+            false
+        } finally {
+            _busy.value = false
         }
     }
 }

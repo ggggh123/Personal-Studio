@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,6 +74,8 @@ fun KbEntryDetailScreen(
     val vm: KbEntryDetailViewModel = hiltViewModel()
     val state by vm.uiState.collectAsStateWithLifecycle()
     val categories by vm.observeCategoriesForUi.collectAsStateWithLifecycle(initialValue = emptyList())
+    val errorMessage by vm.errorMessage.collectAsStateWithLifecycle()
+    val isBusy by vm.isBusy.collectAsStateWithLifecycle()
     var menuExpanded by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
@@ -80,6 +83,17 @@ fun KbEntryDetailScreen(
     var showRegenerateConfirm by remember { mutableStateOf(false) }
     var renameDraft by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Surface op failures (regenerate timeout, save errors) as a toast. Without
+    // this any thrown exception in the VM op coroutines would have crashed the
+    // process via viewModelScope's default exception handler.
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { msg ->
+            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+            vm.clearError()
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(Void)) {
         Column(Modifier.fillMaxSize()) {
