@@ -39,6 +39,10 @@ object DatabaseModule {
     @Provides fun provideKbFtsDao(db: AppDatabase): KbFtsDao = db.kbFtsDao()
 
     @Provides
+    fun provideTimelineDao(db: AppDatabase): com.example.personal_studio.data.local.db.dao.TimelineDao =
+        db.timelineDao()
+
+    @Provides
     @Singleton
     fun provideChatRepository(
         sessionDao: ChatSessionDao,

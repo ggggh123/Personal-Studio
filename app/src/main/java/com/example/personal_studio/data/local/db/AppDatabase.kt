@@ -18,6 +18,7 @@ import com.example.personal_studio.data.local.db.entity.KbEntryFtsEntity
 import com.example.personal_studio.data.local.db.entity.KbRelationEntity
 import com.example.personal_studio.data.local.db.entity.ScanDocumentEntity
 import com.example.personal_studio.data.local.db.entity.ScanPageEntity
+import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 
 @Database(
     entities = [
@@ -29,6 +30,7 @@ import com.example.personal_studio.data.local.db.entity.ScanPageEntity
         KbEntryEntity::class,
         KbRelationEntity::class,
         KbEntryFtsEntity::class,
+        TimelineItemEntity::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
@@ -42,9 +44,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun kbCategoryDao(): KbCategoryDao
     abstract fun kbEntryDao(): KbEntryDao
     abstract fun kbFtsDao(): KbFtsDao
+    abstract fun timelineDao(): com.example.personal_studio.data.local.db.dao.TimelineDao
 
     companion object {
-        const val VERSION = 5
+        const val VERSION = 6
         const val NAME = "personal-studio.db"
 
         /** Default seed inserted by [KbSeedCallback] on first DB creation. */
