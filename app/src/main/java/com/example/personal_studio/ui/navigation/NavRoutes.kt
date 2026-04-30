@@ -47,4 +47,19 @@ object NavRoutes {
     // Knowledge Base routes (P3)
     const val KB_DETAIL = "knowledge/detail/{entryId}"
     fun kbDetail(entryId: Long) = "knowledge/detail/$entryId"
+
+    // Timeline (P4)
+    const val TIMELINE_ADD_TASK = "timeline/add-task"
+    const val TIMELINE_ADD_COURSE = "timeline/add-course"
+    const val TIMELINE_DETAIL = "timeline/detail/{itemId}"
+    fun timelineDetail(itemId: Long) = "timeline/detail/$itemId"
+    const val TIMELINE_COURSE_LIST = "timeline/course-list"
+    const val TIMELINE_COURSE_SERIES_EDIT = "timeline/course-series/{seriesId}"
+    fun timelineCourseSeriesEdit(seriesId: Long) = "timeline/course-series/$seriesId"
+    const val TIMELINE_WEEK_GRID = "timeline/week-grid"
+
+    // Settings sub-pages (P4)
+    const val SETTINGS_TIMETABLE = "settings/timetable"
+    const val SETTINGS_SEMESTER = "settings/semester"
+    const val SETTINGS_NOTIF = "settings/notif"
 }
