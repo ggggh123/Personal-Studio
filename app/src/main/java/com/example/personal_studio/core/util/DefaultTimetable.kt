@@ -1,11 +1,14 @@
 package com.example.personal_studio.core.util
 
+import kotlinx.serialization.Serializable
+
 /**
  * Stable seed for the default 13-period university timetable.
  *
  * The user can override the timetable per Settings; this is only the first-launch
  * seed and the "restore default" target. Times are local 24h "HH:mm".
  */
+@Serializable
 data class TimetablePeriod(
     val index: Int,
     val startHHmm: String,
