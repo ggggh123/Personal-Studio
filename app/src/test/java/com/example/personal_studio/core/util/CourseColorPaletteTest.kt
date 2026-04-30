@@ -34,5 +34,20 @@ class CourseColorPaletteTest {
         val color = CourseColorPalette.colorFor("xyz")
         assertNotEquals(Color.Transparent, color)
         assertTrue(color.alpha > 0.5f)
+        // Lightness 0.55 should keep at least one channel comfortably above 0.
+        assertTrue(
+            "expected non-black but got rgb=(${color.red},${color.green},${color.blue})",
+            color.red > 0.1f || color.green > 0.1f || color.blue > 0.1f,
+        )
+    }
+
+    @Test fun `colorFor handles arbitrary hash values without crashing`() {
+        // Synthetic strings; we don't pick one with a literal Int.MIN_VALUE hash
+        // (java String.hashCode is stable across JVMs, but constructing such a
+        // string is impractical). Instead, scan a small range — combined with
+        // floorMod's contract this guards against negative-modulo regressions.
+        for (i in 0..1000) {
+            CourseColorPalette.colorFor("synthetic-$i")
+        }
     }
 }

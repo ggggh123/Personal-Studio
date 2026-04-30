@@ -80,6 +80,18 @@ interface TimelineDao {
     )
     fun observeDayCounts(startInclusive: Long, endExclusive: Long): Flow<List<DayCount>>
 
+    /**
+     * Aggregates rows of a COURSE series into a single summary row.
+     *
+     * Title / instructor / location use `MIN(...)` because:
+     * - title and instructor are series-level invariants (`updateSeriesAttributes`
+     *   writes them uniformly across all rows); MIN is purely lexicographic and
+     *   matches the canonical value.
+     * - location MAY diverge per occurrence (bubble-detail allows "改地点(本次)"
+     *   per spec §3.4), in which case MIN surfaces an arbitrary representative.
+     *   The Settings list is informational; clicking through to series edit
+     *   shows the most-recently-set series-level location.
+     */
     @Query(
         """
         SELECT seriesId, MIN(title) AS title, MIN(instructor) AS instructor, MIN(location) AS location,

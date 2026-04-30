@@ -116,16 +116,18 @@ class TimelineDaoTest {
     }
 
     @Test fun findCourseConflicts_detects_overlap_in_same_weekday_and_week_range() = runBlocking {
-        // Existing: Mon, period 3-4, weeks 1-16
-        dao.insertOne(task(
-            startAt = 10, type = TimelineType.COURSE, seriesId = 1,
-            weekday = 1, periodStart = 3, periodEnd = 4, weekIndex = 1,
-        ))
-        // New conflict: Mon, period 4 (overlap), weeks 8-10 (within existing range)
+        // Production rows are per-occurrence: insert one row per week 1..16.
+        (1..16).forEach { w ->
+            dao.insertOne(task(
+                startAt = 1000L * w, type = TimelineType.COURSE, seriesId = 1,
+                weekday = 1, periodStart = 3, periodEnd = 4, weekIndex = w,
+            ))
+        }
+        // New conflict candidate: Mon, period 4-5 (overlap), weeks 8-10 — should hit weeks 8, 9, 10.
         val hits = dao.findCourseConflicts(
             weekday = 1, periodStart = 4, periodEnd = 5,
             weekStart = 8, weekEnd = 10,
         )
-        assertEquals(1, hits.size)
+        assertEquals(3, hits.size)
     }
 }
