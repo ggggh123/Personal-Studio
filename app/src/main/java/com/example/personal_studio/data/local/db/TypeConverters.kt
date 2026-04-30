@@ -10,4 +10,18 @@ class Converters {
 
     @TypeConverter fun kbSourceToString(value: KbSourceType): String = value.name
     @TypeConverter fun stringToKbSource(value: String): KbSourceType = KbSourceType.valueOf(value)
+
+    @TypeConverter
+    fun fromTimelineType(value: com.example.personal_studio.domain.model.TimelineType?): String? = value?.name
+
+    @TypeConverter
+    fun toTimelineType(value: String?): com.example.personal_studio.domain.model.TimelineType? =
+        value?.let { com.example.personal_studio.domain.model.TimelineType.valueOf(it) }
+
+    @TypeConverter
+    fun fromTimelineSource(value: com.example.personal_studio.domain.model.TimelineSource?): String? = value?.name
+
+    @TypeConverter
+    fun toTimelineSource(value: String?): com.example.personal_studio.domain.model.TimelineSource? =
+        value?.let { com.example.personal_studio.domain.model.TimelineSource.valueOf(it) }
 }
