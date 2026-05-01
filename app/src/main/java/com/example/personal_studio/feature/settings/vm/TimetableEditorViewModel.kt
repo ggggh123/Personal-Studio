@@ -6,7 +6,9 @@ import com.example.personal_studio.core.util.DefaultTimetable
 import com.example.personal_studio.core.util.TimetablePeriod
 import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.repository.TimelineRepository
+import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.RecalculateCoursesAfterTimetableChangeUseCase
+import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,8 @@ class TimetableEditorViewModel @Inject constructor(
     private val prefs: TimetablePreferences,
     private val repo: TimelineRepository,
     private val recalc: RecalculateCoursesAfterTimetableChangeUseCase,
+    private val cancel: CancelRemindersUseCase,
+    private val schedule: ScheduleRemindersUseCase,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(TimetableEditorUiState())
@@ -103,6 +107,11 @@ class TimetableEditorViewModel @Inject constructor(
                 out
             }.onSuccess { touched ->
                 _ui.update { it.copy(saving = false) }
+                touched.forEach { id ->
+                    cancel(id)
+                    val item = repo.findById(id)
+                    if (item != null) schedule(item)
+                }
                 onComplete(touched)
             }.onFailure { e ->
                 _ui.update { it.copy(saving = false, error = e.message ?: "更新失败") }
