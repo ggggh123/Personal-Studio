@@ -91,18 +91,18 @@ class AddCourseViewModel @Inject constructor(
         }
     }
 
-    fun onTitleChange(s: String) = _ui.update { it.copy(title = s, conflicts = emptyList()) }
-    fun onInstructorChange(s: String) = _ui.update { it.copy(instructor = s) }
-    fun onLocationChange(s: String) = _ui.update { it.copy(location = s) }
-    fun onNotesChange(s: String) = _ui.update { it.copy(notes = s) }
+    fun onTitleChange(s: String) = _ui.update { it.copy(title = s, conflicts = emptyList(), error = null) }
+    fun onInstructorChange(s: String) = _ui.update { it.copy(instructor = s, error = null) }
+    fun onLocationChange(s: String) = _ui.update { it.copy(location = s, error = null) }
+    fun onNotesChange(s: String) = _ui.update { it.copy(notes = s, error = null) }
     fun onToggleWeekday(weekday: Int) = _ui.update {
         val next = if (weekday in it.weekdays) it.weekdays - weekday else it.weekdays + weekday
-        it.copy(weekdays = next, conflicts = emptyList())
+        it.copy(weekdays = next, conflicts = emptyList(), error = null)
     }
-    fun onPeriodStart(p: Int) = _ui.update { it.copy(periodStart = p, periodEnd = maxOf(p, it.periodEnd), conflicts = emptyList()) }
-    fun onPeriodEnd(p: Int) = _ui.update { it.copy(periodEnd = maxOf(p, it.periodStart), conflicts = emptyList()) }
-    fun onWeekStart(w: Int) = _ui.update { it.copy(weekStart = w, weekEnd = maxOf(w, it.weekEnd), conflicts = emptyList()) }
-    fun onWeekEnd(w: Int) = _ui.update { it.copy(weekEnd = maxOf(w, it.weekStart), conflicts = emptyList()) }
+    fun onPeriodStart(p: Int) = _ui.update { it.copy(periodStart = p, periodEnd = maxOf(p, it.periodEnd), conflicts = emptyList(), error = null) }
+    fun onPeriodEnd(p: Int) = _ui.update { it.copy(periodEnd = maxOf(p, it.periodStart), conflicts = emptyList(), error = null) }
+    fun onWeekStart(w: Int) = _ui.update { it.copy(weekStart = w, weekEnd = maxOf(w, it.weekEnd), conflicts = emptyList(), error = null) }
+    fun onWeekEnd(w: Int) = _ui.update { it.copy(weekEnd = maxOf(w, it.weekStart), conflicts = emptyList(), error = null) }
 
     fun save() {
         val s = _ui.value
@@ -134,6 +134,7 @@ class AddCourseViewModel @Inject constructor(
                             periodStart = 1, periodEnd = 1,
                             weekStart = 1, weekEnd = 16,
                             conflicts = emptyList(),
+                            error = null,
                         )
                     }
                     _events.emit(AddCourseEvent.RequestNotifPermission)
