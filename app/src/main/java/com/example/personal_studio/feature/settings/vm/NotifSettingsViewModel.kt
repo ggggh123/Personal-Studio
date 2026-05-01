@@ -16,7 +16,7 @@ class NotifSettingsViewModel @Inject constructor(
     private val prefs: NotifPreferences,
 ) : ViewModel() {
     val switches: StateFlow<NotifSwitches> = prefs.switches.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5000), NotifSwitches(true, true, true, false),
+        viewModelScope, SharingStarted.WhileSubscribed(5000), NotifSwitches(true, true, true),
     )
 
     fun toggleCourse(b: Boolean) = viewModelScope.launch { prefs.setCourse(b) }

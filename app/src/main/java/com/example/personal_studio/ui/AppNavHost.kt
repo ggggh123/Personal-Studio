@@ -11,6 +11,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
@@ -160,6 +161,11 @@ fun AppNavHost(navController: NavHostController) {
         composable(
             route = NavRoutes.TIMELINE_DETAIL,
             arguments = listOf(navArgument("itemId") { type = NavType.LongType }),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "personalstudio://timeline/detail/{itemId}"
+                }
+            ),
         ) { backStack ->
             val itemId = backStack.arguments?.getLong("itemId") ?: return@composable
             com.example.personal_studio.feature.timeline.ui.TaskDetailScreen(

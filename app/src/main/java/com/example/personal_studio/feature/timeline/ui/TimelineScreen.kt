@@ -46,11 +46,9 @@ fun TimelineScreen(
 
             if (android.os.Build.VERSION.SDK_INT >= 33) {
                 val ctx = androidx.compose.ui.platform.LocalContext.current
-                val granted = remember(ctx) {
-                    androidx.core.content.ContextCompat.checkSelfPermission(
-                        ctx, android.Manifest.permission.POST_NOTIFICATIONS,
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                }
+                val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                    ctx, android.Manifest.permission.POST_NOTIFICATIONS,
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                 var dismissed by remember { mutableStateOf(false) }
                 if (!granted && !dismissed) {
                     com.example.personal_studio.feature.timeline.ui.components.NotifPermissionBanner(

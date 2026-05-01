@@ -107,6 +107,9 @@ interface TimelineDao {
     @Query("SELECT * FROM timeline_items WHERE seriesId = :seriesId ORDER BY startAt ASC LIMIT 1")
     suspend fun firstOfSeries(seriesId: Long): TimelineItemEntity?
 
+    @Query("SELECT * FROM timeline_items WHERE seriesId = :seriesId ORDER BY startAt ASC")
+    suspend fun itemsForSeries(seriesId: Long): List<TimelineItemEntity>
+
     @Query("SELECT * FROM timeline_items WHERE isDone = 0 AND startAt >= :now AND startAt < :until")
     suspend fun getUpcomingItems(now: Long, until: Long): List<TimelineItemEntity>
 
