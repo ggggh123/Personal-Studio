@@ -20,7 +20,6 @@ import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScr
 import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
-import com.example.personal_studio.ui.placeholder.TimelinePlaceholder
 import java.io.File
 
 @Composable
@@ -122,7 +121,26 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenRelated = { relId -> navController.navigate(NavRoutes.kbDetail(relId)) },
             )
         }
-        composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
+        composable(NavRoutes.TIMELINE) {
+            com.example.personal_studio.feature.timeline.ui.TimelineScreen(
+                onAddTask = { navController.navigate(NavRoutes.TIMELINE_ADD_TASK) },
+                onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
+                onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
+            )
+        }
+        composable(NavRoutes.TIMELINE_ADD_TASK) {
+            com.example.personal_studio.feature.timeline.ui.AddTaskScreen(
+                onSaved = { _ -> navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+                onRequestNotifPermission = { /* Phase 5 wires this */ },
+            )
+        }
+        composable(NavRoutes.TIMELINE_ADD_COURSE) {
+            com.example.personal_studio.feature.timeline.ui.AddCourseScreen(
+                onBack = { navController.popBackStack() },
+                onRequestNotifPermission = { /* Phase 5 wires this */ },
+            )
+        }
 
         // --- Scanner single-page smoke flow (Task 14) ---
         composable(NavRoutes.SCANNER_CAMERA) {
