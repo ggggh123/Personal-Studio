@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.settings.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -57,6 +58,7 @@ import com.example.personal_studio.ui.theme.Void
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onNavigate: (String) -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -311,12 +313,36 @@ fun SettingsScreen(
 
             DashedDivider()
 
+            // ── Section: timeline ──────────────────────────────
+            SectionHeader("## timeline")
+
+            NavigableRow(
+                key = "SEMESTER",
+                value = "学期起始日 →",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_SEMESTER) },
+            )
+            NavigableRow(
+                key = "TIMETABLE",
+                value = "13 节作息表 →",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_TIMETABLE) },
+            )
+            NavigableRow(
+                key = "NOTIFICATIONS",
+                value = "通知开关 →",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_NOTIF) },
+            )
+            NavigableRow(
+                key = "COURSES",
+                value = "课程列表 →",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.TIMELINE_COURSE_LIST) },
+            )
+
+            DashedDivider()
+
             // ── Section: future placeholders ──────────────────────────────
             SectionHeader("## coming later")
 
             KeyValueRow("THEME", "terminal · phosphor (locked)", FoamMute)
-            KeyValueRow("TIMETABLE", "13 periods · set in P4", FoamMute)
-            KeyValueRow("NOTIFICATIONS", "wired in P4", FoamMute)
         }
     }
 }
@@ -362,6 +388,21 @@ private fun KeyValueRow(key: String, value: String, valueColor: Color) {
         )
         Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
         Text(text = value, style = MaterialTheme.typography.bodyMedium, color = valueColor)
+    }
+}
+
+@Composable
+private fun NavigableRow(key: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = androidx.compose.ui.Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 4.dp),
+    ) {
+        Text(key, style = MaterialTheme.typography.labelSmall, color = Phosphor,
+            modifier = androidx.compose.ui.Modifier.width(140.dp))
+        Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = Foam)
     }
 }
 

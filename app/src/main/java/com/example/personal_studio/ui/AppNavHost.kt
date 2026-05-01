@@ -229,7 +229,10 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(NavRoutes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> navController.navigate(route) },
+            )
         }
         composable(NavRoutes.SETTINGS_TIMETABLE) {
             com.example.personal_studio.feature.settings.ui.TimetableEditorScreen(onBack = { navController.popBackStack() })
