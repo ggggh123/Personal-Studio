@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.repository.TimelineRepository
 import com.example.personal_studio.domain.model.TimelineItem
+import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.DeleteItemUseCase
+import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +34,8 @@ class TaskDetailViewModel @Inject constructor(
     private val repo: TimelineRepository,
     private val toggleDone: ToggleDoneUseCase,
     private val deleteItem: DeleteItemUseCase,
+    private val cancel: CancelRemindersUseCase,
+    private val schedule: ScheduleRemindersUseCase,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(TaskDetailUiState())
@@ -53,6 +57,12 @@ class TaskDetailViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { toggleDone(item.id, !item.isDone) }
                 .onFailure { e -> _ui.update { it.copy(error = e.message) } }
+            cancel(item.id)
+            // reschedule if marking undone and still upcoming
+            val updated = repo.findById(item.id)
+            if (updated != null && !updated.isDone && updated.startAt > System.currentTimeMillis()) {
+                schedule(updated)
+            }
             load(item.id)
         }
     }
@@ -60,6 +70,7 @@ class TaskDetailViewModel @Inject constructor(
     fun onDelete() {
         val item = _ui.value.item ?: return
         viewModelScope.launch {
+            cancel(item.id)
             deleteItem(item.id)
             _events.emit(TaskDetailEvent.Closed)
         }

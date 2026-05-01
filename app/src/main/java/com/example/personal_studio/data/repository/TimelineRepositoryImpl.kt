@@ -8,6 +8,7 @@ import com.example.personal_studio.domain.model.TimelineItem
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -62,6 +63,11 @@ class TimelineRepositoryImpl @Inject constructor(
 
     override suspend fun firstOfSeries(seriesId: Long): TimelineItem? =
         dao.firstOfSeries(seriesId)?.let(::toDomain)
+
+    override suspend fun itemsForSeries(seriesId: Long): List<TimelineItem> =
+        dao.observeItemsInRange(0, Long.MAX_VALUE).first()
+            .filter { it.seriesId == seriesId }
+            .map(::toDomain)
 
     override suspend fun countFutureCoursesUsingPeriodRange(minPeriod: Int, maxPeriod: Int, now: Long): Int =
         dao.countFutureCoursesUsingPeriodRange(minPeriod, maxPeriod, now)

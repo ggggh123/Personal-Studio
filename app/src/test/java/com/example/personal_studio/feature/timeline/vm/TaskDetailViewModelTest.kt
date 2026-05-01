@@ -4,8 +4,11 @@ import com.example.personal_studio.data.repository.FakeTimelineRepository
 import com.example.personal_studio.domain.model.TimelineItem
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
+import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.DeleteItemUseCase
+import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
+import io.mockk.mockk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -23,6 +26,9 @@ class TaskDetailViewModelTest {
     @Before fun setUp() = kotlinx.coroutines.Dispatchers.setMain(dispatcher)
     @After fun tearDown() = kotlinx.coroutines.Dispatchers.resetMain()
 
+    private val cancel: CancelRemindersUseCase = mockk(relaxed = true)
+    private val schedule: ScheduleRemindersUseCase = mockk(relaxed = true)
+
     @Test fun `toggle done switches isDone in repo`() = runTest {
         val repo = FakeTimelineRepository().apply {
             preload(listOf(taskItem(id = 1, isDone = false)))
@@ -31,6 +37,8 @@ class TaskDetailViewModelTest {
             repo = repo,
             toggleDone = ToggleDoneUseCase(repo, nowProvider = { 1L }),
             deleteItem = DeleteItemUseCase(repo),
+            cancel = cancel,
+            schedule = schedule,
         )
         vm.load(1)
         vm.onToggleDone()
@@ -42,7 +50,7 @@ class TaskDetailViewModelTest {
             preload(listOf(taskItem(id = 1)))
         }
         val vm = TaskDetailViewModel(repo,
-            ToggleDoneUseCase(repo), DeleteItemUseCase(repo))
+            ToggleDoneUseCase(repo), DeleteItemUseCase(repo), cancel, schedule)
         vm.load(1)
         vm.onDelete()
         assertNull(repo.findById(1))

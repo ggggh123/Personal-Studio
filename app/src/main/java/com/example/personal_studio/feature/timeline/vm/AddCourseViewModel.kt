@@ -62,6 +62,8 @@ class AddCourseViewModel @Inject constructor(
     private val checkConflict: CheckCourseConflictUseCase,
     private val semester: SemesterPreferences,
     private val timetable: TimetablePreferences,
+    private val schedule: com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase,
+    private val repo: com.example.personal_studio.data.repository.TimelineRepository,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(AddCourseUiState())
@@ -124,6 +126,7 @@ class AddCourseViewModel @Inject constructor(
 
             runCatching { addCourse(draft, s.semesterStart!!) }
                 .onSuccess { (sid, count) ->
+                    repo.itemsForSeries(sid).forEach { schedule(it) }
                     _ui.update {
                         it.copy(
                             saving = false,

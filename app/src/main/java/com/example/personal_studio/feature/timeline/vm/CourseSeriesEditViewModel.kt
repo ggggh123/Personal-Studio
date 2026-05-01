@@ -3,6 +3,7 @@ package com.example.personal_studio.feature.timeline.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.repository.TimelineRepository
+import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.DeleteCourseSeriesUseCase
 import com.example.personal_studio.domain.timeline.UpdateCourseSeriesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,7 @@ class CourseSeriesEditViewModel @Inject constructor(
     private val repo: TimelineRepository,
     private val updateSeries: UpdateCourseSeriesUseCase,
     private val deleteSeries: DeleteCourseSeriesUseCase,
+    private val cancel: CancelRemindersUseCase,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(CourseSeriesEditUiState())
@@ -92,6 +94,13 @@ class CourseSeriesEditViewModel @Inject constructor(
 
     fun confirmDelete(scope: DeleteCourseSeriesUseCase.Scope) {
         viewModelScope.launch {
+            // Cancel reminders for all rows that are about to be deleted.
+            val rows = repo.itemsForSeries(_ui.value.seriesId)
+            val now = System.currentTimeMillis()
+            val toCancel = if (scope == DeleteCourseSeriesUseCase.Scope.ALL) rows
+                           else rows.filter { (it.endAt ?: it.startAt) > now }
+            toCancel.forEach { cancel(it.id) }
+
             deleteSeries(_ui.value.seriesId, scope)
             _events.emit(CourseSeriesEditEvent.Closed)
         }

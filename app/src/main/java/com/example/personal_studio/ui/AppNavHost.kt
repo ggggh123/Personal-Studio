@@ -2,6 +2,8 @@ package com.example.personal_studio.ui
 
 import android.graphics.PointF
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
@@ -129,16 +131,30 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
         composable(NavRoutes.TIMELINE_ADD_TASK) {
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) { /* result handled by banner state */ }
             com.example.personal_studio.feature.timeline.ui.AddTaskScreen(
                 onSaved = { _ -> navController.popBackStack() },
                 onBack = { navController.popBackStack() },
-                onRequestNotifPermission = { /* Phase 5 wires this */ },
+                onRequestNotifPermission = {
+                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                        launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
             )
         }
         composable(NavRoutes.TIMELINE_ADD_COURSE) {
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) {}
             com.example.personal_studio.feature.timeline.ui.AddCourseScreen(
                 onBack = { navController.popBackStack() },
-                onRequestNotifPermission = { /* Phase 5 wires this */ },
+                onRequestNotifPermission = {
+                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                        launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
             )
         }
         composable(

@@ -7,6 +7,7 @@ import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.repository.FakeTimelineRepository
 import com.example.personal_studio.domain.timeline.AddCourseSeriesUseCase
 import com.example.personal_studio.domain.timeline.CheckCourseConflictUseCase
+import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,6 +70,8 @@ class AddCourseViewModelTest {
             checkConflict = CheckCourseConflictUseCase(repo),
             semester = semesterMock,
             timetable = timetableMock,
+            schedule = mockk<ScheduleRemindersUseCase>(relaxed = true),
+            repo = repo,
         )
     }
 }

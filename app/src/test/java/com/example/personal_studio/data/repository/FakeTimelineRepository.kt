@@ -100,6 +100,9 @@ class FakeTimelineRepository : TimelineRepository {
     override suspend fun firstOfSeries(seriesId: Long): TimelineItem? =
         items.value.filter { it.seriesId == seriesId }.minByOrNull { it.startAt }
 
+    override suspend fun itemsForSeries(seriesId: Long): List<TimelineItem> =
+        items.value.filter { it.seriesId == seriesId }.sortedBy { it.startAt }
+
     override suspend fun countFutureCoursesUsingPeriodRange(minPeriod: Int, maxPeriod: Int, now: Long): Int =
         items.value.count {
             it.type == TimelineType.COURSE

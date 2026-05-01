@@ -45,6 +45,8 @@ sealed interface AddTaskEvent {
 @HiltViewModel
 class AddTaskViewModel @Inject constructor(
     private val addTask: AddTaskUseCase,
+    private val schedule: com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase,
+    private val repo: com.example.personal_studio.data.repository.TimelineRepository,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(AddTaskUiState())
@@ -75,6 +77,8 @@ class AddTaskViewModel @Inject constructor(
                     location = s.location.takeIf { it.isNotBlank() },
                 )
             }.onSuccess { id ->
+                val saved = repo.findById(id)
+                if (saved != null) schedule(saved)
                 _ui.update { it.copy(saving = false) }
                 _events.emit(AddTaskEvent.RequestNotifPermission)
                 _events.emit(AddTaskEvent.Saved(id))

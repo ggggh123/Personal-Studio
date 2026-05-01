@@ -36,6 +36,7 @@ interface TimelineRepository {
     suspend fun getUpcomingItems(now: Long, until: Long): List<TimelineItem>
     suspend fun getFutureCourses(now: Long): List<TimelineItem>
     suspend fun firstOfSeries(seriesId: Long): TimelineItem?
+    suspend fun itemsForSeries(seriesId: Long): List<TimelineItem>
     suspend fun countFutureCoursesUsingPeriodRange(minPeriod: Int, maxPeriod: Int, now: Long): Int
 
     suspend fun findCourseConflicts(
