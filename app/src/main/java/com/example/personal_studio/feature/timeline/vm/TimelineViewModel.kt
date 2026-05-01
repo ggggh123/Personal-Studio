@@ -34,9 +34,9 @@ data class TimelineUiState(
 class TimelineViewModel @Inject constructor(
     private val repo: TimelineRepository,
     private val notifPrefs: NotifPreferences,
+    private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
-    private val zone: ZoneId = ZoneId.systemDefault()
     private val tickFlow = flow {
         while (true) {
             emit(System.currentTimeMillis())

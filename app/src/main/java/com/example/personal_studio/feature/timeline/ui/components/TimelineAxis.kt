@@ -39,7 +39,7 @@ fun TimelineAxis(modifier: Modifier = Modifier) {
                     color = Rule,
                     start = Offset(48.dp.toPx(), y),
                     end = Offset(size.width, y),
-                    strokeWidth = 1f,
+                    strokeWidth = 1.dp.toPx(),
                 )
             }
         }

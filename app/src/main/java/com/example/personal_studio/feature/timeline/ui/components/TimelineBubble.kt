@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.example.personal_studio.core.util.CourseColorPalette
 import com.example.personal_studio.domain.model.BubbleState
 import com.example.personal_studio.domain.model.TimelineItem
-import com.example.personal_studio.domain.model.TimelineType
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
@@ -45,6 +44,7 @@ fun TimelineBubble(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     zone: ZoneId = ZoneId.systemDefault(),
+    outOfRange: Boolean = false,
 ) {
     val baseColor = bubbleBaseColor(item, state)
     val (borderWidth, alpha, scale) = visualMods(state)
@@ -58,12 +58,14 @@ fun TimelineBubble(
     )
     val finalScale = if (scale) pulse else 1f
 
-    val timeRange = remember(item) {
+    val timeRange = remember(item.startAt, item.endAt) {
         val start = Instant.ofEpochMilli(item.startAt).atZone(zone).toLocalDateTime().toLocalTime()
         val end = item.endAt?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDateTime().toLocalTime() }
         if (end == null) "%02d:%02d".format(start.hour, start.minute)
         else "%02d:%02d - %02d:%02d".format(start.hour, start.minute, end.hour, end.minute)
     }
+
+    val borderColor = if (outOfRange) Carmine else baseColor
 
     Column(
         modifier
@@ -72,7 +74,7 @@ fun TimelineBubble(
             .alpha(alpha)
             .clickable(onClick = onClick)
             .background(baseColor.copy(alpha = 0.20f), RoundedCornerShape(6.dp))
-            .border(borderWidth.dp, baseColor, RoundedCornerShape(6.dp))
+            .border(borderWidth.dp, borderColor, RoundedCornerShape(6.dp))
             .padding(8.dp),
     ) {
         Text(
@@ -111,8 +113,4 @@ private fun visualMods(state: BubbleState): VisualMods = when (state) {
     BubbleState.CoursePast -> VisualMods(1, 0.5f, false)
     BubbleState.TaskOverdue, BubbleState.CustomOverdue -> VisualMods(2, 1f, true)
     BubbleState.TaskDone, BubbleState.CustomDone -> VisualMods(1, 0.8f, false)
-}
-
-@Suppress("unused") private fun guard(@Suppress("UNUSED_PARAMETER") t: TimelineType) {
-    // type referenced only to keep import warnings down
 }

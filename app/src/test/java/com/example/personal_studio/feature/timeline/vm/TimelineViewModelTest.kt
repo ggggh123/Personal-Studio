@@ -43,7 +43,7 @@ class TimelineViewModelTest {
         val notif = mockk<NotifPreferences>(relaxed = true)
         every { notif.switches } returns MutableStateFlow(NotifSwitches(true, true, true, false))
 
-        val vm = TimelineViewModel(repo, notif)
+        val vm = TimelineViewModel(repo, notif, zone)
         vm.uiState.test {
             // initial: today's item
             var s = awaitItem()

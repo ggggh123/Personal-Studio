@@ -32,7 +32,7 @@ import java.time.ZoneId
 fun TimelineScreen(
     onAddTask: () -> Unit,
     onAddCourse: () -> Unit,
-    onOpenDetail: (Long) -> Unit,
+    @Suppress("UNUSED_PARAMETER") onOpenDetail: (Long) -> Unit,
     vm: TimelineViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -73,17 +73,19 @@ fun TimelineScreen(
                     }
                 }
                 ui.items.forEach { item ->
-                    val topDp = computeTopDp(item.startAt, ui.displayDay, zone)
+                    val layout = computeBubbleLayout(item.startAt, zone)
                     Box(
                         Modifier
                             .padding(start = 56.dp, end = 16.dp)
-                            .offset(y = topDp.dp)
+                            .offset(y = layout.topDp.dp)
                             .fillMaxWidth(),
                     ) {
                         TimelineBubble(
                             item = item,
                             state = state(item, ui.nowEpoch),
-                            onClick = { onOpenDetail(item.id) },
+                            // Phase 4 wires bubble click + TIMELINE_DETAIL composable
+                            onClick = {},
+                            outOfRange = layout.outOfRange,
                         )
                     }
                 }
@@ -103,9 +105,18 @@ fun TimelineScreen(
     }
 }
 
-private fun computeTopDp(startEpoch: Long, day: LocalDate, zone: ZoneId): Float {
+private data class BubbleLayout(val topDp: Float, val outOfRange: Boolean)
+
+private fun computeBubbleLayout(startEpoch: Long, zone: ZoneId): BubbleLayout {
     val local = Instant.ofEpochMilli(startEpoch).atZone(zone).toLocalDateTime()
     val sevenAm = TimelineAxisSpec.START_HOUR * 60f
+    val totalMinutes = ((TimelineAxisSpec.END_HOUR - TimelineAxisSpec.START_HOUR) + 0.5f) * 60f
+    val endMinutes = sevenAm + totalMinutes
     val minutes = local.toLocalTime().hour * 60f + local.toLocalTime().minute
-    return ((minutes - sevenAm) / 60f) * TimelineAxisSpec.PX_PER_HOUR_DP
+    val raw = ((minutes - sevenAm) / 60f) * TimelineAxisSpec.PX_PER_HOUR_DP
+    return when {
+        minutes < sevenAm -> BubbleLayout(0f, outOfRange = true)
+        minutes > endMinutes -> BubbleLayout((totalMinutes / 60f) * TimelineAxisSpec.PX_PER_HOUR_DP - 56f, outOfRange = true)
+        else -> BubbleLayout(raw, outOfRange = false)
+    }
 }

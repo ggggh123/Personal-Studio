@@ -41,14 +41,17 @@ fun NowIndicator(
     val topDp = (minutesIntoDay - sevenAm) / 60f * TimelineAxisSpec.PX_PER_HOUR_DP
 
     Box(modifier.fillMaxWidth().offset(y = topDp.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(start = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
             Text(
                 text = "$ now: %02d:%02d".format(nowLocal.hour, nowLocal.minute),
                 color = Carmine,
                 style = MaterialTheme.typography.labelSmall,
             )
             Spacer(Modifier.width(4.dp))
-            Box(Modifier.height(2.dp).fillMaxWidth().background(Carmine))
+            Box(Modifier.weight(1f).height(2.dp).background(Carmine))
         }
     }
 }

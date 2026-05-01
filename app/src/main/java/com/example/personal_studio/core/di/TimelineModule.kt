@@ -10,10 +10,15 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 import java.time.ZoneId
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object TimelineModule {
+
+    @Provides
+    @Singleton
+    fun provideZoneId(): ZoneId = ZoneId.systemDefault()
 
     @Provides
     fun provideAddTaskUseCase(
