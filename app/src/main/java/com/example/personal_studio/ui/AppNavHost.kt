@@ -149,7 +149,7 @@ fun AppNavHost(navController: NavHostController) {
             com.example.personal_studio.feature.timeline.ui.TaskDetailScreen(
                 itemId = itemId,
                 onBack = { navController.popBackStack() },
-                onOpenCourseSeries = { navController.navigate(NavRoutes.TIMELINE_COURSE_LIST) },
+                onOpenCourseSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
             )
         }
         composable(NavRoutes.TIMELINE_COURSE_LIST) {

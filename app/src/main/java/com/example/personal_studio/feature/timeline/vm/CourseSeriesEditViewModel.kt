@@ -29,7 +29,9 @@ data class CourseSeriesEditUiState(
     val saving: Boolean = false,
     val error: String? = null,
     val deleteDialogVisible: Boolean = false,
-)
+) {
+    val saveEnabled: Boolean get() = !saving && title.trim().isNotEmpty()
+}
 
 sealed interface CourseSeriesEditEvent { object Closed : CourseSeriesEditEvent }
 
@@ -48,7 +50,11 @@ class CourseSeriesEditViewModel @Inject constructor(
 
     fun load(seriesId: Long) {
         viewModelScope.launch {
-            val first = repo.firstOfSeries(seriesId) ?: return@launch
+            val first = repo.firstOfSeries(seriesId)
+            if (first == null) {
+                _events.emit(CourseSeriesEditEvent.Closed)
+                return@launch
+            }
             val summary = repo.observeCourseSeriesList().first().firstOrNull { it.seriesId == seriesId }
             _ui.update {
                 it.copy(

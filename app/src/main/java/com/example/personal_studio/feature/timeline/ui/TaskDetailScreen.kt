@@ -24,7 +24,7 @@ import java.time.ZoneId
 fun TaskDetailScreen(
     itemId: Long,
     onBack: () -> Unit,
-    onOpenCourseSeries: () -> Unit,
+    onOpenCourseSeries: (Long) -> Unit,
     vm: TaskDetailViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -71,7 +71,7 @@ fun TaskDetailScreen(
                     Spacer(Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = vm::onDelete) { Text("删除本次") }
-                        OutlinedButton(onClick = onOpenCourseSeries) { Text("管理整个系列") }
+                        OutlinedButton(onClick = { item.seriesId?.let(onOpenCourseSeries) }) { Text("管理整个系列") }
                     }
                 }
                 else -> {

@@ -61,13 +61,13 @@ class TimetableEditorViewModel @Inject constructor(
         viewModelScope.launch {
             val st = _ui.value
             if (st.periods.isEmpty()) return@launch
-            val toRemove = st.periods.last().index
+            val toRemove = st.periods.maxByOrNull { it.index }?.index ?: return@launch
             val refs = repo.countFutureCoursesUsingPeriodRange(toRemove, toRemove, System.currentTimeMillis())
             if (refs > 0) {
                 _ui.update { it.copy(error = "节次 $toRemove 仍被 $refs 门未来课程使用，请先删除或调整这些课程") }
                 return@launch
             }
-            _ui.update { it.copy(periods = it.periods.dropLast(1)) }
+            _ui.update { it.copy(periods = it.periods.filter { p -> p.index != toRemove }) }
         }
     }
 

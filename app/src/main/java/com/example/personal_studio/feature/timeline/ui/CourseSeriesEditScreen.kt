@@ -54,7 +54,7 @@ fun CourseSeriesEditScreen(
             ui.error?.let { Text(it, color = Foam) }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = vm::save, enabled = !ui.saving) {
+                Button(onClick = vm::save, enabled = ui.saveEnabled) {
                     Text(if (ui.saving) "保存中…" else "保存")
                 }
                 OutlinedButton(onClick = vm::openDeleteDialog) { Text("删除整个系列") }
