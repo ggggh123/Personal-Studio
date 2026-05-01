@@ -70,4 +70,8 @@ object TimelineModule {
             zone = java.time.ZoneId.systemDefault(),
             semesterProvider = { semester.startDate.first() },
         )
+
+    @Provides
+    fun provideWorkManager(@dagger.hilt.android.qualifiers.ApplicationContext ctx: android.content.Context): androidx.work.WorkManager =
+        androidx.work.WorkManager.getInstance(ctx)
 }
