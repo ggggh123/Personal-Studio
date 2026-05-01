@@ -256,6 +256,9 @@ fun AppNavHost(navController: NavHostController) {
         composable(NavRoutes.SETTINGS_SEMESTER) {
             com.example.personal_studio.feature.settings.ui.SemesterSettingsScreen(onBack = { navController.popBackStack() })
         }
+        composable(NavRoutes.SETTINGS_NOTIF) {
+            com.example.personal_studio.feature.settings.ui.NotifSettingsScreen(onBack = { navController.popBackStack() })
+        }
     }
 }
 

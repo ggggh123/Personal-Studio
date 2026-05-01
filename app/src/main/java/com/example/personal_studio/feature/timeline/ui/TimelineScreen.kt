@@ -9,7 +9,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,26 @@ fun TimelineScreen(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val granted = remember(ctx) {
+                    androidx.core.content.ContextCompat.checkSelfPermission(
+                        ctx, android.Manifest.permission.POST_NOTIFICATIONS,
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                }
+                var dismissed by remember { mutableStateOf(false) }
+                if (!granted && !dismissed) {
+                    com.example.personal_studio.feature.timeline.ui.components.NotifPermissionBanner(
+                        onOpenSettings = {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                            ctx.startActivity(intent)
+                        },
+                        onDismiss = { dismissed = true },
+                    )
+                }
+            }
 
             // Header row: prev / day label / next
             Row(
