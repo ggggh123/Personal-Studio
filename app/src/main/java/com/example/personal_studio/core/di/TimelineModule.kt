@@ -4,6 +4,9 @@ import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.repository.TimelineRepository
 import com.example.personal_studio.domain.timeline.AddCourseSeriesUseCase
 import com.example.personal_studio.domain.timeline.AddTaskUseCase
+import com.example.personal_studio.domain.timeline.DeleteItemUseCase
+import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
+import com.example.personal_studio.domain.timeline.UpdateItemUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,4 +37,16 @@ object TimelineModule {
         timetableProvider = { prefs.periods.first() },
         zone = ZoneId.systemDefault(),
     )
+
+    @Provides
+    fun provideToggleDoneUseCase(repo: TimelineRepository): ToggleDoneUseCase =
+        ToggleDoneUseCase(repo = repo)
+
+    @Provides
+    fun provideUpdateItemUseCase(repo: TimelineRepository): UpdateItemUseCase =
+        UpdateItemUseCase(repo = repo)
+
+    @Provides
+    fun provideDeleteItemUseCase(repo: TimelineRepository): DeleteItemUseCase =
+        DeleteItemUseCase(repo = repo)
 }

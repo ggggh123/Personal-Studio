@@ -32,7 +32,7 @@ import java.time.ZoneId
 fun TimelineScreen(
     onAddTask: () -> Unit,
     onAddCourse: () -> Unit,
-    @Suppress("UNUSED_PARAMETER") onOpenDetail: (Long) -> Unit,
+    onOpenDetail: (Long) -> Unit,
     vm: TimelineViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -83,8 +83,7 @@ fun TimelineScreen(
                         TimelineBubble(
                             item = item,
                             state = state(item, ui.nowEpoch),
-                            // Phase 4 wires bubble click + TIMELINE_DETAIL composable
-                            onClick = {},
+                            onClick = remember(item.id, onOpenDetail) { { onOpenDetail(item.id) } },
                             outOfRange = layout.outOfRange,
                         )
                     }
