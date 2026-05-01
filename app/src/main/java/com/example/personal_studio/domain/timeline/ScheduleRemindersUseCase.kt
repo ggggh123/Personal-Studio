@@ -9,9 +9,8 @@ import com.example.personal_studio.domain.model.ReminderSlot
 import com.example.personal_studio.domain.model.TimelineItem
 import com.example.personal_studio.domain.model.TimelineType
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
-class ScheduleRemindersUseCase @Inject constructor(
+class ScheduleRemindersUseCase(
     private val wm: WorkManager,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) {

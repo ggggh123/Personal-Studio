@@ -74,4 +74,10 @@ object TimelineModule {
     @Provides
     fun provideWorkManager(@dagger.hilt.android.qualifiers.ApplicationContext ctx: android.content.Context): androidx.work.WorkManager =
         androidx.work.WorkManager.getInstance(ctx)
+
+    @Provides
+    fun provideScheduleRemindersUseCase(
+        wm: androidx.work.WorkManager,
+    ): com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase =
+        com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase(wm = wm)
 }
