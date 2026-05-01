@@ -152,6 +152,12 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenCourseSeries = { navController.navigate(NavRoutes.TIMELINE_COURSE_LIST) },
             )
         }
+        composable(NavRoutes.TIMELINE_COURSE_LIST) {
+            com.example.personal_studio.feature.timeline.ui.CourseSeriesListScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
+            )
+        }
 
         // --- Scanner single-page smoke flow (Task 14) ---
         composable(NavRoutes.SCANNER_CAMERA) {
