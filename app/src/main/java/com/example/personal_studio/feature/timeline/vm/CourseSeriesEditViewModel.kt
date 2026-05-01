@@ -1,0 +1,93 @@
+package com.example.personal_studio.feature.timeline.vm
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.personal_studio.data.repository.TimelineRepository
+import com.example.personal_studio.domain.timeline.DeleteCourseSeriesUseCase
+import com.example.personal_studio.domain.timeline.UpdateCourseSeriesUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class CourseSeriesEditUiState(
+    val seriesId: Long = 0,
+    val title: String = "",
+    val instructor: String = "",
+    val location: String = "",
+    val notes: String = "",
+    val occurrenceCount: Int = 0,
+    val minWeek: Int = 0,
+    val maxWeek: Int = 0,
+    val saving: Boolean = false,
+    val error: String? = null,
+    val deleteDialogVisible: Boolean = false,
+)
+
+sealed interface CourseSeriesEditEvent { object Closed : CourseSeriesEditEvent }
+
+@HiltViewModel
+class CourseSeriesEditViewModel @Inject constructor(
+    private val repo: TimelineRepository,
+    private val updateSeries: UpdateCourseSeriesUseCase,
+    private val deleteSeries: DeleteCourseSeriesUseCase,
+) : ViewModel() {
+
+    private val _ui = MutableStateFlow(CourseSeriesEditUiState())
+    val ui: StateFlow<CourseSeriesEditUiState> = _ui.asStateFlow()
+
+    private val _events = MutableSharedFlow<CourseSeriesEditEvent>(extraBufferCapacity = 4)
+    val events: SharedFlow<CourseSeriesEditEvent> = _events.asSharedFlow()
+
+    fun load(seriesId: Long) {
+        viewModelScope.launch {
+            val first = repo.firstOfSeries(seriesId) ?: return@launch
+            val summary = repo.observeCourseSeriesList().first().firstOrNull { it.seriesId == seriesId }
+            _ui.update {
+                it.copy(
+                    seriesId = seriesId,
+                    title = first.title,
+                    instructor = first.instructor.orEmpty(),
+                    location = first.location.orEmpty(),
+                    notes = first.notes.orEmpty(),
+                    occurrenceCount = summary?.occurrenceCount ?: 0,
+                    minWeek = summary?.minWeek ?: 0,
+                    maxWeek = summary?.maxWeek ?: 0,
+                )
+            }
+        }
+    }
+
+    fun onTitleChange(s: String) = _ui.update { it.copy(title = s) }
+    fun onInstructorChange(s: String) = _ui.update { it.copy(instructor = s) }
+    fun onLocationChange(s: String) = _ui.update { it.copy(location = s) }
+    fun onNotesChange(s: String) = _ui.update { it.copy(notes = s) }
+
+    fun save() {
+        val s = _ui.value
+        _ui.update { it.copy(saving = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                updateSeries(s.seriesId, s.title, s.instructor, s.location, s.notes)
+            }.onSuccess { _ui.update { it.copy(saving = false) } }
+                .onFailure { e -> _ui.update { it.copy(saving = false, error = e.message) } }
+        }
+    }
+
+    fun openDeleteDialog() = _ui.update { it.copy(deleteDialogVisible = true) }
+    fun closeDeleteDialog() = _ui.update { it.copy(deleteDialogVisible = false) }
+
+    fun confirmDelete(scope: DeleteCourseSeriesUseCase.Scope) {
+        viewModelScope.launch {
+            deleteSeries(_ui.value.seriesId, scope)
+            _events.emit(CourseSeriesEditEvent.Closed)
+        }
+    }
+}

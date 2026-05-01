@@ -158,6 +158,16 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
             )
         }
+        composable(
+            route = NavRoutes.TIMELINE_COURSE_SERIES_EDIT,
+            arguments = listOf(navArgument("seriesId") { type = NavType.LongType }),
+        ) { backStack ->
+            val sid = backStack.arguments?.getLong("seriesId") ?: return@composable
+            com.example.personal_studio.feature.timeline.ui.CourseSeriesEditScreen(
+                seriesId = sid,
+                onBack = { navController.popBackStack() },
+            )
+        }
 
         // --- Scanner single-page smoke flow (Task 14) ---
         composable(NavRoutes.SCANNER_CAMERA) {
