@@ -59,4 +59,15 @@ object TimelineModule {
     @Provides
     fun provideDeleteCourseSeriesUseCase(repo: TimelineRepository): DeleteCourseSeriesUseCase =
         DeleteCourseSeriesUseCase(repo = repo)
+
+    @Provides
+    fun provideRecalculateCoursesUseCase(
+        repo: com.example.personal_studio.data.repository.TimelineRepository,
+        semester: com.example.personal_studio.data.local.datastore.SemesterPreferences,
+    ): com.example.personal_studio.domain.timeline.RecalculateCoursesAfterTimetableChangeUseCase =
+        com.example.personal_studio.domain.timeline.RecalculateCoursesAfterTimetableChangeUseCase(
+            repo = repo,
+            zone = java.time.ZoneId.systemDefault(),
+            semesterProvider = { semester.startDate.first() },
+        )
 }
