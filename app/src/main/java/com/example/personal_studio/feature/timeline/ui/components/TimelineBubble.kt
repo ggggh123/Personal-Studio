@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +46,9 @@ fun TimelineBubble(
     modifier: Modifier = Modifier,
     zone: ZoneId = ZoneId.systemDefault(),
     outOfRange: Boolean = false,
+    /** When non-null, force the bubble to this exact height so its bottom edge
+     *  aligns with `endAt` on the axis. Used for COURSE rows; null = wrap-content. */
+    heightDp: Dp? = null,
 ) {
     val baseColor = bubbleBaseColor(item, state)
     val (borderWidth, alpha, scale) = visualMods(state)
@@ -70,6 +74,7 @@ fun TimelineBubble(
     Column(
         modifier
             .fillMaxWidth()
+            .let { if (heightDp != null) it.height(heightDp) else it }
             .scale(finalScale)
             .alpha(alpha)
             .clickable(onClick = onClick)

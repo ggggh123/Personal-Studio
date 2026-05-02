@@ -23,7 +23,8 @@ import java.time.ZoneId
  * appropriate Y inside a Box laid out at the same height as TimelineAxis.
  *
  * Caller passes the absolute epoch ms; this composable handles the conversion
- * to "minutes since 07:00 in display-day's timezone" and translates that to dp.
+ * to local minutes-into-day and translates that to a dp offset against the
+ * 24h axis.
  */
 @Composable
 fun NowIndicator(
@@ -33,12 +34,11 @@ fun NowIndicator(
     zone: ZoneId = ZoneId.systemDefault(),
 ) {
     val nowLocal = Instant.ofEpochMilli(nowEpoch).atZone(zone).toLocalDateTime()
-    val secondsIntoDay = nowLocal.toLocalTime().toSecondOfDay()
-    val minutesIntoDay = secondsIntoDay / 60f
-    val sevenAm = TimelineAxisSpec.START_HOUR * 60f
-    val end = (TimelineAxisSpec.END_HOUR * 60f) + 30f
-    if (minutesIntoDay < sevenAm || minutesIntoDay > end) return
-    val topDp = (minutesIntoDay - sevenAm) / 60f * TimelineAxisSpec.PX_PER_HOUR_DP
+    val minutesIntoDay = nowLocal.toLocalTime().toSecondOfDay() / 60f
+    val startMinutes = TimelineAxisSpec.START_HOUR * 60f
+    val endMinutes = TimelineAxisSpec.END_HOUR * 60f
+    if (minutesIntoDay < startMinutes || minutesIntoDay > endMinutes) return
+    val topDp = (minutesIntoDay - startMinutes) / 60f * TimelineAxisSpec.PX_PER_HOUR_DP
 
     Box(modifier.fillMaxWidth().offset(y = topDp.dp)) {
         Row(

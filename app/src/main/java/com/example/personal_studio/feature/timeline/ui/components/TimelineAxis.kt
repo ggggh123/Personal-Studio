@@ -17,11 +17,10 @@ import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Rule
 
 object TimelineAxisSpec {
-    const val START_HOUR = 7
-    const val END_HOUR = 23
-    const val END_HALF = true // ends at 23:30
+    const val START_HOUR = 0
+    const val END_HOUR = 24            // exclusive top bound — 24:00 == midnight next day
     const val PX_PER_HOUR_DP = 64
-    val totalHeightDp = ((END_HOUR - START_HOUR) + 0.5f) * PX_PER_HOUR_DP // 16.5 * 64
+    val totalHeightDp = (END_HOUR - START_HOUR) * PX_PER_HOUR_DP // 24 * 64 = 1536
 }
 
 @Composable
@@ -32,7 +31,8 @@ fun TimelineAxis(modifier: Modifier = Modifier) {
             .height(TimelineAxisSpec.totalHeightDp.dp),
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            val pxPerHour = size.height / ((TimelineAxisSpec.END_HOUR - TimelineAxisSpec.START_HOUR) + 0.5f)
+            val pxPerHour = size.height / (TimelineAxisSpec.END_HOUR - TimelineAxisSpec.START_HOUR).toFloat()
+            // Draw an hour line every hour from 00:00 to 24:00 (inclusive top + bottom edge).
             for (h in TimelineAxisSpec.START_HOUR..TimelineAxisSpec.END_HOUR) {
                 val y = (h - TimelineAxisSpec.START_HOUR) * pxPerHour
                 drawLine(
@@ -43,7 +43,8 @@ fun TimelineAxis(modifier: Modifier = Modifier) {
                 )
             }
         }
-        for (h in TimelineAxisSpec.START_HOUR..TimelineAxisSpec.END_HOUR) {
+        // Hourly labels — skip the very last "24:00" since it duplicates the next day's 00:00.
+        for (h in TimelineAxisSpec.START_HOUR until TimelineAxisSpec.END_HOUR) {
             val topDp = (h - TimelineAxisSpec.START_HOUR) * TimelineAxisSpec.PX_PER_HOUR_DP
             Text(
                 text = "%02d:00".format(h),
