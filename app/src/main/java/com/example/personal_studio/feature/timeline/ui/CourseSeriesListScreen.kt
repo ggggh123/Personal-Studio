@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.domain.model.formatCredits
 import com.example.personal_studio.feature.timeline.vm.CourseSeriesListViewModel
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.theme.Foam
@@ -41,8 +42,11 @@ fun CourseSeriesListScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onOpenSeries(s.seriesId) },
                     ) {
                         Text(s.title, color = Phosphor, modifier = Modifier.weight(1f))
-                        Text("${s.occurrenceCount} 节  · 第 ${s.minWeek}-${s.maxWeek} 周",
-                            color = Foam, style = MaterialTheme.typography.labelSmall)
+                        val creditsSuffix = s.credits?.let { "  ·  ${formatCredits(it)} 学分" }.orEmpty()
+                        Text(
+                            "${s.occurrenceCount} 节  · 第 ${s.minWeek}-${s.maxWeek} 周$creditsSuffix",
+                            color = Foam, style = MaterialTheme.typography.labelSmall,
+                        )
                     }
                     Divider(color = FoamDim)
                 }

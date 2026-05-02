@@ -26,6 +26,7 @@ data class AddCourseUiState(
     val instructor: String = "",
     val location: String = "",
     val notes: String = "",
+    val credits: String = "",
     val weekdays: Set<Int> = emptySet(),
     val periodStart: Int = 1,
     val periodEnd: Int = 1,
@@ -97,6 +98,7 @@ class AddCourseViewModel @Inject constructor(
     fun onInstructorChange(s: String) = _ui.update { it.copy(instructor = s, error = null) }
     fun onLocationChange(s: String) = _ui.update { it.copy(location = s, error = null) }
     fun onNotesChange(s: String) = _ui.update { it.copy(notes = s, error = null) }
+    fun onCreditsChange(s: String) = _ui.update { it.copy(credits = s, error = null) }
     fun onToggleWeekday(weekday: Int) = _ui.update {
         val next = if (weekday in it.weekdays) it.weekdays - weekday else it.weekdays + weekday
         it.copy(weekdays = next, conflicts = emptyList(), error = null)
@@ -109,6 +111,12 @@ class AddCourseViewModel @Inject constructor(
     fun save() {
         val s = _ui.value
         if (!s.saveEnabled) return
+        // Parse credits: blank → null; non-blank must parse to a non-negative Float.
+        val parsedCredits: Float? = if (s.credits.isBlank()) null else s.credits.toFloatOrNull()
+        if (s.credits.isNotBlank() && (parsedCredits == null || parsedCredits < 0f)) {
+            _ui.update { it.copy(error = "学分必须是非负数字") }
+            return
+        }
         _ui.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             val draft = CourseSeriesDraft(
@@ -116,6 +124,7 @@ class AddCourseViewModel @Inject constructor(
                 instructor = s.instructor.takeIf { it.isNotBlank() },
                 location = s.location.takeIf { it.isNotBlank() },
                 notes = s.notes.takeIf { it.isNotBlank() },
+                credits = parsedCredits,
                 weekdays = s.weekdays.sorted(),
                 periodStart = s.periodStart, periodEnd = s.periodEnd,
                 weekStart = s.weekStart, weekEnd = s.weekEnd,
@@ -133,6 +142,7 @@ class AddCourseViewModel @Inject constructor(
                             savedToast = "已添加 $count 节${draft.title}",
                             // Reset form for the next course but keep semester + maxPeriod
                             title = "", instructor = "", location = "", notes = "",
+                            credits = "",
                             weekdays = emptySet(),
                             periodStart = 1, periodEnd = 1,
                             weekStart = 1, weekEnd = 16,

@@ -3,6 +3,7 @@ package com.example.personal_studio.feature.timeline.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.repository.TimelineRepository
+import com.example.personal_studio.domain.model.formatCredits
 import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.DeleteCourseSeriesUseCase
 import com.example.personal_studio.domain.timeline.UpdateCourseSeriesUseCase
@@ -24,6 +25,7 @@ data class CourseSeriesEditUiState(
     val instructor: String = "",
     val location: String = "",
     val notes: String = "",
+    val credits: String = "",
     val occurrenceCount: Int = 0,
     val minWeek: Int = 0,
     val maxWeek: Int = 0,
@@ -65,6 +67,7 @@ class CourseSeriesEditViewModel @Inject constructor(
                     instructor = first.instructor.orEmpty(),
                     location = first.location.orEmpty(),
                     notes = first.notes.orEmpty(),
+                    credits = summary?.credits?.let(::formatCredits) ?: first.credits?.let(::formatCredits) ?: "",
                     occurrenceCount = summary?.occurrenceCount ?: 0,
                     minWeek = summary?.minWeek ?: 0,
                     maxWeek = summary?.maxWeek ?: 0,
@@ -77,13 +80,20 @@ class CourseSeriesEditViewModel @Inject constructor(
     fun onInstructorChange(s: String) = _ui.update { it.copy(instructor = s) }
     fun onLocationChange(s: String) = _ui.update { it.copy(location = s) }
     fun onNotesChange(s: String) = _ui.update { it.copy(notes = s) }
+    fun onCreditsChange(s: String) = _ui.update { it.copy(credits = s, error = null) }
 
     fun save() {
         val s = _ui.value
+        // Parse credits same rule as AddCourseScreen.
+        val parsedCredits: Float? = if (s.credits.isBlank()) null else s.credits.toFloatOrNull()
+        if (s.credits.isNotBlank() && (parsedCredits == null || parsedCredits < 0f)) {
+            _ui.update { it.copy(error = "学分必须是非负数字") }
+            return
+        }
         _ui.update { it.copy(saving = true, error = null) }
         viewModelScope.launch {
             runCatching {
-                updateSeries(s.seriesId, s.title, s.instructor, s.location, s.notes)
+                updateSeries(s.seriesId, s.title, s.instructor, s.location, s.notes, parsedCredits)
             }.onSuccess { _ui.update { it.copy(saving = false) } }
                 .onFailure { e -> _ui.update { it.copy(saving = false, error = e.message) } }
         }

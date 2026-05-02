@@ -29,6 +29,7 @@ interface TimelineRepository {
         instructor: String?,
         location: String?,
         notes: String?,
+        credits: Float?,
         now: Long,
     )
 

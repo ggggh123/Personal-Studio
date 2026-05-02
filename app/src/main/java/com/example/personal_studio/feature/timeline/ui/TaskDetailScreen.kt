@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.TimelineType
+import com.example.personal_studio.domain.model.formatCredits
 import com.example.personal_studio.feature.timeline.vm.TaskDetailEvent
 import com.example.personal_studio.feature.timeline.vm.TaskDetailViewModel
 import com.example.personal_studio.ui.components.TerminalTopBar
@@ -60,6 +61,9 @@ fun TaskDetailScreen(
             Text(timeStr, color = FoamDim)
             item.location?.let { Text("地点: $it", color = FoamDim) }
             item.instructor?.let { Text("老师: $it", color = FoamDim) }
+            if (item.type == TimelineType.COURSE) {
+                item.credits?.let { Text("学分: ${formatCredits(it)}", color = FoamDim) }
+            }
             item.description?.let { Text(it, color = Foam) }
             item.notes?.let { Text("备注: $it", color = FoamDim) }
 

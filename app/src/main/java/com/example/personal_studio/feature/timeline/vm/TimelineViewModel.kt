@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.NotifPreferences
 import com.example.personal_studio.data.repository.TimelineRepository
+import com.example.personal_studio.domain.model.DayActivityCount
 import com.example.personal_studio.domain.model.TimelineItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,7 +25,7 @@ data class TimelineUiState(
     val displayDay: LocalDate = LocalDate.now(),
     val items: List<TimelineItem> = emptyList(),
     val weekStart: LocalDate = LocalDate.now().minusDays((LocalDate.now().dayOfWeek.value - 1).toLong()),
-    val dayCounts: Map<LocalDate, Int> = emptyMap(),
+    val dayCounts: Map<LocalDate, DayActivityCount> = emptyMap(),
     val nowEpoch: Long = System.currentTimeMillis(),
     val notifBannerVisible: Boolean = false,
 )
@@ -66,7 +67,9 @@ class TimelineViewModel @Inject constructor(
             displayDay = day,
             items = items,
             weekStart = ws,
-            dayCounts = dayCounts.associate { LocalDate.parse(it.day) to it.count },
+            dayCounts = dayCounts.associate {
+                LocalDate.parse(it.day) to DayActivityCount(courses = it.courseCount, tasks = it.taskCount)
+            },
             nowEpoch = now,
             notifBannerVisible = false, // permission state computed elsewhere; banner value comes from screen
         )

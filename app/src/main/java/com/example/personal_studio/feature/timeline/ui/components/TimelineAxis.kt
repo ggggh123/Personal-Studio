@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Rule
 
 object TimelineAxisSpec {
@@ -48,8 +48,8 @@ fun TimelineAxis(modifier: Modifier = Modifier) {
             val topDp = (h - TimelineAxisSpec.START_HOUR) * TimelineAxisSpec.PX_PER_HOUR_DP
             Text(
                 text = "%02d:00".format(h),
-                color = FoamDim,
-                style = MaterialTheme.typography.labelSmall,
+                color = FoamMute,
+                style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(start = 4.dp).offset(y = topDp.dp - 8.dp),
             )
         }

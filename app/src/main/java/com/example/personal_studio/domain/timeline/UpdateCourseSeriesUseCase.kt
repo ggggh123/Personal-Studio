@@ -9,9 +9,11 @@ class UpdateCourseSeriesUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         seriesId: Long, title: String, instructor: String?, location: String?, notes: String?,
+        credits: Float? = null,
     ) = repo.updateSeriesAttributes(
         seriesId, title.trim(), instructor?.takeIf { it.isNotBlank() },
         location?.takeIf { it.isNotBlank() }, notes?.takeIf { it.isNotBlank() },
+        credits,
         nowProvider(),
     )
 }

@@ -28,7 +28,18 @@ class TimelineRepositoryImpl @Inject constructor(
 
     override fun observeCourseSeriesList(): Flow<List<CourseSeriesSummary>> =
         dao.observeCourseSeriesList().map { rows ->
-            rows.map { CourseSeriesSummary(it.seriesId, it.title, it.instructor, it.location, it.occurrenceCount, it.minWeek, it.maxWeek) }
+            rows.map {
+                CourseSeriesSummary(
+                    seriesId = it.seriesId,
+                    title = it.title,
+                    instructor = it.instructor,
+                    location = it.location,
+                    credits = it.credits,
+                    occurrenceCount = it.occurrenceCount,
+                    minWeek = it.minWeek,
+                    maxWeek = it.maxWeek,
+                )
+            }
         }
 
     override suspend fun findById(id: Long): TimelineItem? = dao.findById(id)?.let(::toDomain)
@@ -49,8 +60,8 @@ class TimelineRepositoryImpl @Inject constructor(
     override suspend fun deleteSeriesFuture(seriesId: Long, now: Long) = dao.deleteSeriesFuture(seriesId, now)
 
     override suspend fun updateSeriesAttributes(
-        seriesId: Long, title: String, instructor: String?, location: String?, notes: String?, now: Long,
-    ) = dao.updateSeriesAttributes(seriesId, title, instructor, location, notes, now)
+        seriesId: Long, title: String, instructor: String?, location: String?, notes: String?, credits: Float?, now: Long,
+    ) = dao.updateSeriesAttributes(seriesId, title, instructor, location, notes, credits, now)
 
     override suspend fun nextSeriesId(): Long = (dao.maxSeriesId() ?: 0L) + 1L
 
@@ -88,6 +99,7 @@ class TimelineRepositoryImpl @Inject constructor(
         location = e.location,
         instructor = e.instructor,
         notes = e.notes,
+        credits = e.credits,
         seriesId = e.seriesId,
         periodIndex = e.periodIndex,
         periodEndIndex = e.periodEndIndex,
@@ -114,6 +126,7 @@ class TimelineRepositoryImpl @Inject constructor(
         location = m.location,
         instructor = m.instructor,
         notes = m.notes,
+        credits = m.credits,
         seriesId = m.seriesId,
         periodIndex = m.periodIndex,
         periodEndIndex = m.periodEndIndex,

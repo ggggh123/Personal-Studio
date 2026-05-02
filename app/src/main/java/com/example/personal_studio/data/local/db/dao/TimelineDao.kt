@@ -9,12 +9,21 @@ data class CourseSeriesSummaryRow(
     val title: String,
     val instructor: String?,
     val location: String?,
+    val credits: Float?,
     val occurrenceCount: Int,
     val minWeek: Int,
     val maxWeek: Int,
 )
 
-data class DayCount(val day: String, val count: Int)
+/**
+ * Per-day activity counts split by type. The day-strip uses (courseCount, taskCount)
+ * to render two coloured badges; CUSTOM is intentionally excluded from the strip.
+ */
+data class DayCount(
+    val day: String,
+    val courseCount: Int,
+    val taskCount: Int,
+)
 
 @Dao
 interface TimelineDao {
@@ -45,13 +54,14 @@ interface TimelineDao {
     @Query("DELETE FROM timeline_items WHERE seriesId = :seriesId AND COALESCE(endAt, startAt) > :now")
     suspend fun deleteSeriesFuture(seriesId: Long, now: Long)
 
-    @Query("UPDATE timeline_items SET title = :title, instructor = :instructor, location = :location, notes = :notes, updatedAt = :now WHERE seriesId = :seriesId")
+    @Query("UPDATE timeline_items SET title = :title, instructor = :instructor, location = :location, notes = :notes, credits = :credits, updatedAt = :now WHERE seriesId = :seriesId")
     suspend fun updateSeriesAttributes(
         seriesId: Long,
         title: String,
         instructor: String?,
         location: String?,
         notes: String?,
+        credits: Float?,
         now: Long,
     )
 
@@ -72,7 +82,9 @@ interface TimelineDao {
 
     @Query(
         """
-        SELECT date(startAt / 1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS count
+        SELECT date(startAt / 1000, 'unixepoch', 'localtime') AS day,
+               SUM(CASE WHEN type = 'COURSE' THEN 1 ELSE 0 END) AS courseCount,
+               SUM(CASE WHEN type = 'TASK' THEN 1 ELSE 0 END) AS taskCount
         FROM timeline_items
         WHERE startAt >= :startInclusive AND startAt < :endExclusive
         GROUP BY day
@@ -83,7 +95,7 @@ interface TimelineDao {
     /**
      * Aggregates rows of a COURSE series into a single summary row.
      *
-     * Title / instructor / location use `MIN(...)` because:
+     * Title / instructor / location / credits use `MIN(...)` because:
      * - title and instructor are series-level invariants (`updateSeriesAttributes`
      *   writes them uniformly across all rows); MIN is purely lexicographic and
      *   matches the canonical value.
@@ -91,10 +103,14 @@ interface TimelineDao {
      *   per spec §3.4), in which case MIN surfaces an arbitrary representative.
      *   The Settings list is informational; clicking through to series edit
      *   shows the most-recently-set series-level location.
+     * - credits is series-level (same caveat as title/instructor); MIN is purely
+     *   numeric aggregation and matches the canonical value because the column
+     *   is uniform per-series via `updateSeriesAttributes`.
      */
     @Query(
         """
         SELECT seriesId, MIN(title) AS title, MIN(instructor) AS instructor, MIN(location) AS location,
+               MIN(credits) AS credits,
                COUNT(*) AS occurrenceCount, MIN(weekIndexInSemester) AS minWeek, MAX(weekIndexInSemester) AS maxWeek
         FROM timeline_items
         WHERE type = 'COURSE' AND seriesId IS NOT NULL

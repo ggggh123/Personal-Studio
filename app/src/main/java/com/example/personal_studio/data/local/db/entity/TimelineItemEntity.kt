@@ -30,6 +30,9 @@ data class TimelineItemEntity(
     val location: String? = null,
     val instructor: String? = null,
     val notes: String? = null,
+    /** Optional course credit hours (学分). Series-level: all rows of the same
+     *  series share this value. Float to support 0.5 / 1.5 / 3.0 etc. */
+    val credits: Float? = null,
 
     val seriesId: Long? = null,
     val periodIndex: Int? = null,

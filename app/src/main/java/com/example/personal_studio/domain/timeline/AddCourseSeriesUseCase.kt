@@ -67,6 +67,7 @@ class AddCourseSeriesUseCase @Inject constructor(
                     location = draft.location?.takeIf { it.isNotBlank() },
                     instructor = draft.instructor?.takeIf { it.isNotBlank() },
                     notes = draft.notes?.takeIf { it.isNotBlank() },
+                    credits = draft.credits,
                     seriesId = seriesId,
                     periodIndex = draft.periodStart,
                     periodEndIndex = draft.periodEnd,

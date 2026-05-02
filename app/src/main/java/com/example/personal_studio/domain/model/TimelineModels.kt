@@ -18,6 +18,8 @@ data class TimelineItem(
     val location: String?,
     val instructor: String?,
     val notes: String?,
+    /** Optional course credit hours; non-null only for COURSE rows. */
+    val credits: Float? = null,
     val seriesId: Long?,
     val periodIndex: Int?,
     val periodEndIndex: Int?,
@@ -37,6 +39,7 @@ data class CourseSeriesSummary(
     val title: String,
     val instructor: String?,
     val location: String?,
+    val credits: Float? = null,
     val occurrenceCount: Int,
     val minWeek: Int,
     val maxWeek: Int,
@@ -48,12 +51,19 @@ data class CourseSeriesDraft(
     val instructor: String?,
     val location: String?,
     val notes: String?,
+    val credits: Float? = null,
     val weekdays: List<Int>,        // 1..7
     val periodStart: Int,
     val periodEnd: Int,             // inclusive
     val weekStart: Int,
     val weekEnd: Int,               // inclusive
 )
+
+/** Render-friendly formatter that drops a trailing ".0" from whole-number credits
+ *  ("3" instead of "3.0", "2.5" stays "2.5"). Shared by VMs and screens so the
+ *  detail/list/edit forms agree on display. */
+fun formatCredits(value: Float): String =
+    if (value % 1f == 0f) value.toInt().toString() else value.toString()
 
 /** 13-state finite state machine for bubble visuals. */
 sealed class BubbleState {
@@ -77,4 +87,10 @@ data class ReminderSlot(val minBefore: Int, val isOverdue: Boolean) {
     val workName: (Long) -> String get() = { itemId ->
         "reminder_${itemId}_${minBefore}_${isOverdue}"
     }
+}
+
+/** Per-day activity counts split by type. CUSTOM is excluded from the strip
+ *  per spec; only courses (left badge) and DDLs (right badge) are surfaced. */
+data class DayActivityCount(val courses: Int, val tasks: Int) {
+    val isEmpty: Boolean get() = courses == 0 && tasks == 0
 }

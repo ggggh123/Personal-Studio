@@ -2,12 +2,14 @@ package com.example.personal_studio.feature.timeline.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,6 +76,14 @@ fun AddCourseScreen(
                 label = { Text("地点（可选）") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(value = ui.notes, onValueChange = vm::onNotesChange,
                 label = { Text("备注（可选）") }, modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp))
+            OutlinedTextField(
+                value = ui.credits,
+                onValueChange = vm::onCreditsChange,
+                label = { Text("学分（可选）") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
 
             Text("星期", color = Phosphor)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {

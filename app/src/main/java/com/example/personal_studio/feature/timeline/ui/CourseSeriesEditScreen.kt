@@ -1,11 +1,13 @@
 package com.example.personal_studio.feature.timeline.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +48,14 @@ fun CourseSeriesEditScreen(
                 label = { Text("老师") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             OutlinedTextField(value = ui.location, onValueChange = vm::onLocationChange,
                 label = { Text("地点") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(
+                value = ui.credits,
+                onValueChange = vm::onCreditsChange,
+                label = { Text("学分") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
             OutlinedTextField(value = ui.notes, onValueChange = vm::onNotesChange,
                 label = { Text("备注") }, modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp))
 

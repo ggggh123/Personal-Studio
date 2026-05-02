@@ -36,6 +36,7 @@ class FakeTimelineRepository : TimelineRepository {
                         title = first.title,
                         instructor = first.instructor,
                         location = first.location,
+                        credits = first.credits,
                         occurrenceCount = rows.size,
                         minWeek = rows.minOf { it.weekIndexInSemester ?: 0 },
                         maxWeek = rows.maxOf { it.weekIndexInSemester ?: 0 },
@@ -80,11 +81,11 @@ class FakeTimelineRepository : TimelineRepository {
     }
 
     override suspend fun updateSeriesAttributes(
-        seriesId: Long, title: String, instructor: String?, location: String?, notes: String?, now: Long,
+        seriesId: Long, title: String, instructor: String?, location: String?, notes: String?, credits: Float?, now: Long,
     ) {
         items.value = items.value.map {
             if (it.seriesId == seriesId)
-                it.copy(title = title, instructor = instructor, location = location, notes = notes, updatedAt = now)
+                it.copy(title = title, instructor = instructor, location = location, notes = notes, credits = credits, updatedAt = now)
             else it
         }
     }

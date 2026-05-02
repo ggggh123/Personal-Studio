@@ -47,7 +47,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun timelineDao(): com.example.personal_studio.data.local.db.dao.TimelineDao
 
     companion object {
-        const val VERSION = 6
+        const val VERSION = 7
         const val NAME = "personal-studio.db"
 
         /** Default seed inserted by [KbSeedCallback] on first DB creation. */
