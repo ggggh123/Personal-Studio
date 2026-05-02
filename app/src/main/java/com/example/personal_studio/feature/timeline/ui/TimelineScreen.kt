@@ -2,6 +2,7 @@ package com.example.personal_studio.feature.timeline.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,23 +33,28 @@ import com.example.personal_studio.feature.timeline.ui.components.TimelineAxis
 import com.example.personal_studio.feature.timeline.ui.components.TimelineAxisSpec
 import com.example.personal_studio.feature.timeline.ui.components.TimelineBubble
 import com.example.personal_studio.feature.timeline.vm.TimelineViewModel
+import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimelineScreen(
     onAddTask: () -> Unit,
     onAddCourse: () -> Unit,
     onOpenDetail: (Long) -> Unit,
+    onOpenWeekGrid: () -> Unit = {},
     vm: TimelineViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val zone = ZoneId.systemDefault()
     val state = remember { ComputeBubbleStateUseCase() }
+    var expandedCluster by remember { mutableStateOf<List<TimelineItem>?>(null) }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -83,6 +90,9 @@ fun TimelineScreen(
                 )
                 IconButton(onClick = vm::onNextDay) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "next") }
                 TextButton(onClick = vm::onToday) { Text("今日") }
+                IconButton(onClick = onOpenWeekGrid) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = "week grid")
+                }
             }
 
             DayStripBar(
@@ -132,6 +142,7 @@ fun TimelineScreen(
                         chips.forEach { chip ->
                             ClusterOverflowChip(
                                 count = chip.count,
+                                onClick = { expandedCluster = chip.hiddenItems },
                                 modifier = Modifier
                                     .offset(x = maxWidth - sidePadEnd - 44.dp, y = chip.topDp.dp),
                             )
@@ -155,6 +166,36 @@ fun TimelineScreen(
             onAddCourse = onAddCourse,
             modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
         )
+    }
+
+    expandedCluster?.let { items ->
+        ModalBottomSheet(onDismissRequest = { expandedCluster = null }) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Text(
+                    "$ ls cluster/",
+                    color = Phosphor,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    "${items.size} 项被折叠 · 点击进入详情",
+                    color = FoamDim,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+                Spacer(Modifier.height(12.dp))
+                items.forEach { item ->
+                    ClusterItemRow(
+                        item = item,
+                        zone = zone,
+                        onClick = {
+                            expandedCluster = null
+                            onOpenDetail(item.id)
+                        },
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+        }
     }
 }
 
@@ -200,7 +241,11 @@ private data class BubbleSlot(
     val widthFraction: Float, // 1f for solo, 0.5f for split
 )
 
-private data class OverflowChip(val topDp: Float, val count: Int)
+private data class OverflowChip(
+    val topDp: Float,
+    val count: Int,
+    val hiddenItems: List<TimelineItem>,
+)
 
 /**
  * Two-column splitting for overlapping items.
@@ -245,9 +290,10 @@ private fun layoutItems(
             else -> {
                 slots += makeSlot(group[0].item, column = 0, widthFraction = 0.5f, zone)
                 slots += makeSlot(group[1].item, column = 1, widthFraction = 0.5f, zone)
+                val hiddenItems = group.drop(2).map { it.item }
                 val third = group[2].item
                 val topDp = computeBubbleLayout(third.startAt, zone).topDp
-                chips += OverflowChip(topDp, group.size - 2)
+                chips += OverflowChip(topDp, group.size - 2, hiddenItems)
             }
         }
     }
@@ -265,13 +311,53 @@ private fun makeSlot(
 }
 
 @Composable
-private fun ClusterOverflowChip(count: Int, modifier: Modifier = Modifier) {
+private fun ClusterOverflowChip(
+    count: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier
+            .clickable(onClick = onClick)
             .background(Void.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
             .border(1.dp, Phosphor, RoundedCornerShape(4.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         Text("+$count", color = Phosphor, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+private fun ClusterItemRow(
+    item: TimelineItem,
+    zone: ZoneId,
+    onClick: () -> Unit,
+) {
+    val timeStr = remember(item.startAt, item.endAt) {
+        val start = Instant.ofEpochMilli(item.startAt).atZone(zone).toLocalDateTime().toLocalTime()
+        val end = item.endAt?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDateTime().toLocalTime() }
+        if (end == null) "%02d:%02d".format(start.hour, start.minute)
+        else "%02d:%02d - %02d:%02d".format(start.hour, start.minute, end.hour, end.minute)
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            timeStr,
+            color = FoamMute,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.width(110.dp),
+        )
+        Text(
+            text = item.title + (item.location?.let { "  ·  $it" } ?: ""),
+            color = Foam,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Text("→", color = Phosphor, style = MaterialTheme.typography.bodyMedium)
     }
 }

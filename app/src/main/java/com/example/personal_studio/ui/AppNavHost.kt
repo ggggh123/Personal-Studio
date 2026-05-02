@@ -129,6 +129,13 @@ fun AppNavHost(navController: NavHostController) {
                 onAddTask = { navController.navigate(NavRoutes.TIMELINE_ADD_TASK) },
                 onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
                 onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
+                onOpenWeekGrid = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+            )
+        }
+        composable(NavRoutes.TIMELINE_WEEK_GRID) {
+            com.example.personal_studio.feature.timeline.ui.CourseWeekGridScreen(
+                onBack = { navController.popBackStack() },
+                onOpenItem = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
             )
         }
         composable(NavRoutes.TIMELINE_ADD_TASK) {
