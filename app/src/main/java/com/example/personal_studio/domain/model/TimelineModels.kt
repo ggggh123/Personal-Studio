@@ -87,6 +87,12 @@ data class ReminderSlot(val minBefore: Int, val isOverdue: Boolean) {
     val workName: (Long) -> String get() = { itemId ->
         "reminder_${itemId}_${minBefore}_${isOverdue}"
     }
+
+    /** Stable PendingIntent request code derived from the reminder identity.
+     *  Collision probability for our use case (max ~hundreds of slots) is
+     *  negligible. The Intent's data URI provides the real uniqueness — this
+     *  is a defensive secondary key. */
+    fun requestCode(itemId: Long): Int = workName(itemId).hashCode()
 }
 
 /** Per-day activity counts split by type. CUSTOM is excluded from the strip

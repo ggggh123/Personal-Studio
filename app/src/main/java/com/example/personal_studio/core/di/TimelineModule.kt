@@ -1,5 +1,7 @@
 package com.example.personal_studio.core.di
 
+import android.app.AlarmManager
+import android.content.Context
 import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.repository.TimelineRepository
 import com.example.personal_studio.domain.timeline.AddCourseSeriesUseCase
@@ -12,6 +14,7 @@ import com.example.personal_studio.domain.timeline.UpdateItemUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 import java.time.ZoneId
@@ -71,13 +74,32 @@ object TimelineModule {
             semesterProvider = { semester.startDate.first() },
         )
 
+    /** WorkManager is still used by RescheduleAllUpcomingUseCase (boot/app-launch
+     *  re-scheduling sweep) — keep the provider. ReminderWorker itself is gone;
+     *  per-item scheduling now goes through AlarmManager. */
     @Provides
-    fun provideWorkManager(@dagger.hilt.android.qualifiers.ApplicationContext ctx: android.content.Context): androidx.work.WorkManager =
-        androidx.work.WorkManager.getInstance(ctx)
+    fun provideWorkManager(
+        @ApplicationContext ctx: Context,
+    ): androidx.work.WorkManager = androidx.work.WorkManager.getInstance(ctx)
 
     @Provides
+    @Singleton
+    fun provideAlarmManager(
+        @ApplicationContext context: Context,
+    ): AlarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+    /**
+     * Provided rather than `@Inject constructor` because the use case carries
+     * a `nowProvider: () -> Long = System::currentTimeMillis` default lambda
+     * that Dagger doesn't honour on constructor injection.
+     */
+    @Provides
     fun provideScheduleRemindersUseCase(
-        wm: androidx.work.WorkManager,
+        @ApplicationContext context: Context,
+        alarmManager: AlarmManager,
     ): com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase =
-        com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase(wm = wm)
+        com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase(
+            context = context,
+            alarmManager = alarmManager,
+        )
 }
