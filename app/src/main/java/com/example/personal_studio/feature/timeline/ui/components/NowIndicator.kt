@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.theme.Carmine
@@ -19,8 +20,8 @@ import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Renders a horizontal red line + dot + "$ now: HH:mm" label at the
- * appropriate Y inside a Box laid out at the same height as TimelineAxis.
+ * Renders a horizontal red line + "$ now: HH:mm" label at the appropriate Y
+ * inside a Box laid out at the same height as TimelineAxis.
  *
  * Caller passes the absolute epoch ms; this composable handles the conversion
  * to local minutes-into-day and translates that to a dp offset against the
@@ -40,10 +41,18 @@ fun NowIndicator(
     if (minutesIntoDay < startMinutes || minutesIntoDay > endMinutes) return
     val topDp = (minutesIntoDay - startMinutes) / 60f * TimelineAxisSpec.PX_PER_HOUR_DP
 
-    Box(modifier.fillMaxWidth().offset(y = topDp.dp)) {
+    // Layout: Row keeps the label and 2.dp line horizontally separated via
+    // Spacer + weight(1f), so they never overlap visually. The whole Row is
+    // offset by (topDp - 8.dp): the row's intrinsic height equals the label's
+    // font height (~16.dp for labelSmall), and verticalAlignment=CenterVertically
+    // places both the label and the 2.dp line at the row's vertical centre.
+    // Subtracting 8.dp (half of ~16.dp) makes the row's centre — and therefore
+    // the 2.dp line — fall exactly on topDp. This matches the -8.dp trick the
+    // hour labels in TimelineAxis already use.
+    Box(modifier.fillMaxWidth().offset(y = (topDp - 8f).dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "$ now: %02d:%02d".format(nowLocal.hour, nowLocal.minute),
