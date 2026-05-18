@@ -13,4 +13,4 @@ data class WeekDateDto(
 )
 
 @Serializable
-data class WeekDateResponse(val data: List<WeekDateDto>, val currentWeek: Int = 0)
+data class WeekDateResponse(val data: List<WeekDateDto>, val currentWeek: Int? = null)

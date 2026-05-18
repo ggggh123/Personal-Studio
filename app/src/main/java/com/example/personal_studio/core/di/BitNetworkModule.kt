@@ -27,6 +27,8 @@ object BitNetworkModule {
             .followRedirects(true)            // CAS POST returns 302 on success
         if (BuildConfig.DEBUG) {
             builder.addInterceptor(HttpLoggingInterceptor().apply {
+                // NEVER bump to Level.BODY — would log the encrypted-password
+                // POST body and Set-Cookie session headers. BASIC = method+URL+status.
                 level = HttpLoggingInterceptor.Level.BASIC
             })
         }

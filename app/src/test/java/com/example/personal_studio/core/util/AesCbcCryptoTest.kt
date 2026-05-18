@@ -7,7 +7,11 @@ import org.junit.Test
 class AesCbcCryptoTest {
 
     /** Deterministic IV makes the output reproducible — used as an authoritative
-     *  reference value that future refactors must not break. */
+     *  reference value that future refactors must not break.
+     *
+     *  TODO(p5-polish): replace this self-referential golden with a fixture
+     *  captured from a real BIT CAS login response (salt+iv+plain→ciphertext),
+     *  so the assertion verifies protocol compat with BIT, not just regression. */
     @Test fun `deterministic IV + salt + prefix yields stable ciphertext`() {
         val salt = "0123456789abcdef"          // 16 ASCII bytes
         val iv = ByteArray(16) { 0x42.toByte() }

@@ -38,6 +38,9 @@ class BitCookieJar @Inject constructor() : CookieJar {
             .flatMap { it.value }
     }
 
+    /** Clears all cookies. Intended to be called only by [BitApiClient.close];
+     *  do not invoke from elsewhere — would nuke an in-flight import session.
+     *  Future hardening could expose this only via a sealed session-controller. */
     @Synchronized
     fun clear() {
         store.clear()
