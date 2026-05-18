@@ -65,14 +65,14 @@
 - `app/src/main/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCase.kt`
 
 **Feature — import UI/VM**
-- `app/src/main/java/com/example/personal_studio/feature/import/ImportNavGraph.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ImportViewModel.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportCredentialsScreen.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportTermPickerScreen.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportProgressScreen.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportPreviewScreen.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ui/components/ErrorBanner.kt`
-- `app/src/main/java/com/example/personal_studio/feature/import/ui/components/WizardScaffold.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ImportNavGraph.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ImportViewModel.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportCredentialsScreen.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportTermPickerScreen.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportProgressScreen.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportPreviewScreen.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/components/ErrorBanner.kt`
+- `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/components/WizardScaffold.kt`
 
 **Tests**
 - `app/src/test/java/com/example/personal_studio/core/util/AesCbcCryptoTest.kt`
@@ -84,7 +84,7 @@
 - `app/src/test/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCaseTest.kt`
 - `app/src/test/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCaseTest.kt` (instrumented under `androidTest/`)
 - `app/src/test/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCaseTest.kt`
-- `app/src/test/java/com/example/personal_studio/feature/import/ImportViewModelTest.kt`
+- `app/src/test/java/com/example/personal_studio/feature/bitimport/ImportViewModelTest.kt`
 - `app/src/test/resources/bit-fixtures/*.json` (anonymised real BIT responses, captured in p5-polish)
 - `app/src/test/resources/bit-fixtures/cas-login-page.html`
 
@@ -2447,13 +2447,13 @@ git tag -a p5-import -m "P5 Phase 2 — domain layer (use cases + 2 new DAO quer
 ### Task 23: `ImportViewModel` skeleton + UI state
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ImportViewModel.kt`
-- Create: `app/src/test/java/com/example/personal_studio/feature/import/ImportViewModelTest.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ImportViewModel.kt`
+- Create: `app/src/test/java/com/example/personal_studio/feature/bitimport/ImportViewModelTest.kt`
 
 - [ ] **Step 1: Write the failing test (one path only — happy path through Credentials)**
 
 ```kotlin
-package com.example.personal_studio.feature.import
+package com.example.personal_studio.feature.bitimport
 
 import app.cash.turbine.test
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
@@ -2509,7 +2509,7 @@ class ImportViewModelTest {
 - [ ] **Step 2: Write the skeleton ViewModel + UI state**
 
 ```kotlin
-package com.example.personal_studio.feature.import
+package com.example.personal_studio.feature.bitimport
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -2665,8 +2665,8 @@ Expected: PASS. (The test is intentionally minimal — only verifies initial sta
 - [ ] **Step 4: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ImportViewModel.kt \
-        app/src/test/java/com/example/personal_studio/feature/import/ImportViewModelTest.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ImportViewModel.kt \
+        app/src/test/java/com/example/personal_studio/feature/bitimport/ImportViewModelTest.kt
 git commit -m "p5(ui): ImportViewModel skeleton + reduce(state, step) state machine"
 ```
 
@@ -2675,12 +2675,12 @@ git commit -m "p5(ui): ImportViewModel skeleton + reduce(state, step) state mach
 ### Task 24: `WizardScaffold` (shared top bar + bottom bar Composable)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ui/components/WizardScaffold.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/components/WizardScaffold.kt`
 
 - [ ] **Step 1: Write the Composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import.ui.components
+package com.example.personal_studio.feature.bitimport.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -2747,7 +2747,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ui/components/WizardScaffold.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ui/components/WizardScaffold.kt
 git commit -m "p5(ui): WizardScaffold — shared top/bottom bars for 4-screen wizard"
 ```
 
@@ -2756,12 +2756,12 @@ git commit -m "p5(ui): WizardScaffold — shared top/bottom bars for 4-screen wi
 ### Task 25: `ErrorBanner` (one Composable, switches on ImportError)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ui/components/ErrorBanner.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/components/ErrorBanner.kt`
 
 - [ ] **Step 1: Write the Composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import.ui.components
+package com.example.personal_studio.feature.bitimport.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -2831,7 +2831,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ui/components/ErrorBanner.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ui/components/ErrorBanner.kt
 git commit -m "p5(ui): ErrorBanner — sealed-class-driven import error UX"
 ```
 
@@ -2840,12 +2840,12 @@ git commit -m "p5(ui): ErrorBanner — sealed-class-driven import error UX"
 ### Task 26: `ImportCredentialsScreen` (Screen 1)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportCredentialsScreen.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportCredentialsScreen.kt`
 
 - [ ] **Step 1: Write the Composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import.ui
+package com.example.personal_studio.feature.bitimport.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
@@ -2862,10 +2862,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.data.network.bit.NetworkMode
-import com.example.personal_studio.feature.import.ImportViewModel
-import com.example.personal_studio.feature.import.ui.components.BannerAction
-import com.example.personal_studio.feature.import.ui.components.ErrorBanner
-import com.example.personal_studio.feature.import.ui.components.WizardScaffold
+import com.example.personal_studio.feature.bitimport.ImportViewModel
+import com.example.personal_studio.feature.bitimport.ui.components.BannerAction
+import com.example.personal_studio.feature.bitimport.ui.components.ErrorBanner
+import com.example.personal_studio.feature.bitimport.ui.components.WizardScaffold
 
 @Composable
 fun ImportCredentialsScreen(
@@ -2937,7 +2937,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ui/ImportCredentialsScreen.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportCredentialsScreen.kt
 git commit -m "p5(ui): ImportCredentialsScreen — 学号/密码/记住/网络模式"
 ```
 
@@ -2946,12 +2946,12 @@ git commit -m "p5(ui): ImportCredentialsScreen — 学号/密码/记住/网络�
 ### Task 27: `ImportTermPickerScreen` (Screen 2)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportTermPickerScreen.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportTermPickerScreen.kt`
 
 - [ ] **Step 1: Write the Composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import.ui
+package com.example.personal_studio.feature.bitimport.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -2966,8 +2966,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.feature.import.ImportViewModel
-import com.example.personal_studio.feature.import.ui.components.WizardScaffold
+import com.example.personal_studio.feature.bitimport.ImportViewModel
+import com.example.personal_studio.feature.bitimport.ui.components.WizardScaffold
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Foam
 
@@ -3026,7 +3026,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ui/ImportTermPickerScreen.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportTermPickerScreen.kt
 git commit -m "p5(ui): ImportTermPickerScreen — radio list + non-current term warning"
 ```
 
@@ -3035,12 +3035,12 @@ git commit -m "p5(ui): ImportTermPickerScreen — radio list + non-current term 
 ### Task 28: `ImportProgressScreen` (Screen 3, unbacked)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportProgressScreen.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportProgressScreen.kt`
 
 - [ ] **Step 1: Write the Composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import.ui
+package com.example.personal_studio.feature.bitimport.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -3052,8 +3052,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.feature.import.ImportViewModel
-import com.example.personal_studio.feature.import.ui.components.WizardScaffold
+import com.example.personal_studio.feature.bitimport.ImportViewModel
+import com.example.personal_studio.feature.bitimport.ui.components.WizardScaffold
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
 
@@ -3096,7 +3096,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ui/ImportProgressScreen.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportProgressScreen.kt
 git commit -m "p5(ui): ImportProgressScreen — checkmark progress + swallowed back"
 ```
 
@@ -3105,12 +3105,12 @@ git commit -m "p5(ui): ImportProgressScreen — checkmark progress + swallowed b
 ### Task 29: `ImportPreviewScreen` (Screen 4)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ui/ImportPreviewScreen.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportPreviewScreen.kt`
 
 - [ ] **Step 1: Write the Composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import.ui
+package com.example.personal_studio.feature.bitimport.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -3128,8 +3128,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.feature.import.ImportViewModel
-import com.example.personal_studio.feature.import.ui.components.WizardScaffold
+import com.example.personal_studio.feature.bitimport.ImportViewModel
+import com.example.personal_studio.feature.bitimport.ui.components.WizardScaffold
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Foam
 
@@ -3190,7 +3190,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ui/ImportPreviewScreen.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ui/ImportPreviewScreen.kt
 git commit -m "p5(ui): ImportPreviewScreen — collapsible list + overwrite warning"
 ```
 
@@ -3199,22 +3199,22 @@ git commit -m "p5(ui): ImportPreviewScreen — collapsible list + overwrite warn
 ### Task 30: `ImportNavGraph` (internal NavHost)
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/feature/import/ImportNavGraph.kt`
+- Create: `app/src/main/java/com/example/personal_studio/feature/bitimport/ImportNavGraph.kt`
 
 - [ ] **Step 1: Write the nav graph entry composable**
 
 ```kotlin
-package com.example.personal_studio.feature.import
+package com.example.personal_studio.feature.bitimport
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.feature.import.ui.ImportCredentialsScreen
-import com.example.personal_studio.feature.import.ui.ImportPreviewScreen
-import com.example.personal_studio.feature.import.ui.ImportProgressScreen
-import com.example.personal_studio.feature.import.ui.ImportTermPickerScreen
+import com.example.personal_studio.feature.bitimport.ui.ImportCredentialsScreen
+import com.example.personal_studio.feature.bitimport.ui.ImportPreviewScreen
+import com.example.personal_studio.feature.bitimport.ui.ImportProgressScreen
+import com.example.personal_studio.feature.bitimport.ui.ImportTermPickerScreen
 
 @Composable
 fun ImportEntryRoute(
@@ -3243,7 +3243,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/feature/import/ImportNavGraph.kt
+git add app/src/main/java/com/example/personal_studio/feature/bitimport/ImportNavGraph.kt
 git commit -m "p5(ui): ImportEntryRoute — switches on ui.currentScreen"
 ```
 
@@ -3268,7 +3268,7 @@ In `NavRoutes.kt`, after `const val SETTINGS_SEMESTER = "settings/semester"`, ap
 In `AppNavHost.kt`, add to imports:
 
 ```kotlin
-import com.example.personal_studio.feature.import.ImportEntryRoute
+import com.example.personal_studio.feature.bitimport.ImportEntryRoute
 ```
 
 Add a `composable` entry inside the `NavHost { ... }` block (anywhere — convention is below the timeline destinations):
