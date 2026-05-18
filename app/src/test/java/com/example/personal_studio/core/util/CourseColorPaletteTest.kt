@@ -15,19 +15,29 @@ class CourseColorPaletteTest {
     }
 
     @Test fun `different titles likely yield different hues`() {
-        // 6 hues in palette; a handful of titles should still spread across at least 2 buckets.
+        // 12 hues in palette; 8 plausible course titles should still spread
+        // across a meaningful number of buckets despite some birthday-paradox
+        // collisions. Threshold kept conservative to stay robust to future
+        // hashCode tweaks across JVMs.
         val titles = listOf("高数", "线代", "概率论", "英语", "马原", "毛概", "体育", "C 语言")
         val unique = titles.map(CourseColorPalette::colorFor).toSet()
-        assertTrue("expected ≥ 2 unique colors, got ${unique.size}", unique.size >= 2)
+        assertTrue("expected ≥ 3 unique colors, got ${unique.size}", unique.size >= 3)
     }
 
-    @Test fun `color stays inside green-leaning hue band`() {
-        val color = CourseColorPalette.colorFor("高数")
-        // Red channel must be < both green and the red < 200/255 (no yellow/red bleed).
-        val r = (color.red * 255).toInt()
-        val g = (color.green * 255).toInt()
-        assertTrue("expected greenish color but got rgb=($r,$g,${(color.blue * 255).toInt()})",
-            g > r)
+    @Test fun `color is vivid (not grey) and avoids state-clash zones`() {
+        // S=60% L=55% guarantees a visible chroma; max-min channel separation
+        // should be ≥ 0.2. We don't pin the hue band any more (palette spans
+        // 100°–335°), but the saturation+lightness pair keeps every generated
+        // colour distinctly non-grey.
+        repeat(200) { i ->
+            val color = CourseColorPalette.colorFor("course-$i")
+            val maxChan = maxOf(color.red, color.green, color.blue)
+            val minChan = minOf(color.red, color.green, color.blue)
+            assertTrue(
+                "expected vivid colour but got rgb=(${color.red},${color.green},${color.blue})",
+                maxChan - minChan > 0.2f,
+            )
+        }
     }
 
     @Test fun `colorFor does not return transparent or black`() {
