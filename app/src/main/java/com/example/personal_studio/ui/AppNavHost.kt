@@ -269,6 +269,7 @@ fun AppNavHost(navController: NavHostController) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onNavigate = { route -> navController.navigate(route) },
+                onNavigateToImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
             )
         }
         composable(NavRoutes.SETTINGS_TIMETABLE) {
