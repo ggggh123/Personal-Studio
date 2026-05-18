@@ -58,6 +58,9 @@ object NavRoutes {
     fun timelineCourseSeriesEdit(seriesId: Long) = "timeline/course-series/$seriesId"
     const val TIMELINE_WEEK_GRID = "timeline/week-grid"
 
+    // BIT Import wizard (P5)
+    const val IMPORT_WIZARD = "import"
+
     // Settings sub-pages (P4)
     const val SETTINGS_TIMETABLE = "settings/timetable"
     const val SETTINGS_SEMESTER = "settings/semester"

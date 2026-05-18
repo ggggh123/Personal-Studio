@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.example.personal_studio.feature.bitimport.ImportEntryRoute
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
@@ -195,6 +196,11 @@ fun AppNavHost(navController: NavHostController) {
             com.example.personal_studio.feature.timeline.ui.CourseSeriesEditScreen(
                 seriesId = sid,
                 onBack = { navController.popBackStack() },
+            )
+        }
+        composable(NavRoutes.IMPORT_WIZARD) {
+            ImportEntryRoute(
+                onClose = { navController.popBackStack() },
             )
         }
 
