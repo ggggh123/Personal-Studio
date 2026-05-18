@@ -2,6 +2,8 @@ package com.example.personal_studio.ui
 
 import android.graphics.PointF
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
@@ -9,6 +11,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
@@ -20,7 +23,6 @@ import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScr
 import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
-import com.example.personal_studio.ui.placeholder.TimelinePlaceholder
 import java.io.File
 
 @Composable
@@ -122,7 +124,79 @@ fun AppNavHost(navController: NavHostController) {
                 onOpenRelated = { relId -> navController.navigate(NavRoutes.kbDetail(relId)) },
             )
         }
-        composable(NavRoutes.TIMELINE) { TimelinePlaceholder() }
+        composable(NavRoutes.TIMELINE) {
+            com.example.personal_studio.feature.timeline.ui.TimelineScreen(
+                onAddTask = { navController.navigate(NavRoutes.TIMELINE_ADD_TASK) },
+                onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
+                onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
+                onOpenWeekGrid = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+            )
+        }
+        composable(NavRoutes.TIMELINE_WEEK_GRID) {
+            com.example.personal_studio.feature.timeline.ui.CourseWeekGridScreen(
+                onBack = { navController.popBackStack() },
+                onOpenItem = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
+            )
+        }
+        composable(NavRoutes.TIMELINE_ADD_TASK) {
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) { /* result handled by banner state */ }
+            com.example.personal_studio.feature.timeline.ui.AddTaskScreen(
+                onSaved = { _ -> navController.popBackStack() },
+                onBack = { navController.popBackStack() },
+                onRequestNotifPermission = {
+                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                        launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+            )
+        }
+        composable(NavRoutes.TIMELINE_ADD_COURSE) {
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) {}
+            com.example.personal_studio.feature.timeline.ui.AddCourseScreen(
+                onBack = { navController.popBackStack() },
+                onRequestNotifPermission = {
+                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                        launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+            )
+        }
+        composable(
+            route = NavRoutes.TIMELINE_DETAIL,
+            arguments = listOf(navArgument("itemId") { type = NavType.LongType }),
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "personalstudio://timeline/detail/{itemId}"
+                }
+            ),
+        ) { backStack ->
+            val itemId = backStack.arguments?.getLong("itemId") ?: return@composable
+            com.example.personal_studio.feature.timeline.ui.TaskDetailScreen(
+                itemId = itemId,
+                onBack = { navController.popBackStack() },
+                onOpenCourseSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
+            )
+        }
+        composable(NavRoutes.TIMELINE_COURSE_LIST) {
+            com.example.personal_studio.feature.timeline.ui.CourseSeriesListScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
+            )
+        }
+        composable(
+            route = NavRoutes.TIMELINE_COURSE_SERIES_EDIT,
+            arguments = listOf(navArgument("seriesId") { type = NavType.LongType }),
+        ) { backStack ->
+            val sid = backStack.arguments?.getLong("seriesId") ?: return@composable
+            com.example.personal_studio.feature.timeline.ui.CourseSeriesEditScreen(
+                seriesId = sid,
+                onBack = { navController.popBackStack() },
+            )
+        }
 
         // --- Scanner single-page smoke flow (Task 14) ---
         composable(NavRoutes.SCANNER_CAMERA) {
@@ -184,7 +258,19 @@ fun AppNavHost(navController: NavHostController) {
         }
 
         composable(NavRoutes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigate = { route -> navController.navigate(route) },
+            )
+        }
+        composable(NavRoutes.SETTINGS_TIMETABLE) {
+            com.example.personal_studio.feature.settings.ui.TimetableEditorScreen(onBack = { navController.popBackStack() })
+        }
+        composable(NavRoutes.SETTINGS_SEMESTER) {
+            com.example.personal_studio.feature.settings.ui.SemesterSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(NavRoutes.SETTINGS_NOTIF) {
+            com.example.personal_studio.feature.settings.ui.NotifSettingsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

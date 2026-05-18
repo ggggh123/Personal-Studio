@@ -31,9 +31,6 @@ import com.example.personal_studio.ui.theme.Phosphor
 @Composable fun KnowledgePlaceholder() = Placeholder("grep -r . kb/", "no entries yet",
     "archive a chat response in P3 to populate this index")
 
-@Composable fun TimelinePlaceholder() = Placeholder("cat day.log", "no events today",
-    "timeline + notifications arrive in P4")
-
 @Composable
 private fun Placeholder(
     command: String,

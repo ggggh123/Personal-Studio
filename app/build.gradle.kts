@@ -126,6 +126,11 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
+    // WorkManager + Hilt-Work integration (used by P4 timeline reminders)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
     // Kotlinx
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

@@ -6,6 +6,23 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Doze-bypassing exact alarms for on-time reminders. SCHEDULE_EXACT_ALARM
+         is granted by default at install on API 31/32, but is user-revokable on
+         API 33+; ScheduleRemindersUseCase falls back to setAndAllowWhileIdle if
+         the runtime check says it isn't held. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Required on API 30+ so Settings.ACTION_APPLICATION_DETAILS_SETTINGS and
+         related intents resolve when Package Visibility restrictions apply. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+            <data android:scheme="package" />
+        </intent>
+    </queries>
 
     <application
         android:name=".PersonalStudioApp"
@@ -29,6 +46,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="personalstudio" android:host="timeline" />
+            </intent-filter>
         </activity>
 
         <!-- Grants read-only URI access to exported PDFs / scan JPEGs so the
@@ -41,6 +64,38 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
+        </provider>
+
+        <receiver
+            android:name=".core.workers.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Receives AlarmManager.setExactAndAllowWhileIdle reminder fires
+             scheduled by ScheduleRemindersUseCase. exported=false because the
+             only sender is our own AlarmManager. -->
+        <receiver
+            android:name=".core.workers.ReminderAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Disable the default WorkManager initializer so HiltWorkerFactory
+             (registered via Configuration.Provider in PersonalStudioApp) is the
+             one that builds Workers. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
         </provider>
     </application>
 </manifest>
