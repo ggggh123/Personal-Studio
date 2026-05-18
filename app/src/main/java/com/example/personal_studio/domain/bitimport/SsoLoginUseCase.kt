@@ -1,9 +1,10 @@
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.core.util.AesCbcCrypto
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.data.network.bit.service.BitCasService
+import javax.inject.Inject
 
 /**
  * Drives the BIT CAS login flow: GET the login page → extract `execution` and
@@ -12,13 +13,8 @@ import com.example.personal_studio.data.network.bit.service.BitCasService
  *
  * Returns a [CasLoginDto] sealed instance so callers can pattern-match without
  * throwing on user-facing failures (wrong password, captcha required, etc.).
- *
- * Note: `@Inject` constructor is intentionally omitted because the `import`
- * package segment is a Java reserved word, and Hilt would generate an
- * unparseable `_Factory.java` file. Construct directly (or via a Hilt
- * `@Provides` method in a separate Kotlin module) when wiring into the graph.
  */
-class SsoLoginUseCase {
+class SsoLoginUseCase @Inject constructor() {
 
     private val executionRegex = Regex("""name="execution"\s+value="([^"]+)"""")
     private val croyptoRegex = Regex("""name="croypto"\s+value="([^"]+)"""")

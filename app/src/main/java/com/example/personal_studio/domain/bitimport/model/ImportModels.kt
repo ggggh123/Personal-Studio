@@ -1,4 +1,4 @@
-package com.example.personal_studio.domain.import.model
+package com.example.personal_studio.domain.bitimport.model
 
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode

@@ -1,4 +1,4 @@
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
