@@ -137,6 +137,11 @@ dependencies {
 
     // HTTP (OpenRouter API client)
     implementation(libs.okhttp)
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
+    implementation(libs.androidx.security.crypto)
+
+    testImplementation(libs.okhttp.mockwebserver)
 
     // Camera (CameraX + OpenCV)
     implementation(libs.androidx.camera.core)
