@@ -57,12 +57,12 @@
 - `app/src/main/java/com/example/personal_studio/data/repository/ImportRepository.kt`
 
 **Domain — model + use cases**
-- `app/src/main/java/com/example/personal_studio/domain/import/model/ImportModels.kt` (`ImportCredentials`, `ImportRequest`, `ImportResult`, `ImportStep`, `ImportError`)
-- `app/src/main/java/com/example/personal_studio/domain/import/SsoLoginUseCase.kt`
-- `app/src/main/java/com/example/personal_studio/domain/import/ResolveSemesterAnchorUseCase.kt`
-- `app/src/main/java/com/example/personal_studio/domain/import/MapBitCourseUseCase.kt`
-- `app/src/main/java/com/example/personal_studio/domain/import/ReplaceImportedCoursesUseCase.kt`
-- `app/src/main/java/com/example/personal_studio/domain/import/ImportCoursesUseCase.kt`
+- `app/src/main/java/com/example/personal_studio/domain/bitimport/model/ImportModels.kt` (`ImportCredentials`, `ImportRequest`, `ImportResult`, `ImportStep`, `ImportError`)
+- `app/src/main/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCase.kt`
+- `app/src/main/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCase.kt`
+- `app/src/main/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCase.kt`
+- `app/src/main/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCase.kt`
+- `app/src/main/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCase.kt`
 
 **Feature — import UI/VM**
 - `app/src/main/java/com/example/personal_studio/feature/import/ImportNavGraph.kt`
@@ -79,11 +79,11 @@
 - `app/src/test/java/com/example/personal_studio/core/util/SkzcExpanderTest.kt`
 - `app/src/test/java/com/example/personal_studio/data/network/bit/BitCasServiceTest.kt`
 - `app/src/test/java/com/example/personal_studio/data/network/bit/BitJwappServiceTest.kt`
-- `app/src/test/java/com/example/personal_studio/domain/import/SsoLoginUseCaseTest.kt`
-- `app/src/test/java/com/example/personal_studio/domain/import/ResolveSemesterAnchorUseCaseTest.kt`
-- `app/src/test/java/com/example/personal_studio/domain/import/MapBitCourseUseCaseTest.kt`
-- `app/src/test/java/com/example/personal_studio/domain/import/ReplaceImportedCoursesUseCaseTest.kt` (instrumented under `androidTest/`)
-- `app/src/test/java/com/example/personal_studio/domain/import/ImportCoursesUseCaseTest.kt`
+- `app/src/test/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCaseTest.kt`
+- `app/src/test/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCaseTest.kt`
+- `app/src/test/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCaseTest.kt`
+- `app/src/test/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCaseTest.kt` (instrumented under `androidTest/`)
+- `app/src/test/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCaseTest.kt`
 - `app/src/test/java/com/example/personal_studio/feature/import/ImportViewModelTest.kt`
 - `app/src/test/resources/bit-fixtures/*.json` (anonymised real BIT responses, captured in p5-polish)
 - `app/src/test/resources/bit-fixtures/cas-login-page.html`
@@ -1155,12 +1155,12 @@ Expected: `p5-net`
 ### Task 13: `ImportModels.kt` — error/step/credentials/request/result
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/domain/import/model/ImportModels.kt`
+- Create: `app/src/main/java/com/example/personal_studio/domain/bitimport/model/ImportModels.kt`
 
 - [ ] **Step 1: Write all import-related domain types in one file**
 
 ```kotlin
-package com.example.personal_studio.domain.import.model
+package com.example.personal_studio.domain.bitimport.model
 
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
@@ -1231,7 +1231,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/domain/import/model/ImportModels.kt
+git add app/src/main/java/com/example/personal_studio/domain/bitimport/model/ImportModels.kt
 git commit -m "p5(import): domain model — credentials/request/result/step/error"
 ```
 
@@ -1240,9 +1240,9 @@ git commit -m "p5(import): domain model — credentials/request/result/step/erro
 ### Task 14: `SsoLoginUseCase` + MockWebServer-backed tests
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/domain/import/SsoLoginUseCase.kt`
+- Create: `app/src/main/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCase.kt`
 - Create: `app/src/test/resources/bit-fixtures/cas-login-page.html`
-- Create: `app/src/test/java/com/example/personal_studio/domain/import/SsoLoginUseCaseTest.kt`
+- Create: `app/src/test/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCaseTest.kt`
 
 - [ ] **Step 1: Capture a minimal CAS login page fixture**
 
@@ -1263,7 +1263,7 @@ git commit -m "p5(import): domain model — credentials/request/result/step/erro
 - [ ] **Step 2: Write the failing test**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
@@ -1351,14 +1351,14 @@ class SsoLoginUseCaseTest {
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.import.SsoLoginUseCaseTest" -q`
+Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.bitimport.SsoLoginUseCaseTest" -q`
 
 Expected: compilation error — `SsoLoginUseCase` unresolved.
 
 - [ ] **Step 4: Write the implementation**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.core.util.AesCbcCrypto
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
@@ -1421,16 +1421,16 @@ class SsoLoginUseCase @Inject constructor() {
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.import.SsoLoginUseCaseTest" -q`
+Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.bitimport.SsoLoginUseCaseTest" -q`
 
 Expected: PASS (5 tests).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/domain/import/SsoLoginUseCase.kt \
+git add app/src/main/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCase.kt \
         app/src/test/resources/bit-fixtures/cas-login-page.html \
-        app/src/test/java/com/example/personal_studio/domain/import/SsoLoginUseCaseTest.kt
+        app/src/test/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCaseTest.kt
 git commit -m "p5(import): SsoLoginUseCase — CAS init parse + AES encrypt + classify"
 ```
 
@@ -1439,13 +1439,13 @@ git commit -m "p5(import): SsoLoginUseCase — CAS init parse + AES encrypt + cl
 ### Task 15: `ResolveSemesterAnchorUseCase` + tests
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/domain/import/ResolveSemesterAnchorUseCase.kt`
-- Create: `app/src/test/java/com/example/personal_studio/domain/import/ResolveSemesterAnchorUseCaseTest.kt`
+- Create: `app/src/main/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCase.kt`
+- Create: `app/src/test/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCaseTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.datastore.SemesterPreferences
 import com.example.personal_studio.data.network.bit.dto.WeekDateDto
@@ -1520,14 +1520,14 @@ class ResolveSemesterAnchorUseCaseTest {
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.import.ResolveSemesterAnchorUseCaseTest" -q`
+Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.bitimport.ResolveSemesterAnchorUseCaseTest" -q`
 
 Expected: compilation error — class unresolved.
 
 - [ ] **Step 3: Write the implementation**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.datastore.SemesterPreferences
 import com.example.personal_studio.data.network.bit.dto.WeekDateDto
@@ -1565,15 +1565,15 @@ class ResolveSemesterAnchorUseCase @Inject constructor(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.import.ResolveSemesterAnchorUseCaseTest" -q`
+Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.bitimport.ResolveSemesterAnchorUseCaseTest" -q`
 
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/domain/import/ResolveSemesterAnchorUseCase.kt \
-        app/src/test/java/com/example/personal_studio/domain/import/ResolveSemesterAnchorUseCaseTest.kt
+git add app/src/main/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCase.kt \
+        app/src/test/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCaseTest.kt
 git commit -m "p5(import): ResolveSemesterAnchorUseCase — smart default C"
 ```
 
@@ -1582,13 +1582,13 @@ git commit -m "p5(import): ResolveSemesterAnchorUseCase — smart default C"
 ### Task 16: `MapBitCourseUseCase` + tests
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/domain/import/MapBitCourseUseCase.kt`
-- Create: `app/src/test/java/com/example/personal_studio/domain/import/MapBitCourseUseCaseTest.kt`
+- Create: `app/src/main/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCase.kt`
+- Create: `app/src/test/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCaseTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.core.util.DefaultTimetable
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
@@ -1694,14 +1694,14 @@ class MapBitCourseUseCaseTest {
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.import.MapBitCourseUseCaseTest" -q`
+Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.bitimport.MapBitCourseUseCaseTest" -q`
 
 Expected: compilation error — class unresolved.
 
 - [ ] **Step 3: Write the implementation**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.core.util.SkzcExpander
 import com.example.personal_studio.data.local.datastore.SemesterPreferences
@@ -1820,15 +1820,15 @@ class MapBitCourseUseCase @Inject constructor(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.import.MapBitCourseUseCaseTest" -q`
+Run: `./gradlew :app:testDebugUnitTest --tests "com.example.personal_studio.domain.bitimport.MapBitCourseUseCaseTest" -q`
 
 Expected: PASS (5 tests). If `TimetablePeriodPref` import fails, check the existing path — it may live in `data/local/datastore/TimetablePreferences.kt`; adjust the import accordingly.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/domain/import/MapBitCourseUseCase.kt \
-        app/src/test/java/com/example/personal_studio/domain/import/MapBitCourseUseCaseTest.kt
+git add app/src/main/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCase.kt \
+        app/src/test/java/com/example/personal_studio/domain/bitimport/MapBitCourseUseCaseTest.kt
 git commit -m "p5(import): MapBitCourseUseCase — ScheduleRow → List<TimelineItemEntity>"
 ```
 
@@ -1981,13 +1981,13 @@ git commit -m "p5(import): instrumented test for countImportedInRange + delete"
 ### Task 19: `ReplaceImportedCoursesUseCase` + tests
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/domain/import/ReplaceImportedCoursesUseCase.kt`
-- Create: `app/src/test/java/com/example/personal_studio/domain/import/ReplaceImportedCoursesUseCaseTest.kt`
+- Create: `app/src/main/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCase.kt`
+- Create: `app/src/test/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCaseTest.kt`
 
 - [ ] **Step 1: Write failing test**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
@@ -2043,7 +2043,7 @@ Expected: compilation error.
 - [ ] **Step 3: Write implementation**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
@@ -2085,8 +2085,8 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/domain/import/ReplaceImportedCoursesUseCase.kt \
-        app/src/test/java/com/example/personal_studio/domain/import/ReplaceImportedCoursesUseCaseTest.kt
+git add app/src/main/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCase.kt \
+        app/src/test/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCaseTest.kt
 git commit -m "p5(import): ReplaceImportedCoursesUseCase — strategy B (25-week window)"
 ```
 
@@ -2095,13 +2095,13 @@ git commit -m "p5(import): ReplaceImportedCoursesUseCase — strategy B (25-week
 ### Task 20: `ImportCoursesUseCase` (top-level Flow orchestrator) + tests
 
 **Files:**
-- Create: `app/src/main/java/com/example/personal_studio/domain/import/ImportCoursesUseCase.kt`
-- Create: `app/src/test/java/com/example/personal_studio/domain/import/ImportCoursesUseCaseTest.kt`
+- Create: `app/src/main/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCase.kt`
+- Create: `app/src/test/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCaseTest.kt`
 
 - [ ] **Step 1: Write the failing test**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import app.cash.turbine.test
 import com.example.personal_studio.data.network.bit.BitApiClient
@@ -2112,10 +2112,10 @@ import com.example.personal_studio.data.network.bit.dto.TermDto
 import com.example.personal_studio.data.network.bit.dto.TermListResponse
 import com.example.personal_studio.data.network.bit.dto.WeekDateDto
 import com.example.personal_studio.data.network.bit.dto.WeekDateResponse
-import com.example.personal_studio.domain.import.model.ImportCredentials
-import com.example.personal_studio.domain.import.model.ImportError
-import com.example.personal_studio.domain.import.model.ImportRequest
-import com.example.personal_studio.domain.import.model.ImportStep
+import com.example.personal_studio.domain.bitimport.model.ImportCredentials
+import com.example.personal_studio.domain.bitimport.model.ImportError
+import com.example.personal_studio.domain.bitimport.model.ImportRequest
+import com.example.personal_studio.domain.bitimport.model.ImportStep
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -2225,15 +2225,15 @@ Expected: compilation error.
 - [ ] **Step 3: Write the implementation**
 
 ```kotlin
-package com.example.personal_studio.domain.import
+package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
-import com.example.personal_studio.domain.import.model.ImportError
-import com.example.personal_studio.domain.import.model.ImportRequest
-import com.example.personal_studio.domain.import.model.ImportResult
-import com.example.personal_studio.domain.import.model.ImportStep
+import com.example.personal_studio.domain.bitimport.model.ImportError
+import com.example.personal_studio.domain.bitimport.model.ImportRequest
+import com.example.personal_studio.domain.bitimport.model.ImportResult
+import com.example.personal_studio.domain.bitimport.model.ImportStep
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -2346,8 +2346,8 @@ Expected: PASS (both tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add app/src/main/java/com/example/personal_studio/domain/import/ImportCoursesUseCase.kt \
-        app/src/test/java/com/example/personal_studio/domain/import/ImportCoursesUseCaseTest.kt
+git add app/src/main/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCase.kt \
+        app/src/test/java/com/example/personal_studio/domain/bitimport/ImportCoursesUseCaseTest.kt
 git commit -m "p5(import): ImportCoursesUseCase — Flow<ImportStep> orchestrator + tests"
 ```
 
@@ -2365,11 +2365,11 @@ package com.example.personal_studio.core.di
 
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.network.bit.BitApiClient
-import com.example.personal_studio.domain.import.ImportCoursesUseCase
-import com.example.personal_studio.domain.import.MapBitCourseUseCase
-import com.example.personal_studio.domain.import.ReplaceImportedCoursesUseCase
-import com.example.personal_studio.domain.import.ResolveSemesterAnchorUseCase
-import com.example.personal_studio.domain.import.SsoLoginUseCase
+import com.example.personal_studio.domain.bitimport.ImportCoursesUseCase
+import com.example.personal_studio.domain.bitimport.MapBitCourseUseCase
+import com.example.personal_studio.domain.bitimport.ReplaceImportedCoursesUseCase
+import com.example.personal_studio.domain.bitimport.ResolveSemesterAnchorUseCase
+import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -2459,9 +2459,9 @@ import app.cash.turbine.test
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.TermDto
-import com.example.personal_studio.domain.import.ImportCoursesUseCase
-import com.example.personal_studio.domain.import.model.ImportRequest
-import com.example.personal_studio.domain.import.model.ImportStep
+import com.example.personal_studio.domain.bitimport.ImportCoursesUseCase
+import com.example.personal_studio.domain.bitimport.model.ImportRequest
+import com.example.personal_studio.domain.bitimport.model.ImportStep
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.slot
@@ -2517,11 +2517,11 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.TermDto
-import com.example.personal_studio.domain.import.ImportCoursesUseCase
-import com.example.personal_studio.domain.import.model.ImportCredentials
-import com.example.personal_studio.domain.import.model.ImportError
-import com.example.personal_studio.domain.import.model.ImportRequest
-import com.example.personal_studio.domain.import.model.ImportStep
+import com.example.personal_studio.domain.bitimport.ImportCoursesUseCase
+import com.example.personal_studio.domain.bitimport.model.ImportCredentials
+import com.example.personal_studio.domain.bitimport.model.ImportError
+import com.example.personal_studio.domain.bitimport.model.ImportRequest
+import com.example.personal_studio.domain.bitimport.model.ImportStep
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -2772,7 +2772,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.domain.import.model.ImportError
+import com.example.personal_studio.domain.bitimport.model.ImportError
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
