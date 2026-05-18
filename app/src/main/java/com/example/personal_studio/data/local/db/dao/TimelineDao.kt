@@ -156,4 +156,22 @@ interface TimelineDao {
         weekStart: Int,
         weekEnd: Int,
     ): List<TimelineItemEntity>
+
+    /** Counts the IMPORTED_PORTAL rows whose startAt falls in [start, end).
+     *  Used by the preview screen to show how many rows would be overwritten. */
+    @Query("""
+        SELECT COUNT(*) FROM timeline_items
+        WHERE sourceType = 'IMPORTED_PORTAL'
+          AND startAt >= :startInclusive AND startAt < :endExclusive
+    """)
+    suspend fun countImportedInRange(startInclusive: Long, endExclusive: Long): Int
+
+    /** Deletes the IMPORTED_PORTAL rows whose startAt falls in [start, end).
+     *  MANUAL rows are untouched. Returns the number of rows deleted. */
+    @Query("""
+        DELETE FROM timeline_items
+        WHERE sourceType = 'IMPORTED_PORTAL'
+          AND startAt >= :startInclusive AND startAt < :endExclusive
+    """)
+    suspend fun deleteImportedInRange(startInclusive: Long, endExclusive: Long): Int
 }
