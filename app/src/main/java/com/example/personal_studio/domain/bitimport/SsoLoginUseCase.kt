@@ -81,11 +81,17 @@ class SsoLoginUseCase @Inject constructor() {
         }
         val init = parseLoginPage(initResp.body()!!.string())
         val encrypted = AesCbcCrypto.encryptPassword(password, salt = init.salt)
+        // BIT's CAS form expects `captcha_payload` to be the encrypted empty
+        // JSON object `{}` — not an empty string. BIT101's source comment said
+        // "removing it seems to also work", but real-device testing in P5 DoD
+        // showed BIT rejects an empty payload and re-renders the login form.
+        val encryptedCaptchaPayload = AesCbcCrypto.encryptPassword("{}", salt = init.salt)
         val postResp = service.postLogin(
             username = username,
             encryptedPassword = encrypted,
             execution = init.execution,
             salt = init.salt,
+            captchaPayload = encryptedCaptchaPayload,
         )
         return classify(postResp.code(), postResp.body()?.string().orEmpty())
     }
@@ -118,7 +124,7 @@ class SsoLoginUseCase @Inject constructor() {
                 "验证码不能为空" in body ||
                 "id=\"captcha-img\"" in body ||
                 "name=\"captcha_code\"" in body -> CasLoginDto.CaptchaRequired
-            else -> CasLoginDto.UnknownFailure("HTTP $code: ${body.take(200)}")
+            else -> CasLoginDto.UnknownFailure("HTTP $code: ${body.take(1000)}")
         }
     }
 }
