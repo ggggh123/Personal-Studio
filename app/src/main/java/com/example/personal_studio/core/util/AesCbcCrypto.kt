@@ -10,7 +10,8 @@ import javax.crypto.spec.SecretKeySpec
  * AES-CBC + PKCS5 + 16-byte IV password encryption for BIT 统一身份认证 CAS.
  *
  * The CAS server returns a per-request salt (`croypto` field in the login form).
- * The salt itself is used as the AES key. Plaintext is prefixed with 64 random
+ * The salt arrives **base64-encoded** and decodes to exactly 16 raw bytes —
+ * those decoded bytes are the AES-128 key. Plaintext is prefixed with 64 random
  * base64 characters so the same password produces a different ciphertext per
  * login — this prevents replay-attack reuse of a captured POST body.
  *
@@ -21,6 +22,7 @@ object AesCbcCrypto {
 
     private const val PREFIX_BYTES = 64
     private const val IV_BYTES = 16
+    private const val KEY_BYTES = 16
 
     fun encryptPassword(
         plain: String,
@@ -28,11 +30,17 @@ object AesCbcCrypto {
         iv: ByteArray = randomIv(),
         prefixOverride: String? = null,
     ): String {
-        require(salt.toByteArray(Charsets.UTF_8).size == 16) {
-            "salt must be 16 ASCII bytes; got ${salt.length}-char salt '$salt'"
+        val keyBytes = try {
+            Base64.getDecoder().decode(salt)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("salt is not valid base64: '$salt'", e)
+        }
+        require(keyBytes.size == KEY_BYTES) {
+            "salt must base64-decode to $KEY_BYTES bytes (AES-128 key); " +
+                "got ${keyBytes.size} bytes from '$salt'"
         }
         require(iv.size == IV_BYTES) { "iv must be 16 bytes; got ${iv.size}" }
-        val key = SecretKeySpec(salt.toByteArray(Charsets.UTF_8), "AES")
+        val key = SecretKeySpec(keyBytes, "AES")
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         cipher.init(Cipher.ENCRYPT_MODE, key, IvParameterSpec(iv))
         val prefix = prefixOverride ?: randomBase64(PREFIX_BYTES)
