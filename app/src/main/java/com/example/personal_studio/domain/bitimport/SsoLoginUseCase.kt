@@ -7,25 +7,67 @@ import com.example.personal_studio.data.network.bit.service.BitCasService
 import javax.inject.Inject
 
 /**
- * Drives the BIT CAS login flow: GET the login page → extract `execution` and
- * `croypto` (salt) via regex → encrypt the password with AesCbcCrypto → POST
- * the credentials → classify the response by status code + body content.
+ * Drives the BIT CAS login flow: GET the login page → extract the execution
+ * flow-key and croypto salt via element-id lookup → encrypt the password with
+ * AesCbcCrypto → POST the credentials → classify the response by status code
+ * and body content.
  *
  * Returns a [CasLoginDto] sealed instance so callers can pattern-match without
  * throwing on user-facing failures (wrong password, captcha required, etc.).
+ *
+ * **HTML shape**: BIT's CAS page does NOT use the conventional Spring form of
+ * `<input name="execution" value="..."/>`. Instead the values live in elements
+ * keyed by id:
+ *
+ *     <span id="login-croypto">SALT_VALUE</span>
+ *     <span id="login-page-flowkey">EXECUTION_VALUE</span>
+ *
+ * The exact tag isn't always `<span>` — observed forms include `<input>` with
+ * a `value=` attribute. [extractById] handles both layouts.
  */
 class SsoLoginUseCase @Inject constructor() {
 
-    private val executionRegex = Regex("""name="execution"\s+value="([^"]+)"""")
-    private val croyptoRegex = Regex("""name="croypto"\s+value="([^"]+)"""")
-
     /** Public for unit-test access; production code goes through [invoke]. */
     fun parseLoginPage(html: String): CasInitDto {
-        val execution = executionRegex.find(html)?.groupValues?.get(1)
-            ?: error("CAS init: 'execution' field not found in HTML")
-        val salt = croyptoRegex.find(html)?.groupValues?.get(1)
-            ?: error("CAS init: 'croypto' field not found in HTML")
+        val execution = extractById(html, "login-page-flowkey")
+            ?: error(
+                "CAS init: '#login-page-flowkey' not found in HTML. " +
+                    "Body head: ${html.take(400)}"
+            )
+        val salt = extractById(html, "login-croypto")
+            ?: error(
+                "CAS init: '#login-croypto' not found in HTML. " +
+                    "Body head: ${html.take(400)}"
+            )
         return CasInitDto(execution = execution, salt = salt)
+    }
+
+    /** Pulls a value from `<tag id="ID">...</tag>` (text-node form) OR
+     *  `<tag id="ID" value="..." ...>` (input-attribute form). */
+    private fun extractById(html: String, id: String): String? {
+        // Match `<…id="ID"…>TEXT<` first
+        val textPattern = Regex(
+            """<[a-zA-Z][^>]*\bid=["']${Regex.escape(id)}["'][^>]*>([^<]+)<"""
+        )
+        textPattern.find(html)?.groupValues?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+
+        // Fall back to `<input … id="ID" … value="VALUE" …>` (attribute order
+        // either way — match id-then-value AND value-then-id)
+        val idThenValue = Regex(
+            """<[a-zA-Z][^>]*\bid=["']${Regex.escape(id)}["'][^>]*\bvalue=["']([^"']+)["']"""
+        )
+        idThenValue.find(html)?.groupValues?.getOrNull(1)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+
+        val valueThenId = Regex(
+            """<[a-zA-Z][^>]*\bvalue=["']([^"']+)["'][^>]*\bid=["']${Regex.escape(id)}["']"""
+        )
+        return valueThenId.find(html)?.groupValues?.getOrNull(1)
+            ?.takeIf { it.isNotEmpty() }
     }
 
     suspend operator fun invoke(
