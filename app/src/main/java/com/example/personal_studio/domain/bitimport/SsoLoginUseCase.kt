@@ -90,12 +90,35 @@ class SsoLoginUseCase @Inject constructor() {
         return classify(postResp.code(), postResp.body()?.string().orEmpty())
     }
 
-    private fun classify(code: Int, body: String): CasLoginDto = when {
-        code in 300..399 -> CasLoginDto.Success
-        code == 200 && "用户名或密码错误" in body -> CasLoginDto.WrongCredentials
-        code == 200 && "账号已锁定" in body -> CasLoginDto.AccountLocked
-        code == 200 && "验证码" in body -> CasLoginDto.CaptchaRequired
-        code in 200..299 -> CasLoginDto.Success
-        else -> CasLoginDto.UnknownFailure("HTTP $code: ${body.take(200)}")
+    /**
+     * Classify the CAS POST response.
+     *
+     * **Success heuristic** (mirroring BIT101's reference behaviour): the
+     * string "用户名密码" appears ONLY in BIT's login-form re-render — i.e. when
+     * the server is asking us to log in again. So:
+     *
+     *   - body contains "用户名密码"  → login failed; check sub-reason
+     *   - body does NOT contain it   → success (we landed on the post-login
+     *                                  service page after the followed 302)
+     *
+     * The previous "see the word 验证码 ⇒ CaptchaRequired" rule was too broad —
+     * BIT's nav / help text can contain "验证码" even on successful pages,
+     * which caused false positives.
+     */
+    private fun classify(code: Int, body: String): CasLoginDto {
+        if ("用户名密码" !in body) return CasLoginDto.Success
+
+        // Login form is being re-rendered — read the sub-reason from the page.
+        return when {
+            "用户名或密码错误" in body -> CasLoginDto.WrongCredentials
+            "账号已锁定" in body -> CasLoginDto.AccountLocked
+            // Captcha-required is signalled by the form's captcha-input section
+            // being expanded; look for phrases unique to that state.
+            "请输入验证码" in body ||
+                "验证码不能为空" in body ||
+                "id=\"captcha-img\"" in body ||
+                "name=\"captcha_code\"" in body -> CasLoginDto.CaptchaRequired
+            else -> CasLoginDto.UnknownFailure("HTTP $code: ${body.take(200)}")
+        }
     }
 }

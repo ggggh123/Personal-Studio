@@ -46,7 +46,10 @@ class SsoLoginUseCaseTest {
 
     @Test fun `parseLoginPage extracts execution and salt`() {
         val dto = useCase.parseLoginPage(fixtureHtml())
-        assertEquals(CasInitDto(execution = "EXEC_TOKEN_42", salt = "0123456789abcdef"), dto)
+        assertEquals(
+            CasInitDto(execution = "EXEC_TOKEN_42", salt = "MDEyMzQ1Njc4OWFiY2RlZg=="),
+            dto,
+        )
     }
 
     @Test fun `successful login returns Success`() = runBlocking {
@@ -58,10 +61,18 @@ class SsoLoginUseCaseTest {
         assertTrue(result is CasLoginDto.Success)
     }
 
+    // Failure responses must include the login-form marker "用户名密码" — that's
+    // BIT's only reliable signal that the login form is being re-rendered.
+    private fun failureBody(extraInner: String) = """
+        <html><body>
+        <form><span>请输入用户名密码</span>$extraInner</form>
+        </body></html>
+    """.trimIndent()
+
     @Test fun `wrong password returns WrongCredentials`() = runBlocking {
         server.enqueue(MockResponse().setBody(fixtureHtml()))
         server.enqueue(MockResponse().setResponseCode(200).setBody(
-            "<div class=\"login-error\">用户名或密码错误</div>"
+            failureBody("""<div class="login-error">用户名或密码错误</div>""")
         ))
         val result = useCase.invoke(service, "20210000", "pw")
         assertEquals(CasLoginDto.WrongCredentials, result)
@@ -70,7 +81,7 @@ class SsoLoginUseCaseTest {
     @Test fun `captcha-required returns CaptchaRequired`() = runBlocking {
         server.enqueue(MockResponse().setBody(fixtureHtml()))
         server.enqueue(MockResponse().setResponseCode(200).setBody(
-            "<div class=\"login-error\">请输入验证码</div>"
+            failureBody("""<input id="captcha-img"/><div>请输入验证码</div>""")
         ))
         val result = useCase.invoke(service, "20210000", "pw")
         assertEquals(CasLoginDto.CaptchaRequired, result)
@@ -79,9 +90,20 @@ class SsoLoginUseCaseTest {
     @Test fun `account-locked returns AccountLocked`() = runBlocking {
         server.enqueue(MockResponse().setBody(fixtureHtml()))
         server.enqueue(MockResponse().setResponseCode(200).setBody(
-            "<div class=\"login-error\">账号已锁定</div>"
+            failureBody("""<div class="login-error">账号已锁定</div>""")
         ))
         val result = useCase.invoke(service, "20210000", "pw")
         assertEquals(CasLoginDto.AccountLocked, result)
+    }
+
+    @Test fun `success page WITHOUT login-form marker is Success even if it mentions 验证码 elsewhere`() = runBlocking {
+        server.enqueue(MockResponse().setBody(fixtureHtml()))
+        // Post-login service page that happens to contain "验证码" in a nav link or help text —
+        // must NOT be misclassified as CaptchaRequired.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(
+            """<html><body>Welcome! <a href="/captcha-management">验证码管理</a></body></html>"""
+        ))
+        val result = useCase.invoke(service, "20210000", "pw")
+        assertEquals(CasLoginDto.Success, result)
     }
 }

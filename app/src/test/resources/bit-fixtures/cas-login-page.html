@@ -8,6 +8,8 @@
        attribute-value extraction paths: span for the text-node path, hidden input
        with id+value for the attribute path. -->
   <span id="login-page-flowkey">EXEC_TOKEN_42</span>
-  <input type="hidden" id="login-croypto" value="0123456789abcdef"/>
+  <!-- salt is base64-encoded 16 bytes per BIT's real protocol; this decodes to
+       the 16 ASCII bytes "0123456789abcdef". -->
+  <input type="hidden" id="login-croypto" value="MDEyMzQ1Njc4OWFiY2RlZg=="/>
 </form>
 </body></html>

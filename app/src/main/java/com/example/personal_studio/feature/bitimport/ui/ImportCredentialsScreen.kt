@@ -6,10 +6,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -17,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.feature.bitimport.ImportViewModel
+import com.example.personal_studio.feature.bitimport.ui.components.BannerAction
 import com.example.personal_studio.feature.bitimport.ui.components.ErrorBanner
 import com.example.personal_studio.feature.bitimport.ui.components.WizardScaffold
 
@@ -26,6 +30,7 @@ fun ImportCredentialsScreen(
     onClose: () -> Unit,
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     WizardScaffold(
         stepNumber = 1, totalSteps = 4,
         title = "login.bit.edu.cn",
@@ -37,7 +42,20 @@ fun ImportCredentialsScreen(
         if (ui.error != null) {
             ErrorBanner(
                 error = ui.error!!,
-                onAction = { /* TODO(p5-polish): wire browser-open + issue-link via LocalContext */ },
+                onAction = { action ->
+                    val url = when (action) {
+                        BannerAction.OpenBrowserLoginPage -> "https://login.bit.edu.cn/"
+                        BannerAction.OpenIssueTracker     -> "https://github.com/ggggh123/Personal-Studio/issues/new"
+                        BannerAction.Retry -> {
+                            vm.onRetry(); null
+                        }
+                    }
+                    if (url != null) {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        }
+                    }
+                },
                 onDismiss = vm::onDismissError,
             )
             Spacer(Modifier.height(12.dp))
