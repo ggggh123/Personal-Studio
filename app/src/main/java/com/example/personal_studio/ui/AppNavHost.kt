@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.example.personal_studio.feature.bitimport.ImportEntryRoute
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
@@ -136,6 +137,8 @@ fun AppNavHost(navController: NavHostController) {
             com.example.personal_studio.feature.timeline.ui.CourseWeekGridScreen(
                 onBack = { navController.popBackStack() },
                 onOpenItem = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
+                onNavigateToImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
+                onNavigateToAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
             )
         }
         composable(NavRoutes.TIMELINE_ADD_TASK) {
@@ -195,6 +198,11 @@ fun AppNavHost(navController: NavHostController) {
             com.example.personal_studio.feature.timeline.ui.CourseSeriesEditScreen(
                 seriesId = sid,
                 onBack = { navController.popBackStack() },
+            )
+        }
+        composable(NavRoutes.IMPORT_WIZARD) {
+            ImportEntryRoute(
+                onClose = { navController.popBackStack() },
             )
         }
 
@@ -261,6 +269,7 @@ fun AppNavHost(navController: NavHostController) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onNavigate = { route -> navController.navigate(route) },
+                onNavigateToImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
             )
         }
         composable(NavRoutes.SETTINGS_TIMETABLE) {

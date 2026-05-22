@@ -59,6 +59,7 @@ import com.example.personal_studio.ui.theme.Void
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
+    onNavigateToImport: () -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -336,6 +337,12 @@ fun SettingsScreen(
                 value = "课程列表 →",
                 onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.TIMELINE_COURSE_LIST) },
             )
+            NavigableRowWithSubtitle(
+                key = "IMPORT",
+                value = "从教务系统导入课表 →",
+                subtitle = "BIT 统一身份认证 · 校内/校外均可",
+                onClick = onNavigateToImport,
+            )
 
             DashedDivider()
 
@@ -403,6 +410,39 @@ private fun NavigableRow(key: String, value: String, onClick: () -> Unit) {
             modifier = androidx.compose.ui.Modifier.width(140.dp))
         Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = Foam)
+    }
+}
+
+/** Same shape as [NavigableRow] but renders a small dim subtitle under the
+ *  value — used for rows that need a short explanation (e.g. IMPORT). */
+@Composable
+private fun NavigableRowWithSubtitle(
+    key: String,
+    value: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = androidx.compose.ui.Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 4.dp),
+    ) {
+        Text(
+            key,
+            style = MaterialTheme.typography.labelSmall,
+            color = Phosphor,
+            modifier = androidx.compose.ui.Modifier.width(140.dp),
+        )
+        Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
+        Column {
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = Foam)
+            Text(
+                "# $subtitle",
+                style = MaterialTheme.typography.labelSmall,
+                color = FoamDim,
+            )
+        }
     }
 }
 

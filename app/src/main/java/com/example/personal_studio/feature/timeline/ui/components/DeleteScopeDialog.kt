@@ -24,7 +24,12 @@ fun DeleteScopeDialog(
     onDismiss: () -> Unit,
     onConfirm: (DeleteCourseSeriesUseCase.Scope) -> Unit,
 ) {
-    var choice by remember { mutableStateOf(DeleteCourseSeriesUseCase.Scope.FUTURE_ONLY) }
+    // Default to ALL: the entry button reads "删除整个系列", and for imported
+    // semester schedules the natural intent is "remove the whole thing". The
+    // prior FUTURE_ONLY default left historical occurrences behind, which kept
+    // showing up on the Timeline (past days) even though the week-grid's
+    // future weeks looked cleared — a confusing mismatch.
+    var choice by remember { mutableStateOf(DeleteCourseSeriesUseCase.Scope.ALL) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("删除 $seriesTitle") },

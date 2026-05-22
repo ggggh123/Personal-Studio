@@ -32,11 +32,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -54,6 +57,7 @@ import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
+import com.example.personal_studio.ui.theme.Void
 
 private const val PERIOD_COL_DP = 36     // left column width holding period numbers
 private const val ROW_HEIGHT_DP = 56     // per-period cell height
@@ -81,6 +85,8 @@ private val WEEKDAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "�
 fun CourseWeekGridScreen(
     onBack: () -> Unit,
     onOpenItem: (Long) -> Unit,
+    onNavigateToImport: () -> Unit,
+    onNavigateToAddCourse: () -> Unit,
     vm: CourseWeekGridViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -175,7 +181,55 @@ fun CourseWeekGridScreen(
                 }
             }
             else -> {
+                if (ui.coursesByCell.isEmpty()) {
+                    EmptyCoursesCta(
+                        onNavigateToImport = onNavigateToImport,
+                        onNavigateToAddCourse = onNavigateToAddCourse,
+                    )
+                }
                 WeekGridBody(ui = ui, onOpenItem = onOpenItem)
+            }
+        }
+    }
+}
+
+/** Shown above the grid when the displayed week has zero courses. Offers a
+ *  primary "import from 教务系统" action plus a quiet fallback to manual add. */
+@Composable
+private fun EmptyCoursesCta(
+    onNavigateToImport: () -> Unit,
+    onNavigateToAddCourse: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .border(1.dp, Phosphor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+            .background(Phosphor.copy(alpha = 0.06f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "📥 本周还没有课程",
+            color = Foam,
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = onNavigateToImport,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Phosphor,
+                    contentColor = Void,
+                ),
+            ) {
+                Text("从教务系统一键导入", style = MaterialTheme.typography.labelLarge)
+            }
+            TextButton(onClick = onNavigateToAddCourse) {
+                Text("[手动添加]", color = FoamDim, style = MaterialTheme.typography.labelLarge)
             }
         }
     }
