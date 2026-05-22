@@ -13,9 +13,16 @@ import javax.inject.Named
 import javax.inject.Singleton
 
 /**
- * Single per-app instance that owns one OkHttpClient (Hilt-provided) and lazily
- * (re)builds a Retrofit per session against the chosen [NetworkMode]. Cookie
- * jar is shared with the underlying client and cleared on [close].
+ * Per-app session-scoped Retrofit factory. Owns ONE OkHttpClient + cookie jar
+ * (both Hilt-singletons) but creates TWO Retrofit instances per `open()`:
+ *
+ *   - `casRetrofit`   → BIT 统一身份认证 host (sso.bit.edu.cn)
+ *   - `jwappRetrofit` → 教务系统 host (jxzxehallapp.bit.edu.cn or WebVPN-encoded equivalent)
+ *
+ * Cookies set by CAS responses persist into the shared jar and are sent on
+ * subsequent jwapp requests — BIT issues a parent-domain (.bit.edu.cn) cookie
+ * during login that authorises jwapp access. For WebVPN, the jar additionally
+ * tracks the per-gateway session cookie scoped to webvpn.bit.edu.cn.
  */
 @Singleton
 class BitApiClient @Inject constructor(
@@ -24,33 +31,40 @@ class BitApiClient @Inject constructor(
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
+    private val converterFactory =
+        json.asConverterFactory("application/json".toMediaType())
 
-    private var retrofit: Retrofit? = null
+    private var casRetrofit: Retrofit? = null
+    private var jwappRetrofit: Retrofit? = null
     private var openedMode: NetworkMode? = null
 
-    /** Opens a session at the given [mode]. Idempotent if the same mode is
-     *  re-requested; otherwise rebuilds the Retrofit instance. */
+    /** Opens a session at the given [mode]. Idempotent if same mode re-requested. */
     fun open(mode: NetworkMode) {
         if (mode == openedMode) return
-        retrofit = Retrofit.Builder()
-            .baseUrl(BitUrlsConfig.baseFor(mode))
-            .client(client)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-            .build()
+        val hosts = BitUrlsConfig.hostsFor(mode)
+        casRetrofit = newRetrofit(hosts.cas)
+        jwappRetrofit = newRetrofit(hosts.jwapp)
         openedMode = mode
     }
 
-    /** Drops the Retrofit instance and clears the cookie jar. Subsequent
+    /** Drops both Retrofit instances and clears the cookie jar. Subsequent
      *  access to [cas] or [jwapp] will throw until [open] is called again. */
     fun close() {
-        retrofit = null
+        casRetrofit = null
+        jwappRetrofit = null
         openedMode = null
         cookieJar.clear()
     }
 
     val cas: BitCasService
-        get() = retrofit?.create() ?: error("BitApiClient: session not open")
+        get() = casRetrofit?.create() ?: error("BitApiClient: session not open")
 
     val jwapp: BitJwappService
-        get() = retrofit?.create() ?: error("BitApiClient: session not open")
+        get() = jwappRetrofit?.create() ?: error("BitApiClient: session not open")
+
+    private fun newRetrofit(baseUrl: String): Retrofit = Retrofit.Builder()
+        .baseUrl(baseUrl)
+        .client(client)
+        .addConverterFactory(converterFactory)
+        .build()
 }

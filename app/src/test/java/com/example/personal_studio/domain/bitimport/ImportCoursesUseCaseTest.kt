@@ -64,7 +64,7 @@ class ImportCoursesUseCaseTest {
             ))
         ))
         val weekResp = Response.success(WeekDateResponse(
-            data = listOf(WeekDateDto(weekday = 1, date = "2026-05-18")), currentWeek = 7))
+            data = listOf(WeekDateDto(weekday = 1, date = "2026-02-23"))))
         val schedResp = Response.success(ScheduleResponse(
             datas = ScheduleResponse.Datas(cxxszhxqkb = ScheduleResponse.Rows(rows = emptyList()))
         ))
@@ -74,7 +74,7 @@ class ImportCoursesUseCaseTest {
             coEvery { jwapp.getSchedule(any()) } returns schedResp
         }
         val anchor = mockk<ResolveSemesterAnchorUseCase> {
-            coEvery { this@mockk.invoke(any(), any()) } returns java.time.LocalDate.of(2026, 2, 23)
+            coEvery { this@mockk.invoke(any()) } returns java.time.LocalDate.of(2026, 2, 23)
         }
         val useCase = ImportCoursesUseCase(
             apiClient = apiClient,

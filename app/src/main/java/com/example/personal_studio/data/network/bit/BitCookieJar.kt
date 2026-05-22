@@ -11,36 +11,48 @@ import javax.inject.Singleton
  * [clear] (called by `BitApiClient.close()`) — cookies never survive a wizard
  * dismissal, which limits the value of a stolen session.
  *
- * Implementation is conservative: we replace any prior cookies for a host on
- * each response. BIT serves multiple subdomains under bit.edu.cn (the CAS host
- * sets a parent-domain cookie that is then read by jwapp endpoints), so we key
- * by [Cookie.domain].
+ * Stores cookies keyed by `(domain, name)` so a newer Set-Cookie for the same
+ * (domain, name) pair fully replaces the older value (e.g. when CAS rotates
+ * the SESSION cookie mid-redirect-chain).
+ *
+ * Filtering on load uses OkHttp's [Cookie.matches] — that's the canonical
+ * implementation of cookie path / domain / Secure / hostOnly semantics. Doing
+ * our own domain-prefix check would (and did, in the first iteration) miss
+ * Path-scoped cookies and host-only vs domain cookies.
  */
 @Singleton
 class BitCookieJar @Inject constructor() : CookieJar {
 
-    private val store = mutableMapOf<String, List<Cookie>>()
+    private data class Key(val domain: String, val name: String)
+
+    private val store = mutableMapOf<Key, Cookie>()
 
     @Synchronized
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-        cookies.groupBy { it.domain }.forEach { (domain, list) ->
-            val existing = store[domain].orEmpty()
-            val merged = (existing + list).distinctBy { it.name }
-            store[domain] = merged
+        for (cookie in cookies) {
+            store[Key(cookie.domain, cookie.name)] = cookie
         }
     }
 
     @Synchronized
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
-        val host = url.host
-        return store.entries
-            .filter { (domain, _) -> host == domain || host.endsWith(".$domain") }
-            .flatMap { it.value }
+        // Drop expired cookies eagerly while we're iterating.
+        val now = System.currentTimeMillis()
+        val expired = mutableListOf<Key>()
+        val matched = mutableListOf<Cookie>()
+        for ((key, cookie) in store) {
+            if (cookie.expiresAt <= now) {
+                expired += key
+                continue
+            }
+            if (cookie.matches(url)) matched += cookie
+        }
+        for (k in expired) store.remove(k)
+        return matched
     }
 
     /** Clears all cookies. Intended to be called only by [BitApiClient.close];
-     *  do not invoke from elsewhere — would nuke an in-flight import session.
-     *  Future hardening could expose this only via a sealed session-controller. */
+     *  do not invoke from elsewhere — would nuke an in-flight import session. */
     @Synchronized
     fun clear() {
         store.clear()

@@ -1,29 +1,44 @@
 package com.example.personal_studio.domain.bitimport
 
-import com.example.personal_studio.core.util.AesCbcCrypto
+import com.example.personal_studio.core.util.CasAesCrypto
+import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.data.network.bit.service.BitCasService
 import javax.inject.Inject
 
 /**
- * Drives the BIT CAS login flow: GET the login page → extract the execution
- * flow-key and croypto salt via element-id lookup → encrypt the password with
- * AesCbcCrypto → POST the credentials → classify the response by status code
- * and body content.
+ * Drives the BIT CAS login flow.
+ *
+ * The naive flow (GET /cas/login → POST /cas/login) gets a 401 in production —
+ * BIT's CAS is **service-bound**, meaning the POST must go to the EXACT URL
+ * the redirect chain landed at, including a `service=<callback>?sessionToken=<nonce>`
+ * query parameter that's unique per redirect. So the real flow is:
+ *
+ *   1. GET the protected resource (jwapp's index endpoint). OkHttp follows the
+ *      302 chain → final URL is `sso.bit.edu.cn/cas/login?service=<encoded callback>`
+ *      and the response body is the CAS login HTML.
+ *   2. Parse execution + croypto from the HTML.
+ *   3. AES-encrypt the password and the empty-JSON captcha payload.
+ *   4. POST to the captured final URL (via Retrofit `@Url`), preserving the
+ *      service param.
+ *   5. CAS validates and 302s to the callback URL (with a `ticket=ST-...` param).
+ *      OkHttp follows it; the callback validates the ticket and sets a session
+ *      cookie scoped to .bit.edu.cn / jxzxehall.bit.edu.cn.
+ *   6. Subsequent jwapp calls are now authenticated.
  *
  * Returns a [CasLoginDto] sealed instance so callers can pattern-match without
- * throwing on user-facing failures (wrong password, captcha required, etc.).
+ * throwing on user-facing failures.
  *
  * **HTML shape**: BIT's CAS page does NOT use the conventional Spring form of
  * `<input name="execution" value="..."/>`. Instead the values live in elements
  * keyed by id:
  *
- *     <span id="login-croypto">SALT_VALUE</span>
- *     <span id="login-page-flowkey">EXECUTION_VALUE</span>
+ *     <p id="login-croypto">SALT_VALUE</p>
+ *     <p id="login-page-flowkey">EXECUTION_VALUE</p>
  *
- * The exact tag isn't always `<span>` — observed forms include `<input>` with
- * a `value=` attribute. [extractById] handles both layouts.
+ * The exact tag varies (observed `<p>`, `<span>`, `<input value="...">`).
+ * [extractById] handles all three layouts.
  */
 class SsoLoginUseCase @Inject constructor() {
 
@@ -70,7 +85,57 @@ class SsoLoginUseCase @Inject constructor() {
             ?.takeIf { it.isNotEmpty() }
     }
 
+    /**
+     * Production entry point — drives the full service-bound CAS flow.
+     *
+     * Takes the whole [BitApiClient] (not just [BitCasService]) because step 1
+     * needs jwapp's index endpoint to trigger the redirect, and step 4 needs
+     * to POST to a dynamically-captured URL.
+     */
     suspend operator fun invoke(
+        api: BitApiClient,
+        username: String,
+        password: String,
+    ): CasLoginDto {
+        // Step 1: GET protected resource. OkHttp follows the 302 chain;
+        // we land on the CAS login HTML with `?service=...` in the URL.
+        val triggerResp = api.jwapp.getIndex()
+        if (!triggerResp.isSuccessful) {
+            return CasLoginDto.UnknownFailure("jwapp trigger HTTP ${triggerResp.code()}")
+        }
+        val landedUrl = triggerResp.raw().request.url.toString()
+        val html = triggerResp.body()?.string().orEmpty()
+
+        if ("/cas/login" !in landedUrl) {
+            // Cookie jar somehow already has an authenticated session — proceed.
+            return CasLoginDto.Success
+        }
+
+        val init = parseLoginPage(html)
+        val encrypted = CasAesCrypto.encryptPassword(password, salt = init.salt)
+        // BIT's CAS form expects `captcha_payload` to be the encrypted empty
+        // JSON object `{}`, not an empty string.
+        val encryptedCaptchaPayload = CasAesCrypto.encryptPassword("{}", salt = init.salt)
+
+        // Step 2-4: POST to the captured `cas/login?service=...` URL.
+        val postResp = api.cas.postLoginAt(
+            url = landedUrl,
+            username = username,
+            encryptedPassword = encrypted,
+            execution = init.execution,
+            salt = init.salt,
+            captchaPayload = encryptedCaptchaPayload,
+        )
+        // For non-2xx responses (BIT returns 401 on bad credentials), Retrofit
+        // routes the body through errorBody(); body() returns null. Read either.
+        val postBody = (postResp.body() ?: postResp.errorBody())?.string().orEmpty()
+        return classify(postResp.code(), postBody)
+    }
+
+    /** Test-only entry point that exercises ONLY the bare CAS init+post pair
+     *  against a MockWebServer-served fake login page. Kept for the existing
+     *  unit-test suite which does not stand up a fake jwapp endpoint. */
+    suspend fun invokeForTests(
         service: BitCasService,
         username: String,
         password: String,
@@ -79,21 +144,20 @@ class SsoLoginUseCase @Inject constructor() {
         if (!initResp.isSuccessful) {
             return CasLoginDto.UnknownFailure("CAS init HTTP ${initResp.code()}")
         }
+        val landedUrl = initResp.raw().request.url.toString()
         val init = parseLoginPage(initResp.body()!!.string())
-        val encrypted = AesCbcCrypto.encryptPassword(password, salt = init.salt)
-        // BIT's CAS form expects `captcha_payload` to be the encrypted empty
-        // JSON object `{}` — not an empty string. BIT101's source comment said
-        // "removing it seems to also work", but real-device testing in P5 DoD
-        // showed BIT rejects an empty payload and re-renders the login form.
-        val encryptedCaptchaPayload = AesCbcCrypto.encryptPassword("{}", salt = init.salt)
-        val postResp = service.postLogin(
+        val encrypted = CasAesCrypto.encryptPassword(password, salt = init.salt)
+        val encryptedCaptchaPayload = CasAesCrypto.encryptPassword("{}", salt = init.salt)
+        val postResp = service.postLoginAt(
+            url = landedUrl,
             username = username,
             encryptedPassword = encrypted,
             execution = init.execution,
             salt = init.salt,
             captchaPayload = encryptedCaptchaPayload,
         )
-        return classify(postResp.code(), postResp.body()?.string().orEmpty())
+        val postBody = (postResp.body() ?: postResp.errorBody())?.string().orEmpty()
+        return classify(postResp.code(), postBody)
     }
 
     /**

@@ -21,51 +21,47 @@ class ResolveSemesterAnchorUseCaseTest {
         val useCase = ResolveSemesterAnchorUseCase(prefs)
 
         val anchor = useCase.invoke(
-            currentWeek = 7,
-            weekDays = listOf(WeekDateDto(weekday = 1, date = "2026-05-18")),
+            week1Days = listOf(WeekDateDto(weekday = 1, date = "2026-02-23")),
         )
 
         assertEquals(existing, anchor)
         coVerify(exactly = 0) { prefs.setStartDate(any()) }
     }
 
-    @Test fun `backsolves week-1 Monday when prefs unset`() = runBlocking {
+    @Test fun `reads week-1 Monday date directly when prefs unset`() = runBlocking {
         val prefs = mockk<SemesterPreferences>(relaxed = true) {
             coEvery { startDate } returns flowOf(null)
         }
         val useCase = ResolveSemesterAnchorUseCase(prefs)
 
-        // 2026-05-18 is a Monday. If today is "week 7, day 1", week-1 Monday =
-        // 2026-05-18 - 6 weeks = 2026-04-06.
+        // cxzkbrq.do with ZC=1 returns week-1's seven days WITH dates.
+        // The XQ=1 (Monday) entry is the semester start, taken verbatim.
         val anchor = useCase.invoke(
-            currentWeek = 7,
-            weekDays = listOf(
-                WeekDateDto(weekday = 1, date = "2026-05-18"),
-                WeekDateDto(weekday = 2, date = "2026-05-19"),
-                WeekDateDto(weekday = 7, date = "2026-05-24"),
+            week1Days = listOf(
+                WeekDateDto(weekday = 1, date = "2026-02-23"),
+                WeekDateDto(weekday = 2, date = "2026-02-24"),
+                WeekDateDto(weekday = 7, date = "2026-03-01"),
             ),
         )
 
-        assertEquals(LocalDate.of(2026, 4, 6), anchor)
-        coVerify(exactly = 1) { prefs.setStartDate(LocalDate.of(2026, 4, 6)) }
+        assertEquals(LocalDate.of(2026, 2, 23), anchor)
+        coVerify(exactly = 1) { prefs.setStartDate(LocalDate.of(2026, 2, 23)) }
     }
 
-    @Test fun `non-Monday earliest day correctly walked back to Monday`() = runBlocking {
+    @Test fun `picks the Monday entry regardless of list order`() = runBlocking {
         val prefs = mockk<SemesterPreferences>(relaxed = true) {
             coEvery { startDate } returns flowOf(null)
         }
         val useCase = ResolveSemesterAnchorUseCase(prefs)
 
-        // If the smallest date in the response is Wednesday 2026-05-20, walk
-        // back 2 days to Monday 2026-05-18, then back 6 weeks → 2026-04-06.
         val anchor = useCase.invoke(
-            currentWeek = 7,
-            weekDays = listOf(
-                WeekDateDto(weekday = 3, date = "2026-05-20"),
-                WeekDateDto(weekday = 4, date = "2026-05-21"),
+            week1Days = listOf(
+                WeekDateDto(weekday = 3, date = "2026-02-25"),
+                WeekDateDto(weekday = 1, date = "2026-02-23"),
+                WeekDateDto(weekday = 5, date = "2026-02-27"),
             ),
         )
 
-        assertEquals(LocalDate.of(2026, 4, 6), anchor)
+        assertEquals(LocalDate.of(2026, 2, 23), anchor)
     }
 }

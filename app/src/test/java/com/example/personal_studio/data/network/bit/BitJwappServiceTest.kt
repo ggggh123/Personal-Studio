@@ -43,7 +43,7 @@ class BitJwappServiceTest {
         assertEquals(true, resp.isSuccessful)
         val rows = resp.body()!!.datas.dqxnxq!!.rows
         assertEquals(1, rows.size)
-        assertEquals("2024-2025-2", rows[0].code)
+        assertEquals("2025-2026-2", rows[0].code)
         assertEquals(1, rows[0].isCurrent)
     }
 }

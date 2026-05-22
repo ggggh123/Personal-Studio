@@ -57,7 +57,7 @@ class SsoLoginUseCaseTest {
         server.enqueue(MockResponse().setResponseCode(302).setHeader("Location",
             "https://app.bit.edu.cn/?ticket=ST-12345"))
 
-        val result = useCase.invoke(service, username = "20210000", password = "pw")
+        val result = useCase.invokeForTests(service, username = "20210000", password = "pw")
         assertTrue(result is CasLoginDto.Success)
     }
 
@@ -74,7 +74,7 @@ class SsoLoginUseCaseTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(
             failureBody("""<div class="login-error">用户名或密码错误</div>""")
         ))
-        val result = useCase.invoke(service, "20210000", "pw")
+        val result = useCase.invokeForTests(service, "20210000", "pw")
         assertEquals(CasLoginDto.WrongCredentials, result)
     }
 
@@ -83,7 +83,7 @@ class SsoLoginUseCaseTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(
             failureBody("""<input id="captcha-img"/><div>请输入验证码</div>""")
         ))
-        val result = useCase.invoke(service, "20210000", "pw")
+        val result = useCase.invokeForTests(service, "20210000", "pw")
         assertEquals(CasLoginDto.CaptchaRequired, result)
     }
 
@@ -92,8 +92,21 @@ class SsoLoginUseCaseTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(
             failureBody("""<div class="login-error">账号已锁定</div>""")
         ))
-        val result = useCase.invoke(service, "20210000", "pw")
+        val result = useCase.invokeForTests(service, "20210000", "pw")
         assertEquals(CasLoginDto.AccountLocked, result)
+    }
+
+    @Test fun `wrong password with HTTP 401 status still classifies as WrongCredentials`() = runBlocking {
+        // Regression test: BIT's CAS returns 401 (not 200) on bad credentials,
+        // with the failure HTML in the response body. Retrofit routes the body
+        // of non-2xx responses through errorBody() rather than body(); reading
+        // only body() yields null → empty string → false Success.
+        server.enqueue(MockResponse().setBody(fixtureHtml()))
+        server.enqueue(MockResponse().setResponseCode(401).setBody(
+            failureBody("""<div class="login-error">用户名或密码错误</div>""")
+        ))
+        val result = useCase.invokeForTests(service, "20210000", "wrongpw")
+        assertEquals(CasLoginDto.WrongCredentials, result)
     }
 
     @Test fun `success page WITHOUT login-form marker is Success even if it mentions 验证码 elsewhere`() = runBlocking {
@@ -103,7 +116,7 @@ class SsoLoginUseCaseTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(
             """<html><body>Welcome! <a href="/captcha-management">验证码管理</a></body></html>"""
         ))
-        val result = useCase.invoke(service, "20210000", "pw")
+        val result = useCase.invokeForTests(service, "20210000", "pw")
         assertEquals(CasLoginDto.Success, result)
     }
 }

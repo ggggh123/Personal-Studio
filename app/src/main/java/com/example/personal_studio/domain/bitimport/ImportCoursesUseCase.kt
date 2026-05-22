@@ -36,16 +36,26 @@ class ImportCoursesUseCase @Inject constructor(
             apiClient.open(req.networkMode)
 
             emit(ImportStep.LoggingIn)
+            // SsoLoginUseCase.invoke handles the full service-bound CAS flow:
+            // GET jwapp index → triggers 302 to CAS login (with service param)
+            // → parse + AES-encrypt → POST credentials to the captured URL
+            // → CAS issues a ticket → follows back to jxzxehall's callback
+            // → cookies set for parent .bit.edu.cn / jxzxehall.bit.edu.cn.
+            // After this returns Success, jwapp endpoints are authenticated.
             val loginResult = ssoLogin.invoke(
-                apiClient.cas,
+                apiClient,
                 req.credentials.username,
                 req.credentials.password,
             )
             val loginErr = loginResult.toImportError()
             if (loginErr != null) { emit(ImportStep.Failed(loginErr)); return@flow }
 
-            // jwapp warm-up — BIT requires these calls to set session cookies
-            apiClient.jwapp.getIndex()
+            // jwapp warm-up. Per the BIT101 reference, EVERY wdkbby module call
+            // must be preceded by getAppConfig() — it establishes the per-app
+            // permission token, without which the module endpoints (dqxnxq.do
+            // etc.) return 403 Forbidden at the openresty edge. switchLang sets
+            // the locale cookie. Calling once after login is enough since the
+            // resulting cookies persist across the rest of this session.
             apiClient.jwapp.getAppConfig()
             apiClient.jwapp.switchLang()
 
@@ -56,13 +66,15 @@ class ImportCoursesUseCase @Inject constructor(
             val pickedTermCode = req.termCodeOverride ?: currentTerm.code
 
             emit(ImportStep.FetchingWeekDate)
+            // ZC=1 asks for week 1's seven days WITH their calendar dates, so we
+            // can read the semester's Monday directly (no back-solving).
             val weekDate = apiClient.jwapp.getWeekAndDate(
-                requestParamStr = """{"XNXQDM":"$pickedTermCode"}""",
+                requestParamStr = """{"XNXQDM":"$pickedTermCode","ZC":"1"}""",
             ).body() ?: run {
                 emit(ImportStep.Failed(ImportError.ParseFail("week-and-date empty body")))
                 return@flow
             }
-            val resolvedAnchor = anchor.invoke(weekDate.currentWeek ?: 1, weekDate.data)
+            val resolvedAnchor = anchor.invoke(weekDate.data)
 
             emit(ImportStep.FetchingSchedule(pickedTermCode))
             val scheduleResp = apiClient.jwapp.getSchedule(pickedTermCode)
