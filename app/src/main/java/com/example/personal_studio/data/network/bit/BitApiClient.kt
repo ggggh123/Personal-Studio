@@ -62,6 +62,10 @@ class BitApiClient @Inject constructor(
     val jwapp: BitJwappService
         get() = jwappRetrofit?.create() ?: error("BitApiClient: session not open")
 
+    /** 成绩查询服务，与 jwapp 同 host(jxzxehallapp)，复用同一 Retrofit。 */
+    val cjcx: com.example.personal_studio.data.network.bit.service.BitCjcxService
+        get() = jwappRetrofit?.create() ?: error("BitApiClient: session not open")
+
     private fun newRetrofit(baseUrl: String): Retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
         .client(client)
