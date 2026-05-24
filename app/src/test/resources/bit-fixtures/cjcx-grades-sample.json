@@ -1,0 +1,12 @@
+{
+  "datas": {
+    "cxstuxqcj": {
+      "totalSize": 3,
+      "rows": [
+        {"XNXQDM":"2024-2025-2","XNXQMC":"2024-2025学年 第二学期","KCM":"高等数学A","KCH":"MATH101","XF":5.0,"CJ":"92","JD":4.0,"DJCJMC":"A","KCXZMC":"必修","CXCKDM_DISPLAY":"正常"},
+        {"XNXQDM":"2024-2025-2","XNXQMC":"2024-2025学年 第二学期","KCM":"大学物理","KCH":"PHYS101","XF":4.0,"CJ":"55","JD":0.0,"DJCJMC":"F","KCXZMC":"必修","CXCKDM_DISPLAY":"正常"},
+        {"XNXQDM":"2024-2025-1","XNXQMC":"2024-2025学年 第一学期","KCM":"线性代数","KCH":"MATH102","XF":3.0,"CJ":"88","JD":3.7,"DJCJMC":"B","KCXZMC":"必修","CXCKDM_DISPLAY":"正常"}
+      ]
+    }
+  }
+}
