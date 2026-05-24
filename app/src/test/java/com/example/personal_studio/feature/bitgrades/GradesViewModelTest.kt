@@ -1,0 +1,39 @@
+package com.example.personal_studio.feature.bitgrades
+
+import com.example.personal_studio.data.local.db.dao.GradesDao
+import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
+import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+
+class GradesViewModelTest {
+    @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
+    @After fun tearDown() = Dispatchers.resetMain()
+
+    @Test fun `book reflects dao grades`() = runTest {
+        val dao = mockk<GradesDao> {
+            every { observeAll() } returns flowOf(listOf(
+                GradeEntryEntity(0,"2024-2025-2","24春","高数","M1",5.0,"92",4.0,"A","必修","正常",true,1L)))
+            every { observeRanks() } returns flowOf(emptyList())
+        }
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true))
+        // uiState is a stateIn(WhileSubscribed) — actively collect so combine runs.
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.book.terms.size)
+        assertEquals(4.0, vm.uiState.value.book.overallGpa, 0.001)
+        job.cancel()
+    }
+}
