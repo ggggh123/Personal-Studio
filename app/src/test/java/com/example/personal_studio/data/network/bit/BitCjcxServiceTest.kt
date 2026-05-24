@@ -46,4 +46,17 @@ class BitCjcxServiceTest {
         assertEquals(4.0, rows[0].gradePoint!!, 0.001)
         assertEquals("2024-2025-1", rows[2].termCode)
     }
+
+    @Test fun `getRankDetail parses rank row`() = runBlocking {
+        val body = javaClass.getResourceAsStream("/bit-fixtures/cjcx-rank-sample.json")!!
+            .bufferedReader().readText()
+        server.enqueue(MockResponse().setBody(body))
+
+        val resp = service.getRankDetail("""{"XNXQDM":"2024-2025-2"}""")
+
+        assertEquals(true, resp.isSuccessful)
+        val row = resp.body()!!.datas.cxstupm!!.rows.single()
+        assertEquals(5, row.classRank)
+        assertEquals(120, row.majorTotal)
+    }
 }

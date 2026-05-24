@@ -1,7 +1,7 @@
 package com.example.personal_studio.data.network.bit.service
 
 import com.example.personal_studio.data.network.bit.dto.GradeListResponse
-// import com.example.personal_studio.data.network.bit.dto.GradeRankResponse  // 取消注释见 Task 2
+import com.example.personal_studio.data.network.bit.dto.GradeRankResponse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Field
@@ -42,13 +42,12 @@ interface BitCjcxService {
         @Field("*order") order: String = "-XNXQDM",
     ): Response<GradeListResponse>
 
-    /* 取消注释见 Task 2：
+    /** 第二步：某学期班级/专业排名详情（对应"获取详细信息"）。 */
     @FormUrlEncoded
     @POST("jwapp/sys/cjcx/modules/cjcx/cxstupm.do")
     suspend fun getRankDetail(
         @Field("requestParamStr") requestParamStr: String,
     ): Response<GradeRankResponse>
-    */
 
     companion object {
         /** TBD —— 真机抓包确认 cjcx 的真实 appId。 */
