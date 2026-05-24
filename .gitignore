@@ -11,3 +11,7 @@ local.properties
 .superpowers/
 .claude/settings.local.json
 d302dc29d7be7b4e2d2408688d354d23.jpg
+
+# Repo-root debug screenshots (kept locally, never committed)
+/*.png
+/*.jpg
