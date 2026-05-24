@@ -56,7 +56,12 @@ class BitCjcxServiceTest {
 
         assertEquals(true, resp.isSuccessful)
         val row = resp.body()!!.datas.cxstupm!!.rows.single()
+        // Assert every mapped field so a swapped @SerialName is caught (these
+        // hypothesized keys get re-verified against real data in Task 23 DoD).
+        assertEquals("2024-2025-2", row.termCode)
         assertEquals(5, row.classRank)
+        assertEquals(32, row.classTotal)
+        assertEquals(18, row.majorRank)
         assertEquals(120, row.majorTotal)
     }
 }
