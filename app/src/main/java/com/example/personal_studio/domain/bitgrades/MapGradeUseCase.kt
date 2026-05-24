@@ -29,10 +29,13 @@ class MapGradeUseCase @Inject constructor() {
 
     private fun computePass(point: Double?, score: String, letter: String?): Boolean {
         if (point != null) return point > 0.0
+        // 定性成绩：先判"不及格/不合格/不通过"等否定词——它们包含"及格/合格/通过"子串，
+        // 必须在通过词之前判，否则会被误判为通过。
+        val text = letter.orEmpty() + " " + score
+        val failWords = listOf("不及格", "不合格", "不通过", "缺考", "缓考", "作弊")
+        if (failWords.any { it in text }) return false
         val passWords = listOf("优", "良", "中", "及格", "合格", "通过")
-        if (letter != null && passWords.any { it in letter }) return true
-        if (passWords.any { it in score }) return true
-        if ("不及格" in score || "不合格" in score || "缺考" in score) return false
+        if (passWords.any { it in text }) return true
         score.toDoubleOrNull()?.let { return it >= 60.0 }
         return true // 未知 → 不武断判挂科
     }
