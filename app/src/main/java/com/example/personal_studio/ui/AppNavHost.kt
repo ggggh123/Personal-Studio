@@ -205,6 +205,19 @@ fun AppNavHost(navController: NavHostController) {
                 onClose = { navController.popBackStack() },
             )
         }
+        composable(NavRoutes.GRADES) {
+            com.example.personal_studio.feature.bitgrades.ui.GradesScreen(
+                onBack = { navController.popBackStack() },
+                onSync = { navController.navigate(NavRoutes.GRADES_SYNC) },
+                onOpenChat = { sid -> navController.navigate(NavRoutes.chatDetail(sid)) },
+            )
+        }
+        composable(NavRoutes.GRADES_SYNC) {
+            com.example.personal_studio.feature.bitgrades.ui.GradesSyncRoute(
+                onClose = { navController.popBackStack() },
+                onDone = { navController.popBackStack() },
+            )
+        }
 
         // --- Scanner single-page smoke flow (Task 14) ---
         composable(NavRoutes.SCANNER_CAMERA) {

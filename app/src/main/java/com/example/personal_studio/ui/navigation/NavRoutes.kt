@@ -61,6 +61,10 @@ object NavRoutes {
     // BIT Import wizard (P5)
     const val IMPORT_WIZARD = "import"
 
+    // BIT 成绩查询 (P6)
+    const val GRADES = "grades"
+    const val GRADES_SYNC = "grades/sync"
+
     // Settings sub-pages (P4)
     const val SETTINGS_TIMETABLE = "settings/timetable"
     const val SETTINGS_SEMESTER = "settings/semester"
