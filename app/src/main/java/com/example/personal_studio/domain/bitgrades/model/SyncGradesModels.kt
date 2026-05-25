@@ -27,5 +27,7 @@ sealed class GradesSyncError {
     data class NetworkFail(val cause: Throwable) : GradesSyncError()
     data class ParseFail(val message: String) : GradesSyncError()
     object EmptyGrades : GradesSyncError()
+    /** 正方教务把成绩藏在评教后面——需先在教务系统完成评教才能查分。 */
+    object NeedReview : GradesSyncError()
     data class Unexpected(val cause: Throwable) : GradesSyncError()
 }

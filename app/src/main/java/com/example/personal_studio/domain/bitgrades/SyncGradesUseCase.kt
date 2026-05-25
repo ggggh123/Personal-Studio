@@ -15,13 +15,20 @@ import java.io.IOException
 import javax.inject.Inject
 
 /**
- * 成绩同步编排。复用 P5 的 SsoLoginUseCase + BitApiClient。两步拉取：
- * 成绩列表(致命失败)→ 每学期排名详情(非致命，失败则 rank 留 null)。始终 close()。
+ * 成绩同步编排。成绩在 BIT 正方教务 (jsxsd, host jwms.bit.edu.cn) 里以 HTML 表呈现
+ * （不是 ehall 的 cjcx JSON——那个 app 无成绩权限，DoD 时一直 403）。流程：
+ *
+ *   1. CAS 用户名密码登录（复用 P5 SsoLoginUseCase，建立 CAS TGC）。
+ *   2. 用 TGC 向 CAS 换取 jwms 的服务会话（[BitCasService.activateService]）。
+ *   3. GET jsxsd/kscj/cjcx_list → HTML，[JsxsdGradeParser] 解析成 GradeEntryEntity。
+ *   4. 按学期算加权 GPA 落 term_ranks（M1 不抓排名——正方不直接给专业总排名）。
+ *
+ * 始终在 finally 里 close()。
  */
 class SyncGradesUseCase @Inject constructor(
     private val apiClient: BitApiClient,
     private val ssoLogin: SsoLoginUseCase,
-    private val mapper: MapGradeUseCase,
+    private val parser: JsxsdGradeParser,
     private val replacer: ReplaceGradesUseCase,
 ) {
     fun sync(req: GradesSyncRequest): Flow<SyncGradesStep> = flow {
@@ -32,20 +39,20 @@ class SyncGradesUseCase @Inject constructor(
             val login = ssoLogin.invoke(apiClient, req.username, req.password)
             login.toGradesError()?.let { emit(SyncGradesStep.Failed(it)); return@flow }
 
-            // cjcx warm-up（每个 ehall app 各需一次，否则 403）
-            apiClient.cjcx.getIndex()
-            apiClient.cjcx.getAppConfig()
-            apiClient.cjcx.switchLang()
+            // 用 CAS TGC 换取正方(jwms)服务会话；OkHttp 跟随 302→jwms?ticket→落地。
+            apiClient.cas.activateService(JWMS_SERVICE)
 
             emit(SyncGradesStep.FetchingGrades)
-            val gradeResp = apiClient.cjcx.getGrades()
-            val rows = gradeResp.body()?.datas?.cxstuxqcj?.rows ?: emptyList()
-            if (rows.isEmpty()) { emit(SyncGradesStep.Failed(GradesSyncError.EmptyGrades)); return@flow }
+            val resp = apiClient.jwms.getScoreListHtml()
+            val html = (resp.body() ?: resp.errorBody())?.string().orEmpty()
+            if (parser.isReviewGated(html)) {
+                emit(SyncGradesStep.Failed(GradesSyncError.NeedReview)); return@flow
+            }
             val now = System.currentTimeMillis()
-            val entries = rows.mapNotNull { mapper.invoke(it, now) }
+            val entries = parser.parse(html, now)
             if (entries.isEmpty()) { emit(SyncGradesStep.Failed(GradesSyncError.EmptyGrades)); return@flow }
 
-            emit(SyncGradesStep.FetchingRanks)
+            emit(SyncGradesStep.FetchingRanks)   // M1：仅按学期聚合 GPA（无排名网络调用）
             val ranks = buildTermRanks(entries, now)
 
             emit(SyncGradesStep.Persisting)
@@ -62,26 +69,20 @@ class SyncGradesUseCase @Inject constructor(
         }
     }
 
-    /** 每学期一条 TermRankEntity（weightedGpa 必有；排名 best-effort）+ OVERALL 一条。 */
-    private suspend fun buildTermRanks(
+    /** 每学期一条 TermRankEntity（仅 weightedGpa；排名字段 M1 留 null）+ OVERALL 一条。 */
+    private fun buildTermRanks(
         entries: List<GradeEntryEntity>, now: Long,
     ): List<TermRankEntity> {
-        val byTerm = entries.groupBy { it.termCode }
-        val rows = byTerm.map { (code, list) ->
-            val gpa = GpaCalculator.weightedGpa(list.map { it.credit to it.gradePoint })
-            val detail = runCatching {
-                apiClient.cjcx.getRankDetail("""{"XNXQDM":"$code"}""")
-                    .takeIf { it.isSuccessful }?.body()?.datas?.cxstupm?.rows?.firstOrNull()
-            }.getOrNull()
+        val rows = entries.groupBy { it.termCode }.map { (code, list) ->
             TermRankEntity(
-                termCode = code, termName = list.first().termName, weightedGpa = gpa,
-                classRank = detail?.classRank, classTotal = detail?.classTotal,
-                majorRank = detail?.majorRank, majorTotal = detail?.majorTotal, fetchedAt = now,
+                termCode = code, termName = list.first().termName,
+                weightedGpa = GpaCalculator.weightedGpa(list.map { it.credit to it.gradePoint }),
+                classRank = null, classTotal = null, majorRank = null, majorTotal = null,
+                fetchedAt = now,
             )
         }
         val overallGpa = GpaCalculator.weightedGpa(entries.map { it.credit to it.gradePoint })
-        val overall = TermRankEntity("OVERALL", "总计", overallGpa, null, null, null, null, now)
-        return rows + overall
+        return rows + TermRankEntity("OVERALL", "总计", overallGpa, null, null, null, null, now)
     }
 
     private fun CasLoginDto.toGradesError(): GradesSyncError? = when (this) {
@@ -90,5 +91,10 @@ class SyncGradesUseCase @Inject constructor(
         CasLoginDto.AccountLocked -> GradesSyncError.AccountLocked
         CasLoginDto.CaptchaRequired -> GradesSyncError.CaptchaRequired
         is CasLoginDto.UnknownFailure -> GradesSyncError.ParseFail("CAS: $body")
+    }
+
+    companion object {
+        /** 必须与 CAS 注册的 jwms service 完全一致（http + 末尾斜杠）。 */
+        const val JWMS_SERVICE = "http://jwms.bit.edu.cn/"
     }
 }

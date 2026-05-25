@@ -65,6 +65,7 @@ private fun GradeErrorBanner(err: GradesSyncError, onDismiss: () -> Unit, onRetr
         is GradesSyncError.NetworkFail -> Carmine to "网络异常，请检查网络后重试。"
         is GradesSyncError.ParseFail -> Carmine to "数据解析失败：${err.message}（可能接口改版）。"
         GradesSyncError.EmptyGrades -> Amber to "教务系统暂无成绩数据。"
+        GradesSyncError.NeedReview -> Amber to "需先在教务系统完成评教，才能查询成绩。"
         is GradesSyncError.Unexpected -> Carmine to (err.cause.message ?: "未知错误。")
     }
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
