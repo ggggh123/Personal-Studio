@@ -41,6 +41,7 @@ fun GradesScreen(
     onBack: () -> Unit,
     onSync: () -> Unit,
     onOpenChat: (Long) -> Unit,
+    onOpenWhatIf: () -> Unit,
     vm: GradesViewModel = hiltViewModel(),
 ) {
     val st by vm.uiState.collectAsStateWithLifecycle()
@@ -79,6 +80,8 @@ fun GradesScreen(
 
         Spacer(Modifier.height(20.dp))
         Button({ showSheet = true; vm.onAnalyze() }, Modifier.fillMaxWidth()) { Text("生成 AI 分析") }
+        Spacer(Modifier.height(8.dp))
+        Button(onOpenWhatIf, Modifier.fillMaxWidth()) { Text("目标 GPA 计算器") }
     }
 
     if (showSheet) {
