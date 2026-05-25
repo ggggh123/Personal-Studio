@@ -14,6 +14,7 @@ data class GradeItem(
     val courseAvg: Double? = null,        // 该课平均分
     val classRankText: String? = null,    // 本人成绩在班级中占(原文,如"前20%")
     val majorRankText: String? = null,    // 本人成绩在专业中占
+    val id: Long = 0,                     // 来源记录主键（会话内稳定，用于选择参与计算）
 )
 
 /** 排名（班级/专业），任一可缺。 */

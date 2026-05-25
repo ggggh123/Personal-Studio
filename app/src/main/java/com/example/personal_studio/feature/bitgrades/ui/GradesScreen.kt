@@ -33,6 +33,7 @@ import com.example.personal_studio.core.util.GradeBucketer
 import com.example.personal_studio.feature.bitgrades.GradesViewModel
 import com.example.personal_studio.feature.bitgrades.ui.components.GpaOverviewCard
 import com.example.personal_studio.feature.bitgrades.ui.components.TermGradeSection
+import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
@@ -65,7 +66,20 @@ fun GradesScreen(
         }
 
         Spacer(Modifier.height(12.dp))
-        Panel { GpaOverviewCard(st.book) }
+        Panel {
+            GpaOverviewCard(st.book)
+            if (st.filtering) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "选中 ${st.selectedCount} 门 · GPA ${String.format(java.util.Locale.US, "%.2f", st.selectedGpa)}" +
+                            (st.selectedAvgScore?.let { " · 均分 ${String.format(java.util.Locale.US, "%.1f", it)}" } ?: ""),
+                        color = Amber, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = vm::onClearSelection) { Text("全选", color = FoamMute) }
+                }
+            }
+        }
 
         Spacer(Modifier.height(8.dp))
         Panel {
@@ -82,7 +96,15 @@ fun GradesScreen(
         }
 
         Spacer(Modifier.height(8.dp))
-        st.book.terms.forEachIndexed { i, t -> TermGradeSection(t, initiallyExpanded = i == 0) }
+        st.book.terms.forEachIndexed { i, t ->
+            TermGradeSection(
+                t,
+                initiallyExpanded = i == 0,
+                excludedIds = st.excludedIds,
+                onToggleCourse = vm::onToggleCourse,
+                onToggleTerm = vm::onToggleTerm,
+            )
+        }
 
         Spacer(Modifier.height(20.dp))
         Button({ showSheet = true; vm.onAnalyze() }, Modifier.fillMaxWidth()) { Text("生成 AI 分析") }

@@ -22,6 +22,12 @@ data class GradesUiState(
     val analysis: String = "",
     val analyzing: Boolean = false,
     val analysisError: String? = null,
+    val excludedIds: Set<Long> = emptySet(),
+    val selectedGpa: Double = 0.0,
+    val selectedAvgScore: Double? = null,
+    val selectedCredits: Double = 0.0,
+    val selectedCount: Int = 0,
+    val filtering: Boolean = false,   // true when excludedIds non-empty
 )
 
 @HiltViewModel
@@ -37,7 +43,24 @@ class GradesViewModel @Inject constructor(
     val uiState: StateFlow<GradesUiState> = combine(
         dao.observeAll(), dao.observeRanks(), _local,
     ) { grades, ranks, local ->
-        local.copy(book = computeGpa.invoke(grades, ranks))
+        val book = computeGpa.invoke(grades, ranks)
+        val allCourses = book.terms.flatMap { it.courses }
+        val included = allCourses.filter { it.id !in local.excludedIds }
+        val selGpa = com.example.personal_studio.core.util.GpaCalculator.weightedGpa(included.map { it.credit to it.gradePoint })
+        val selCredits = included.filter { it.gradePoint != null }.sumOf { it.credit }
+        val selAvg = run {
+            var sc = 0.0; var sw = 0.0
+            included.forEach { c -> com.example.personal_studio.core.util.BitGpaConverter.toScore(c.score)?.let { sc += c.credit; sw += c.credit * it } }
+            if (sc == 0.0) null else sw / sc
+        }
+        local.copy(
+            book = book,
+            selectedGpa = selGpa,
+            selectedAvgScore = selAvg,
+            selectedCredits = selCredits,
+            selectedCount = included.size,
+            filtering = local.excludedIds.isNotEmpty(),
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesUiState())
 
     fun onAnalyze() {
@@ -61,4 +84,16 @@ class GradesViewModel @Inject constructor(
         if (book.isEmpty) return
         viewModelScope.launch { onReady(startChat.invoke(book)) }
     }
+
+    fun onToggleCourse(id: Long) = _local.update {
+        it.copy(excludedIds = if (id in it.excludedIds) it.excludedIds - id else it.excludedIds + id)
+    }
+
+    /** Toggle a whole term: if every course in it is currently included → exclude them all; else include them all. */
+    fun onToggleTerm(courseIds: List<Long>) = _local.update { st ->
+        val allIncluded = courseIds.none { it in st.excludedIds }
+        st.copy(excludedIds = if (allIncluded) st.excludedIds + courseIds else st.excludedIds - courseIds.toSet())
+    }
+
+    fun onClearSelection() = _local.update { it.copy(excludedIds = emptySet()) }
 }

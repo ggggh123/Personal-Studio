@@ -36,4 +36,24 @@ class GradesViewModelTest {
         assertEquals(4.0, vm.uiState.value.book.overallGpa, 0.001)
         job.cancel()
     }
+
+    @Test fun `excluding a course updates selected stats`() = runTest {
+        val dao = mockk<GradesDao> {
+            every { observeAll() } returns flowOf(listOf(
+                GradeEntryEntity(1,"2024-2025-1","t","A","A",4.0,"90",4.0,null,null,"正常",true,1L),
+                GradeEntryEntity(2,"2024-2025-1","t","B","B",2.0,"70",2.475,null,null,"正常",true,1L),
+            ))
+            every { observeRanks() } returns flowOf(emptyList())
+        }
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true))
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.selectedCount)
+        vm.onToggleCourse(2L)
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.selectedCount)
+        assertEquals(4.0, vm.uiState.value.selectedGpa, 0.001) // only course A (gp 4.0) remains
+        assertEquals(true, vm.uiState.value.filtering)
+        job.cancel()
+    }
 }
