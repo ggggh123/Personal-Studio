@@ -36,4 +36,20 @@ object BitGpaConverter {
         // 其它等级词（如"良"已在 LEVEL）——保守起见不计入 GPA
         return null
     }
+
+    /** 等级→代表分（用于加权均分）：优秀95/良好85/中等75/及格65/不及格40；
+     *  百分制原样；二级制(通过/合格/免修)与缺考/作弊返回 null(不计入均分)。 */
+    fun toScore(rawScore: String): Double? {
+        val s = rawScore.trim()
+        if (s.isEmpty()) return null
+        when (s) {
+            "优秀", "优" -> return 95.0
+            "良好", "良" -> return 85.0
+            "中等", "中" -> return 75.0
+            "及格" -> return 65.0
+            "不及格" -> return 40.0
+        }
+        s.toDoubleOrNull()?.let { return it }
+        return null
+    }
 }

@@ -29,6 +29,7 @@ data class TermGrades(
     val termName: String,
     val courses: List<GradeItem>,
     val weightedGpa: Double,
+    val avgScore: Double?,
     val rank: TermRank?,
 )
 
@@ -37,6 +38,7 @@ data class GradeBook(
     val terms: List<TermGrades>,
     val overallGpa: Double,
     val totalCredits: Double,
+    val overallAvgScore: Double?,
     val overallRank: TermRank?,
 ) {
     val isEmpty: Boolean get() = terms.isEmpty()

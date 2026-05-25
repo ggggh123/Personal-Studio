@@ -23,6 +23,7 @@ class ComputeGpaUseCase @Inject constructor() {
                     termName = rows.first().termName,
                     courses = items.sortedByDescending { it.credit },
                     weightedGpa = GpaCalculator.weightedGpa(items.map { it.credit to it.gradePoint }),
+                    avgScore = weightedAvgScore(rows),
                     rank = rankByTerm[code]?.toTermRank(),
                 )
             }
@@ -33,8 +34,18 @@ class ComputeGpaUseCase @Inject constructor() {
             terms = terms,
             overallGpa = overallGpa,
             totalCredits = totalCredits,
+            overallAvgScore = weightedAvgScore(entries),
             overallRank = rankByTerm["OVERALL"]?.toTermRank(),
         )
+    }
+
+    private fun weightedAvgScore(rows: List<GradeEntryEntity>): Double? {
+        var sumCredit = 0.0; var sumWeighted = 0.0
+        for (r in rows) {
+            val sc = com.example.personal_studio.core.util.BitGpaConverter.toScore(r.score) ?: continue
+            sumCredit += r.credit; sumWeighted += r.credit * sc
+        }
+        return if (sumCredit == 0.0) null else sumWeighted / sumCredit
     }
 
     private fun GradeEntryEntity.toItem() = GradeItem(

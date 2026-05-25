@@ -9,6 +9,8 @@ class ComputeGpaUseCaseTest {
     private val useCase = ComputeGpaUseCase()
     private fun g(term: String, code: String, credit: Double, point: Double?) =
         GradeEntryEntity(0, term, term, code, code, credit, "x", point, null, null, "正常", true, 1L)
+    private fun gs(term: String, code: String, credit: Double, score: String, point: Double?) =
+        GradeEntryEntity(0, term, term, code, code, credit, score, point, null, null, "正常", true, 1L)
 
     @Test fun `groups by term newest-first and computes per-term + overall gpa`() {
         val book = useCase.invoke(
@@ -29,5 +31,25 @@ class ComputeGpaUseCaseTest {
     @Test fun `term without rank row has null rank`() {
         val book = useCase.invoke(listOf(g("t", "A", 3.0, 3.0)), emptyList())
         assertEquals(null, book.terms[0].rank)
+    }
+
+    @Test fun `computes credit-weighted avg score (overall + per-term)`() {
+        val book = useCase.invoke(
+            entries = listOf(
+                gs("2024-2025-1", "A", 4.0, "90", 4.0),
+                gs("2024-2025-1", "B", 2.0, "80", 3.25),
+            ),
+            ranks = emptyList(),
+        )
+        // overall = (90×4 + 80×2)/(4+2) = (360+160)/6 = 86.667
+        assertEquals(86.6667, book.overallAvgScore!!, 0.001)
+        assertEquals(86.6667, book.terms[0].avgScore!!, 0.001)
+    }
+
+    @Test fun `avg score is null when no numeric scores`() {
+        // g() uses score="x" → toScore null → excluded → null avg
+        val book = useCase.invoke(listOf(g("t", "A", 3.0, 3.0)), emptyList())
+        assertEquals(null, book.overallAvgScore)
+        assertEquals(null, book.terms[0].avgScore)
     }
 }

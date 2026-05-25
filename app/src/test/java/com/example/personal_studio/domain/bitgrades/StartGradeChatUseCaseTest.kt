@@ -18,8 +18,8 @@ class StartGradeChatUseCaseTest {
             coEvery { appendMessage(any(), any(), any(), any(), any(), any(), any()) } returns 1L
         }
         val book = GradeBook(
-            terms = listOf(TermGrades("2024-2025-2", "24春", emptyList(), 3.5, null)),
-            overallGpa = 3.5, totalCredits = 30.0, overallRank = null,
+            terms = listOf(TermGrades("2024-2025-2", "24春", emptyList(), 3.5, null, null)),
+            overallGpa = 3.5, totalCredits = 30.0, overallAvgScore = null, overallRank = null,
         )
         val sid = StartGradeChatUseCase(repo, BuildGradeSummaryUseCase()).invoke(book)
         assertEquals(42L, sid)

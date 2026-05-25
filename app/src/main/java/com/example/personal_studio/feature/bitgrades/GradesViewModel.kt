@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class GradesUiState(
-    val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null),
+    val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null, null),
     val analysis: String = "",
     val analyzing: Boolean = false,
     val analysisError: String? = null,

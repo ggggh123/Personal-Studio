@@ -18,7 +18,7 @@ import javax.inject.Inject
 enum class WhatIfMode { REVERSE, PREDICT }
 
 data class WhatIfUiState(
-    val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null),
+    val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null, null),
     val mode: WhatIfMode = WhatIfMode.REVERSE,
     val targetGpa: String = "",
     val remainingCredits: String = "",

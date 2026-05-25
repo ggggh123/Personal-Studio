@@ -17,6 +17,7 @@ import java.util.Locale
 fun GpaOverviewCard(book: GradeBook, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Stat("总 GPA", String.format(Locale.US, "%.2f", book.overallGpa))
+        Stat("加权均分", book.overallAvgScore?.let { String.format(Locale.US, "%.1f", it) } ?: "—")
         Stat("总学分", String.format(Locale.US, "%.1f", book.totalCredits))
         Stat("专业排名", book.overallRank?.majorPercentile?.let { "前 $it%" } ?: "—")
     }
