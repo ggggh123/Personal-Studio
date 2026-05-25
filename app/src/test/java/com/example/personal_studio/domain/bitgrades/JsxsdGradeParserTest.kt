@@ -74,6 +74,12 @@ class JsxsdGradeParserTest {
         assertEquals("2023-2024-2", phys.termCode)
     }
 
+    @Test fun `extracts cjfx detail path from 操作栏 onclick`() {
+        val byName = parser.parse(html, fetchedAt = 9L).associateBy { it.courseName }
+        val path = byName["思想道德修养"]!!.detailPath
+        assertTrue(path != null && "/jsxsd/kscj/cjfx" in path && "kch=100028016" in path)
+    }
+
     @Test fun `no dataList table yields empty`() {
         assertEquals(0, parser.parse("<html><body>nothing</body></html>", 1L).size)
     }

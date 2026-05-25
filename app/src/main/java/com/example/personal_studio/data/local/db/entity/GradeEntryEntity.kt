@@ -33,4 +33,8 @@ data class GradeEntryEntity(
     val attemptType: String,
     val isPass: Boolean,
     val fetchedAt: Long,
+    val detailPath: String? = null,   // cjfx 成绩分析 相对路径(用于拉详情)
+    val courseAvg: Double? = null,    // 该课平均分
+    val classRankText: String? = null, // 本人成绩在班级中占(原文,如"前20%")
+    val majorRankText: String? = null, // 本人成绩在专业中占(≈年级排名)
 )

@@ -9,9 +9,13 @@ import com.example.personal_studio.data.network.bit.service.BitJwmsService
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
 import com.example.personal_studio.domain.bitgrades.model.SyncGradesStep
+import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
+import com.example.personal_studio.data.local.db.entity.TermRankEntity
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
+import org.junit.Assert.assertEquals
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -40,7 +44,7 @@ class SyncGradesUseCaseTest {
 
     @Test fun `wrong password emits Failed and closes session`() = runTest {
         val api = mockk<BitApiClient>(relaxed = true)
-        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.WrongCredentials), JsxsdGradeParser(), mockk(relaxed = true))
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.WrongCredentials), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
 
         useCase.sync(req()).test {
             assertTrue(awaitItem() is SyncGradesStep.LoggingIn)
@@ -63,7 +67,7 @@ class SyncGradesUseCaseTest {
             coEvery { this@mockk.jwms } returns jwms
         }
         val replacer = mockk<ReplaceGradesUseCase>(relaxed = true)
-        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), replacer)
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), replacer)
 
         useCase.sync(req()).test {
             assertTrue(awaitItem() is SyncGradesStep.LoggingIn)
@@ -78,6 +82,40 @@ class SyncGradesUseCaseTest {
         coVerify(exactly = 1) { api.close() }
     }
 
+    @Test fun `cjfx detail fetched concurrently and merged into persisted entry`() = runTest {
+        val cas = mockk<BitCasService>(relaxed = true)
+        val jwms = mockk<BitJwmsService> {
+            coEvery { getScoreListHtml() } returns scoreHtml(
+                """<tr><td>2024-2025-2</td><td>高数</td><td>5.0</td><td>92</td>
+                   <td><a onclick="JsMod('/jsxsd/kscj/cjfx?kch=100028016&cjfs=C')">成绩分析</a></td></tr>""",
+            )
+            coEvery { getCourseDetailHtml(any()) } returns html(
+                """<table><tr><td>平均分：88</td><td>本人成绩在班级中占：前10%</td></tr></table>""",
+            )
+        }
+        val api = mockk<BitApiClient>(relaxed = true) {
+            coEvery { this@mockk.cas } returns cas
+            coEvery { this@mockk.jwms } returns jwms
+        }
+        val replacer = mockk<ReplaceGradesUseCase>(relaxed = true)
+        val captured = slot<List<GradeEntryEntity>>()
+        coEvery { replacer.invoke(capture(captured), any<List<TermRankEntity>>()) } returns Unit
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), replacer)
+
+        useCase.sync(req()).test {
+            assertTrue(awaitItem() is SyncGradesStep.LoggingIn)
+            assertTrue(awaitItem() is SyncGradesStep.FetchingGrades)
+            assertTrue(awaitItem() is SyncGradesStep.FetchingRanks)
+            assertTrue(awaitItem() is SyncGradesStep.Persisting)
+            assertTrue(awaitItem() is SyncGradesStep.Done)
+            awaitComplete()
+        }
+        coVerify(exactly = 1) { jwms.getCourseDetailHtml(any()) }
+        val entry = captured.captured.single()
+        assertEquals(88.0, entry.courseAvg!!, 0.001)
+        assertEquals("前10%", entry.classRankText)
+    }
+
     @Test fun `empty table emits Failed-EmptyGrades`() = runTest {
         val jwms = mockk<BitJwmsService> {
             coEvery { getScoreListHtml() } returns html("<html><body>no table here</body></html>")
@@ -86,7 +124,7 @@ class SyncGradesUseCaseTest {
             coEvery { this@mockk.cas } returns mockk(relaxed = true)
             coEvery { this@mockk.jwms } returns jwms
         }
-        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), mockk(relaxed = true))
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
 
         useCase.sync(req()).test {
             assertTrue(awaitItem() is SyncGradesStep.LoggingIn)
@@ -104,7 +142,7 @@ class SyncGradesUseCaseTest {
             coEvery { this@mockk.cas } returns mockk(relaxed = true)
             coEvery { this@mockk.jwms } returns jwms
         }
-        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), mockk(relaxed = true))
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
 
         useCase.sync(req()).test {
             assertTrue(awaitItem() is SyncGradesStep.LoggingIn)

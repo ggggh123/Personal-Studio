@@ -47,6 +47,8 @@ class JsxsdGradeParser @Inject constructor() {
             val term = at(ciTerm).takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val score = at(ciScore)
             val point = BitGpaConverter.toGradePoint(score)
+            // 操作栏里的"成绩分析"链接 → cjfx 详情相对路径（平均分/排名在 F1 阶段并发拉取）。
+            val detailPath = CJFX.find(row)?.value?.replace("&amp;", "&")
             GradeEntryEntity(
                 termCode = term,
                 termName = term,
@@ -62,6 +64,7 @@ class JsxsdGradeParser @Inject constructor() {
                 attemptType = at(ciAttempt).let { if (it.isBlank() || "正常" in it) "正常" else it },
                 isPass = computePass(point, score),
                 fetchedAt = fetchedAt,
+                detailPath = detailPath,
             )
         }
     }
@@ -90,5 +93,7 @@ class JsxsdGradeParser @Inject constructor() {
         private val CELL = Regex("""<t[dh][^>]*>(.*?)</t[dh]>""", RegexOption.DOT_MATCHES_ALL)
         private val TAG = Regex("""<[^>]*>""")
         private val WS = Regex("""\s+""")
+        /** cjcx_list 行操作栏里 JsMod('/jsxsd/kscj/cjfx?...') 的相对路径。 */
+        private val CJFX = Regex("""/jsxsd/kscj/cjfx\?[^'"\\)]+""")
     }
 }

@@ -9,6 +9,9 @@ import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
 import com.example.personal_studio.domain.bitgrades.model.SyncGradesStep
 import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.IOException
@@ -29,6 +32,7 @@ class SyncGradesUseCase @Inject constructor(
     private val apiClient: BitApiClient,
     private val ssoLogin: SsoLoginUseCase,
     private val parser: JsxsdGradeParser,
+    private val detailParser: JsxsdDetailParser,
     private val replacer: ReplaceGradesUseCase,
 ) {
     fun sync(req: GradesSyncRequest): Flow<SyncGradesStep> = flow {
@@ -52,14 +56,17 @@ class SyncGradesUseCase @Inject constructor(
             val entries = parser.parse(html, now)
             if (entries.isEmpty()) { emit(SyncGradesStep.Failed(GradesSyncError.EmptyGrades)); return@flow }
 
-            emit(SyncGradesStep.FetchingRanks)   // M1：仅按学期聚合 GPA（无排名网络调用）
-            val ranks = buildTermRanks(entries, now)
+            emit(SyncGradesStep.FetchingRanks)   // 并发拉每门课的 cjfx 详情(平均分/排名)
+            val enriched: List<GradeEntryEntity> = coroutineScope {
+                entries.map { e -> async { enrich(e) } }.awaitAll()
+            }
+            val ranks = buildTermRanks(enriched, now)
 
             emit(SyncGradesStep.Persisting)
-            replacer.invoke(entries, ranks)
+            replacer.invoke(enriched, ranks)
 
-            val termCount = entries.map { it.termCode }.distinct().size
-            emit(SyncGradesStep.Done(termCount, entries.size))
+            val termCount = enriched.map { it.termCode }.distinct().size
+            emit(SyncGradesStep.Done(termCount, enriched.size))
         } catch (io: IOException) {
             emit(SyncGradesStep.Failed(GradesSyncError.NetworkFail(io)))
         } catch (e: Throwable) {
@@ -67,6 +74,22 @@ class SyncGradesUseCase @Inject constructor(
         } finally {
             apiClient.close()
         }
+    }
+
+    /** 拉一门课的 cjfx 详情并合并平均分/排名。无 detailPath 或任何失败都非致命：
+     *  原样返回该条目（不阻断整次同步）。 */
+    private suspend fun enrich(e: GradeEntryEntity): GradeEntryEntity {
+        val path = e.detailPath ?: return e
+        val info = runCatching {
+            val r = apiClient.jwms.getCourseDetailHtml(path)
+            if (r.isSuccessful) detailParser.parse((r.body() ?: r.errorBody())?.string().orEmpty())
+            else null
+        }.getOrNull() ?: return e
+        return e.copy(
+            courseAvg = info.courseAvg,
+            classRankText = info.classRankText,
+            majorRankText = info.majorRankText,
+        )
     }
 
     /** 每学期一条 TermRankEntity（仅 weightedGpa；排名字段 M1 留 null）+ OVERALL 一条。 */

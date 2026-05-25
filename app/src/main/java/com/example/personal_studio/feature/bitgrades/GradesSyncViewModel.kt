@@ -67,7 +67,7 @@ class GradesSyncViewModel @Inject constructor(
     private fun reduce(st: GradesSyncUiState, step: SyncGradesStep): GradesSyncUiState = when (step) {
         SyncGradesStep.LoggingIn -> st.copy(syncing = true, progressSteps = listOf("登录中..."))
         SyncGradesStep.FetchingGrades -> st.copy(progressSteps = st.progressSteps + "拉取成绩")
-        SyncGradesStep.FetchingRanks -> st.copy(progressSteps = st.progressSteps + "整理成绩")
+        SyncGradesStep.FetchingRanks -> st.copy(progressSteps = st.progressSteps + "拉取课程详情")
         SyncGradesStep.Persisting -> st.copy(progressSteps = st.progressSteps + "写入本地")
         is SyncGradesStep.Done -> {
             if (st.rememberPwd) credPrefs.save(st.username, st.password, st.networkMode)
