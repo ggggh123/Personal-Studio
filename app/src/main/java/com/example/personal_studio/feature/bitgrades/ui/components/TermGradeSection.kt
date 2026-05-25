@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.domain.bitgrades.model.TermGrades
 import com.example.personal_studio.ui.theme.Amber
@@ -51,16 +52,20 @@ fun TermGradeSection(
             )
             Spacer(Modifier.width(4.dp))
             Row(Modifier.weight(1f).clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
-                Text(if (expanded) "▾ ${term.termName}" else "▸ ${term.termName}", color = Phosphor)
                 Text(
-                    "  ${term.courses.size}门 · ${String.format(Locale.US, "%.1f", credits)}学分",
-                    color = FoamMute,
+                    if (expanded) "▾ ${term.termName}" else "▸ ${term.termName}",
+                    color = Phosphor, maxLines = 1,
                 )
-                Spacer(Modifier.weight(1f))
-                Text("GPA ${String.format(Locale.US, "%.2f", term.weightedGpa)}", color = FoamMute)
-                term.rank?.let { r ->
-                    r.majorRank?.let { Text("  专业$it/${r.majorTotal}", color = FoamMute) }
-                }
+                Text(
+                    "  ${term.courses.size}门·${String.format(Locale.US, "%.1f", credits)}学分",
+                    color = FoamMute, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "GPA ${String.format(Locale.US, "%.2f", term.weightedGpa)}",
+                    color = FoamMute, maxLines = 1, softWrap = false,
+                )
             }
         }
         AnimatedVisibility(expanded) {
