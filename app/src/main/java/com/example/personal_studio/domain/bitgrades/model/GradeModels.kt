@@ -11,6 +11,9 @@ data class GradeItem(
     val category: String?,
     val attemptType: String,
     val isPass: Boolean,
+    val courseAvg: Double? = null,        // 该课平均分
+    val classRankText: String? = null,    // 本人成绩在班级中占(原文,如"前20%")
+    val majorRankText: String? = null,    // 本人成绩在专业中占
 )
 
 /** 排名（班级/专业），任一可缺。 */

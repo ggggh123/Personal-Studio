@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,7 +20,9 @@ import androidx.compose.ui.unit.dp
 import com.example.personal_studio.domain.bitgrades.model.TermGrades
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
+import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
+import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import java.util.Locale
@@ -44,15 +47,32 @@ fun TermGradeSection(term: TermGrades, initiallyExpanded: Boolean = false) {
         AnimatedVisibility(expanded) {
             Column {
                 term.courses.forEach { c ->
-                    Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 2.dp)) {
-                        Text(c.courseName, color = if (!c.isPass) Carmine else Foam,
-                            modifier = Modifier.weight(1f))
-                        Text(String.format(Locale.US, "%.1f", c.credit), color = FoamMute,
-                            modifier = Modifier.width(40.dp))
-                        Text(c.score, color = if (!c.isPass) Carmine else Foam,
-                            modifier = Modifier.width(48.dp))
-                        if (!c.isPass) Text("⚠挂科", color = Carmine)
-                        else if (c.attemptType != "正常") Text(c.attemptType, color = Amber)
+                    var courseExpanded by remember(c.courseCode + c.score) { mutableStateOf(false) }
+                    Column(Modifier.fillMaxWidth().clickable { courseExpanded = !courseExpanded }) {
+                        Row(Modifier.fillMaxWidth().padding(start = 12.dp, top = 2.dp)) {
+                            Text((if (courseExpanded) "▾ " else "▸ ") + c.courseName,
+                                color = if (!c.isPass) Carmine else Foam,
+                                modifier = Modifier.weight(1f))
+                            Text(String.format(Locale.US, "%.1f", c.credit), color = FoamMute,
+                                modifier = Modifier.width(40.dp))
+                            Text(c.score, color = if (!c.isPass) Carmine else Foam,
+                                modifier = Modifier.width(48.dp))
+                            if (!c.isPass) Text("⚠挂科", color = Carmine)
+                            else if (c.attemptType != "正常") Text(c.attemptType, color = Amber)
+                        }
+                        AnimatedVisibility(courseExpanded) {
+                            val parts = buildList {
+                                c.courseAvg?.let { add("平均分 " + String.format(Locale.US, "%.1f", it)) }
+                                c.classRankText?.let { add("班级 $it") }
+                                c.majorRankText?.let { add("专业 $it") }
+                            }
+                            Text(
+                                if (parts.isEmpty()) "无详情" else parts.joinToString("  ·  "),
+                                color = if (parts.isEmpty()) FoamDim else Cyan,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(start = 28.dp, top = 1.dp, bottom = 3.dp),
+                            )
+                        }
                     }
                 }
             }

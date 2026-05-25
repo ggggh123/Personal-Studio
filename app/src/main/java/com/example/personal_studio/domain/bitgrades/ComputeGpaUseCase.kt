@@ -50,6 +50,7 @@ class ComputeGpaUseCase @Inject constructor() {
 
     private fun GradeEntryEntity.toItem() = GradeItem(
         courseName, courseCode, credit, score, gradePoint, gradeLetter, category, attemptType, isPass,
+        courseAvg = courseAvg, classRankText = classRankText, majorRankText = majorRankText,
     )
     private fun TermRankEntity.toTermRank() = TermRank(classRank, classTotal, majorRank, majorTotal)
 }
