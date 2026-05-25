@@ -57,7 +57,9 @@ class JsxsdGradeParser @Inject constructor() {
                 gradePoint = point,
                 gradeLetter = null,
                 category = at(ciCategory).ifBlank { null },
-                attemptType = at(ciAttempt).ifBlank { "正常" },
+                // 正方"考试性质"形如"正常考试"/"重修"/"补考"——归一化:含"正常"即视为正常
+                // (否则每门正常课都会被高亮)，重修/补考才保留原值。
+                attemptType = at(ciAttempt).let { if (it.isBlank() || "正常" in it) "正常" else it },
                 isPass = computePass(point, score),
                 fetchedAt = fetchedAt,
             )

@@ -29,18 +29,18 @@ class JsxsdGradeParserTest {
           <tr>
             <td>1</td><td>2024-2025-1</td><td>100028016</td><td align="left">思想道德修养</td>
             <td><a href="javascript:JsMod('/jsxsd/kscj/pscj_list.do?zcj=优秀')">优秀</a></td><td></td>
-            <td>3.0</td><td>48</td><td>正常</td><td>考试</td><td></td><td>必修</td>
+            <td>3.0</td><td>48</td><td>正常考试</td><td>考试</td><td></td><td>必修</td>
             <td></td><td></td><td>是</td>
             <td><a onclick="JsMod('/jsxsd/kscj/cjfx?xnxq01id=2024-2025-1&kch=100028016&cjfs=C')">成绩分析</a></td>
           </tr>
           <tr>
             <td>2</td><td>2024-2025-1</td><td>100171018</td><td align="left">数学分析I</td>
-            <td><a href="x">80</a></td><td></td><td>5.0</td><td>80</td><td>正常</td><td>考试</td>
+            <td><a href="x">80</a></td><td></td><td>5.0</td><td>80</td><td>正常考试</td><td>考试</td>
             <td></td><td>必修</td><td></td><td></td><td>是</td><td><a>成绩分析</a></td>
           </tr>
           <tr>
             <td>3</td><td>2023-2024-2</td><td>100070006</td><td align="left">物理实验</td>
-            <td><a href="x">不及格</a></td><td></td><td>2.0</td><td>32</td><td>正常</td><td>考查</td>
+            <td><a href="x">不及格</a></td><td></td><td>2.0</td><td>32</td><td>正常考试</td><td>考查</td>
             <td></td><td>必修</td><td></td><td></td><td>是</td><td><a>成绩分析</a></td>
           </tr>
         </table></body></html>
