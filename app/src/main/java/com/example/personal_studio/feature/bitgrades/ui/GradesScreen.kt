@@ -99,10 +99,22 @@ fun GradesScreen(
     }
 }
 
-/** "2024-2025学年 第二学期" → "24-25下" 之类的短名（尽力而为）。 */
-private fun shortTerm(name: String): String =
-    name.replace("学年", "").replace("第一学期", "上").replace("第二学期", "下")
-        .replace(" ", "").take(8)
+/** 学期短名（x 轴标签）。正方学期形如 "2024-2025-1" → "24秋"/"25春"/"25夏"；
+ *  退化到带"学年/学期"的命名格式时尽力缩写。 */
+private fun shortTerm(name: String): String {
+    val m = Regex("""(\d{4})-(\d{4})-(\d)""").find(name)
+    if (m != null) {
+        val (y1, y2, sem) = m.destructured
+        return when (sem) {
+            "1" -> "${y1.takeLast(2)}秋"
+            "2" -> "${y2.takeLast(2)}春"
+            "3" -> "${y2.takeLast(2)}夏"
+            else -> "${y1.takeLast(2)}-${y2.takeLast(2)}"
+        }
+    }
+    return name.replace("学年", "").replace("第一学期", "上").replace("第二学期", "下")
+        .replace(" ", "").take(6)
+}
 
 @Composable
 private fun Panel(modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
