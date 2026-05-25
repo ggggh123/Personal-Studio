@@ -1,6 +1,7 @@
 package com.example.personal_studio.feature.bitgrades.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +51,7 @@ fun GradesScreen(
     Column(Modifier.fillMaxSize().background(Void).statusBarsPadding().padding(16.dp)
         .verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onBack) { Text("←", color = FoamMute) }
             Text("$ transcript", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             TextButton(onSync) { Text("↻ 同步") }
@@ -63,19 +65,23 @@ fun GradesScreen(
         }
 
         Spacer(Modifier.height(12.dp))
-        GpaOverviewCard(st.book)
+        Panel { GpaOverviewCard(st.book) }
 
-        Spacer(Modifier.height(20.dp))
-        Text("GPA 趋势", color = FoamMute)
-        val points = st.book.terms.reversed().map { LinePoint(shortTerm(it.termName), it.weightedGpa) }
-        GpaLineChart(points)
+        Spacer(Modifier.height(8.dp))
+        Panel {
+            Text("GPA 趋势", color = FoamMute)
+            val points = st.book.terms.reversed().map { LinePoint(shortTerm(it.termName), it.weightedGpa) }
+            GpaLineChart(points)
+        }
 
-        Spacer(Modifier.height(20.dp))
-        Text("成绩分布", color = FoamMute)
-        val allCourses = st.book.terms.flatMap { it.courses }
-        GradeBarChart(GradeBucketer.bucket(allCourses))
+        Spacer(Modifier.height(8.dp))
+        Panel {
+            Text("成绩分布", color = FoamMute)
+            val allCourses = st.book.terms.flatMap { it.courses }
+            GradeBarChart(GradeBucketer.bucket(allCourses))
+        }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(8.dp))
         st.book.terms.forEachIndexed { i, t -> TermGradeSection(t, initiallyExpanded = i == 0) }
 
         Spacer(Modifier.height(20.dp))
@@ -97,3 +103,15 @@ fun GradesScreen(
 private fun shortTerm(name: String): String =
     name.replace("学年", "").replace("第一学期", "上").replace("第二学期", "下")
         .replace(" ", "").take(8)
+
+@Composable
+private fun Panel(modifier: Modifier = Modifier, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    androidx.compose.foundation.layout.Column(
+        modifier.fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .border(1.dp, com.example.personal_studio.ui.theme.Rule, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .background(com.example.personal_studio.ui.theme.Deep, androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .padding(12.dp),
+        content = content,
+    )
+}

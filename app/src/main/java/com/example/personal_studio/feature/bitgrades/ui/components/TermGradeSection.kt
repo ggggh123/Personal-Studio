@@ -28,8 +28,13 @@ import java.util.Locale
 fun TermGradeSection(term: TermGrades, initiallyExpanded: Boolean = false) {
     var expanded by remember { mutableStateOf(initiallyExpanded) }
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        val credits = term.courses.sumOf { it.credit }
         Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }) {
             Text(if (expanded) "▾ ${term.termName}" else "▸ ${term.termName}", color = Phosphor)
+            Text(
+                "  ${term.courses.size}门 · ${String.format(Locale.US, "%.1f", credits)}学分",
+                color = FoamMute,
+            )
             Spacer(Modifier.weight(1f))
             Text("GPA ${String.format(Locale.US, "%.2f", term.weightedGpa)}", color = FoamMute)
             term.rank?.let { r ->
