@@ -37,6 +37,11 @@ object BitGpaConverter {
         return null
     }
 
+    /** 数值版绩点换算（用于"估计平均绩"——用课程平均分代入公式）。<60 → 0；
+     *  否则 4 − 3×(100−x)²/1600。等级制平均分不适用（cjfx 平均分总是数字）。 */
+    fun toGradePoint(numericScore: Double): Double =
+        if (numericScore < 60.0) 0.0 else 4.0 - 3.0 * (100 - numericScore) * (100 - numericScore) / 1600.0
+
     /** 等级→代表分（用于加权均分）：优秀95/良好85/中等75/及格65/不及格40；
      *  百分制原样；二级制(通过/合格/免修)与缺考/作弊返回 null(不计入均分)。 */
     fun toScore(rawScore: String): Double? {

@@ -5,7 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +29,8 @@ fun GpaOverviewCard(
     gpa: Double,
     avgScore: Double?,
     credits: Double,
+    peerGpa: Double? = null,
+    peerAvgScore: Double? = null,
     filtering: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -36,13 +40,30 @@ fun GpaOverviewCard(
     val animGpa by animateFloatAsState(gpa.toFloat(), animationSpec = spec, label = "gpa")
     val animAvg by animateFloatAsState((avgScore ?: 0.0).toFloat(), animationSpec = spec, label = "avg")
     val animCredits by animateFloatAsState(credits.toFloat(), animationSpec = spec, label = "credits")
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Stat(if (filtering) "选中 GPA" else "总 GPA",
-            String.format(Locale.US, "%.2f", animGpa), Phosphor)
-        Stat(if (filtering) "选中均分" else "加权均分",
-            if (avgScore == null) "—" else String.format(Locale.US, "%.1f", animAvg), Cyan)
-        Stat(if (filtering) "选中学分" else "总学分",
-            String.format(Locale.US, "%.1f", animCredits), Phosphor)
+    val animPeerGpa by animateFloatAsState((peerGpa ?: 0.0).toFloat(), animationSpec = spec, label = "peerGpa")
+    val animPeerAvg by animateFloatAsState((peerAvgScore ?: 0.0).toFloat(), animationSpec = spec, label = "peerAvg")
+    Column(modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Stat(if (filtering) "选中 GPA" else "总 GPA",
+                String.format(Locale.US, "%.2f", animGpa), Phosphor)
+            Stat(if (filtering) "选中均分" else "加权均分",
+                if (avgScore == null) "—" else String.format(Locale.US, "%.1f", animAvg), Cyan)
+            Stat(if (filtering) "选中学分" else "总学分",
+                String.format(Locale.US, "%.1f", animCredits), Phosphor)
+        }
+        if (peerGpa != null || peerAvgScore != null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                buildString {
+                    append(if (filtering) "选中估计平均绩  " else "估计平均绩  ")
+                    peerGpa?.let { append("GPA ").append(String.format(Locale.US, "%.2f", animPeerGpa)) }
+                    if (peerGpa != null && peerAvgScore != null) append("  ·  ")
+                    peerAvgScore?.let { append("均分 ").append(String.format(Locale.US, "%.1f", animPeerAvg)) }
+                },
+                color = FoamMute,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
     }
 }
 

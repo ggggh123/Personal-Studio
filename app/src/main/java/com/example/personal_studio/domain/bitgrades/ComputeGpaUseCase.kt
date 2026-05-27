@@ -30,13 +30,29 @@ class ComputeGpaUseCase @Inject constructor() {
             .sortedByDescending { it.termCode }
         val overallGpa = GpaCalculator.weightedGpa(entries.map { it.credit to it.gradePoint })
         val totalCredits = entries.filter { it.gradePoint != null }.sumOf { it.credit }
+        val (peerScore, peerGpa) = peerStats(entries)
         return GradeBook(
             terms = terms,
             overallGpa = overallGpa,
             totalCredits = totalCredits,
             overallAvgScore = weightedAvgScore(entries),
+            overallPeerAvgScore = peerScore,
+            overallPeerAvgGpa = peerGpa,
             overallRank = rankByTerm["OVERALL"]?.toTermRank(),
         )
+    }
+
+    /** 估计平均绩（peer benchmark）：用各课的 courseAvg (cjfx 平均分) 做学分加权。
+     *  返回 (平均分版, 绩点版)；两者都基于有 courseAvg 的课程子集。 */
+    private fun peerStats(rows: List<GradeEntryEntity>): Pair<Double?, Double?> {
+        var c = 0.0; var sumScore = 0.0; var sumGpa = 0.0
+        rows.forEach { r ->
+            val avg = r.courseAvg ?: return@forEach
+            c += r.credit
+            sumScore += r.credit * avg
+            sumGpa += r.credit * com.example.personal_studio.core.util.BitGpaConverter.toGradePoint(avg)
+        }
+        return if (c == 0.0) (null to null) else (sumScore / c) to (sumGpa / c)
     }
 
     private fun weightedAvgScore(rows: List<GradeEntryEntity>): Double? {

@@ -18,7 +18,7 @@ class AnalyzeGradesUseCaseTest {
                 LlmChunk.Text("你的"), LlmChunk.Text("趋势向好"), LlmChunk.Done(0),
             )
         }
-        val book = GradeBook(emptyList(), 3.5, 30.0, null, null)
+        val book = GradeBook(emptyList(), 3.5, 30.0, null, overallRank = null)
         val out = StringBuilder()
         AnalyzeGradesUseCase(llm, BuildGradeSummaryUseCase()).invoke(book).test {
             out.append(awaitItem()); out.append(awaitItem()); awaitComplete()

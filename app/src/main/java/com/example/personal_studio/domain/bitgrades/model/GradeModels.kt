@@ -43,6 +43,8 @@ data class GradeBook(
     val overallGpa: Double,
     val totalCredits: Double,
     val overallAvgScore: Double?,
+    val overallPeerAvgScore: Double? = null,
+    val overallPeerAvgGpa: Double? = null,
     val overallRank: TermRank?,
 ) {
     val isEmpty: Boolean get() = terms.isEmpty()

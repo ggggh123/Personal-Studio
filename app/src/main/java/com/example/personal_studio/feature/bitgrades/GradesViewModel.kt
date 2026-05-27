@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class GradesUiState(
-    val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null, null),
+    val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null, overallRank = null),
     val analysis: String = "",
     val analyzing: Boolean = false,
     val analysisError: String? = null,
@@ -28,6 +28,8 @@ data class GradesUiState(
     val selectedCredits: Double = 0.0,
     val selectedCount: Int = 0,
     val filtering: Boolean = false,   // true when excludedIds non-empty
+    val selectedPeerAvgScore: Double? = null,
+    val selectedPeerAvgGpa: Double? = null,
 )
 
 @HiltViewModel
@@ -53,6 +55,11 @@ class GradesViewModel @Inject constructor(
             included.forEach { c -> com.example.personal_studio.core.util.BitGpaConverter.toScore(c.score)?.let { sc += c.credit; sw += c.credit * it } }
             if (sc == 0.0) null else sw / sc
         }
+        val (selPeerScore, selPeerGpa) = run {
+            var c = 0.0; var ss = 0.0; var sg = 0.0
+            included.forEach { course -> course.courseAvg?.let { a -> c += course.credit; ss += course.credit * a; sg += course.credit * com.example.personal_studio.core.util.BitGpaConverter.toGradePoint(a) } }
+            if (c == 0.0) (null to null) else (ss / c) to (sg / c)
+        }
         local.copy(
             book = book,
             selectedGpa = selGpa,
@@ -60,6 +67,8 @@ class GradesViewModel @Inject constructor(
             selectedCredits = selCredits,
             selectedCount = included.size,
             filtering = local.excludedIds.isNotEmpty(),
+            selectedPeerAvgScore = selPeerScore,
+            selectedPeerAvgGpa = selPeerGpa,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesUiState())
 

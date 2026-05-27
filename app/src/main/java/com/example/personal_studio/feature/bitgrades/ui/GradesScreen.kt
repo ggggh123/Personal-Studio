@@ -73,6 +73,8 @@ fun GradesScreen(
                 gpa = if (st.filtering) st.selectedGpa else st.book.overallGpa,
                 avgScore = if (st.filtering) st.selectedAvgScore else st.book.overallAvgScore,
                 credits = if (st.filtering) st.selectedCredits else st.book.totalCredits,
+                peerGpa = if (st.filtering) st.selectedPeerAvgGpa else st.book.overallPeerAvgGpa,
+                peerAvgScore = if (st.filtering) st.selectedPeerAvgScore else st.book.overallPeerAvgScore,
                 filtering = st.filtering,
             )
             if (st.filtering) {
