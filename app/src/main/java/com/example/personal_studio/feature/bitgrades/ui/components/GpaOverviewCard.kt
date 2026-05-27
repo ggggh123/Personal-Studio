@@ -1,5 +1,7 @@
 package com.example.personal_studio.feature.bitgrades.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -27,13 +30,19 @@ fun GpaOverviewCard(
     filtering: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    // ~400ms tween on the three values—numbers smoothly count to the new target
+    // when selection changes (instead of snapping).
+    val spec = tween<Float>(durationMillis = 400)
+    val animGpa by animateFloatAsState(gpa.toFloat(), animationSpec = spec, label = "gpa")
+    val animAvg by animateFloatAsState((avgScore ?: 0.0).toFloat(), animationSpec = spec, label = "avg")
+    val animCredits by animateFloatAsState(credits.toFloat(), animationSpec = spec, label = "credits")
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Stat(if (filtering) "选中 GPA" else "总 GPA",
-            String.format(Locale.US, "%.2f", gpa), Phosphor)
+            String.format(Locale.US, "%.2f", animGpa), Phosphor)
         Stat(if (filtering) "选中均分" else "加权均分",
-            avgScore?.let { String.format(Locale.US, "%.1f", it) } ?: "—", Cyan)
+            if (avgScore == null) "—" else String.format(Locale.US, "%.1f", animAvg), Cyan)
         Stat(if (filtering) "选中学分" else "总学分",
-            String.format(Locale.US, "%.1f", credits), Phosphor)
+            String.format(Locale.US, "%.1f", animCredits), Phosphor)
     }
 }
 
