@@ -2,6 +2,8 @@
 <paths>
     <!-- Exported PDFs from PdfExporter land under cacheDir/export/. -->
     <cache-path name="export" path="export/" />
+    <!-- 分享卡片 PNG 临时落到 cacheDir/share/ 通过 FileProvider 暴露给系统分享 -->
+    <cache-path name="share" path="share/" />
     <!-- Scan originals + enhanced JPEGs under filesDir/scans/. -->
     <files-path name="scans" path="scans/" />
 </paths>

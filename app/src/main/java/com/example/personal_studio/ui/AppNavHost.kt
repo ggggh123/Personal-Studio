@@ -211,6 +211,7 @@ fun AppNavHost(navController: NavHostController) {
                 onSync = { navController.navigate(NavRoutes.GRADES_SYNC) },
                 onOpenChat = { sid -> navController.navigate(NavRoutes.chatDetail(sid)) },
                 onOpenWhatIf = { navController.navigate(NavRoutes.GRADES_WHATIF) },
+                onOpenShare = { navController.navigate(NavRoutes.GRADES_SHARE) },
             )
         }
         composable(NavRoutes.GRADES_SYNC) {
@@ -221,6 +222,11 @@ fun AppNavHost(navController: NavHostController) {
         }
         composable(NavRoutes.GRADES_WHATIF) {
             com.example.personal_studio.feature.bitgrades.ui.WhatIfScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(NavRoutes.GRADES_SHARE) {
+            com.example.personal_studio.feature.bitgrades.ui.ShareCardScreen(
                 onBack = { navController.popBackStack() },
             )
         }

@@ -65,6 +65,7 @@ object NavRoutes {
     const val GRADES = "grades"
     const val GRADES_SYNC = "grades/sync"
     const val GRADES_WHATIF = "grades/whatif"
+    const val GRADES_SHARE = "grades/share"
 
     // Settings sub-pages (P4)
     const val SETTINGS_TIMETABLE = "settings/timetable"
