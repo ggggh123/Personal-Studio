@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.personal_studio.core.util.CreditFormat
 import com.example.personal_studio.domain.bitgrades.model.TermGrades
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
@@ -57,7 +58,7 @@ fun TermGradeSection(
                     color = Phosphor, maxLines = 1,
                 )
                 Text(
-                    "  ${term.courses.size}门·${String.format(Locale.US, "%.1f", credits)}学分",
+                    "  ${term.courses.size}门·${CreditFormat.format(credits)}学分",
                     color = FoamMute, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
@@ -92,7 +93,7 @@ fun TermGradeSection(
                                 Text((if (courseExpanded) "▾ " else "▸ ") + c.courseName,
                                     color = if (!c.isPass) Carmine else if (excluded) FoamDim else Foam,
                                     modifier = Modifier.weight(1f))
-                                Text(String.format(Locale.US, "%.1f", c.credit), color = FoamMute,
+                                Text(CreditFormat.format(c.credit), color = FoamMute,
                                     modifier = Modifier.width(40.dp))
                                 Text(c.score, color = if (!c.isPass) Carmine else if (excluded) FoamDim else Foam,
                                     modifier = Modifier.width(48.dp))

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.core.util.CreditFormat
 import com.example.personal_studio.feature.bitgrades.WhatIfMode
 import com.example.personal_studio.feature.bitgrades.WhatIfViewModel
 import com.example.personal_studio.ui.theme.Amber
@@ -46,7 +47,7 @@ fun WhatIfScreen(onBack: () -> Unit, vm: WhatIfViewModel = hiltViewModel()) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "当前  总学分 ${fmt1(st.book.totalCredits)}   总 GPA ${fmt2(st.book.overallGpa)}",
+            "当前  总学分 ${CreditFormat.format(st.book.totalCredits)}   总 GPA ${fmt2(st.book.overallGpa)}",
             color = FoamMute,
         )
         Spacer(Modifier.height(16.dp))

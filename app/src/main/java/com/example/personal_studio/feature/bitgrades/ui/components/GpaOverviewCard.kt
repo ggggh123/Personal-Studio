@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.personal_studio.core.util.CreditFormat
 import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
@@ -49,7 +50,7 @@ fun GpaOverviewCard(
             Stat(if (filtering) "选中均分" else "加权均分",
                 if (avgScore == null) "—" else String.format(Locale.US, "%.1f", animAvg), Cyan)
             Stat(if (filtering) "选中学分" else "总学分",
-                String.format(Locale.US, "%.1f", animCredits), Phosphor)
+                CreditFormat.format(animCredits.toDouble()), Phosphor)
         }
         if (peerGpa != null || peerAvgScore != null) {
             Spacer(Modifier.height(6.dp))
