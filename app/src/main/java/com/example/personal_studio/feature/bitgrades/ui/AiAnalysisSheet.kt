@@ -15,8 +15,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.personal_studio.ui.components.MarkdownText
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,8 +35,19 @@ fun AiAnalysisSheet(
             Text("$ ai-analysis", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             error?.let { Text(it, color = Carmine) }
-            Text(text.ifBlank { if (analyzing) "分析中..." else "" }, color = Foam,
-                modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()))
+            if (text.isBlank()) {
+                Text(
+                    if (analyzing) "分析中..." else "",
+                    color = FoamMute, style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                // 渲染流式 markdown:## 标题/列表/粗体/代码 等(streaming-safe)
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                ) {
+                    MarkdownText(text = text)
+                }
+            }
             Spacer(Modifier.height(12.dp))
             if (!analyzing && text.isNotBlank()) {
                 Button(onAskInChat, Modifier.fillMaxWidth()) { Text("在聊天里追问 →") }

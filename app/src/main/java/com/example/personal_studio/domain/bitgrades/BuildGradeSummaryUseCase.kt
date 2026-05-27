@@ -16,8 +16,16 @@ class BuildGradeSummaryUseCase @Inject constructor() {
             if (!isPoliticallySensitive(name)) name
             else anonMap.getOrPut(name) { "思政课${++ideoIdx}" }
 
-        appendLine("总GPA=${fmt(book.overallGpa)} 总学分=${CreditFormat.format(book.totalCredits)}")
-        book.overallRank?.majorPercentile?.let { appendLine("专业排名约 前${it}%") }
+        appendLine("总GPA=${fmt(book.overallGpa)} 总学分=${CreditFormat.format(book.totalCredits)}" +
+            (book.overallAvgScore?.let { " 加权均分=${fmt1(it)}" } ?: ""))
+        book.overallRank?.majorPercentile?.let { appendLine("专业总排名约 前${it}%") }
+        // 班级平均水平基准(Jensen-修正后): 让 AI 知道用户 vs 班里平均同学差距
+        if (book.overallPeerAvgGpa != null || book.overallPeerAvgScore != null) {
+            val parts = mutableListOf<String>()
+            book.overallPeerAvgGpa?.let { parts += "GPA=${fmt(it)}" }
+            book.overallPeerAvgScore?.let { parts += "均分=${fmt1(it)}" }
+            appendLine("(参考)估计班级平均水平: ${parts.joinToString(" ")}")
+        }
         book.terms.forEach { t ->
             val rankStr = t.rank?.let { r ->
                 buildString {
@@ -25,10 +33,15 @@ class BuildGradeSummaryUseCase @Inject constructor() {
                     r.majorRank?.let { append(" 专业$it/${r.majorTotal}") }
                 }
             }.orEmpty()
-            appendLine("【${t.termName}】GPA=${fmt(t.weightedGpa)}$rankStr")
+            appendLine("【${t.termName}】GPA=${fmt(t.weightedGpa)}" +
+                (t.avgScore?.let { " 均分=${fmt1(it)}" } ?: "") + rankStr)
             t.courses.forEach { c ->
                 append("- ${displayName(c.courseName)} 学分${CreditFormat.format(c.credit)} 成绩${c.score}")
                 c.gradePoint?.let { append(" 绩点${fmt(it)}") }
+                // 班级/专业相对位次 + 班均(F1 cjfx 详情拉到的) — AI 据此判断"突出"vs"持平"
+                c.courseAvg?.let { append(" 班均${fmt1(it)}") }
+                c.classRankText?.let { append(" 班级前${it}") }
+                c.majorRankText?.let { append(" 专业前${it}") }
                 if (!c.isPass) append(" [挂科]")
                 if (c.attemptType != "正常") append(" [${c.attemptType}]")
                 appendLine()
