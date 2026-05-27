@@ -43,6 +43,10 @@ object DatabaseModule {
         db.timelineDao()
 
     @Provides
+    fun provideGradesDao(db: AppDatabase): com.example.personal_studio.data.local.db.dao.GradesDao =
+        db.gradesDao()
+
+    @Provides
     @Singleton
     fun provideTimelineRepository(
         dao: com.example.personal_studio.data.local.db.dao.TimelineDao,

@@ -343,6 +343,12 @@ fun SettingsScreen(
                 subtitle = "BIT 统一身份认证 · 校内/校外均可",
                 onClick = onNavigateToImport,
             )
+            NavigableRowWithSubtitle(
+                key = "GRADES",
+                value = "从教务系统查询成绩 →",
+                subtitle = "成绩单 · 可视化 · AI 分析",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.GRADES) },
+            )
 
             DashedDivider()
 

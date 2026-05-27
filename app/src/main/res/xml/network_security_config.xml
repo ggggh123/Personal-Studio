@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  默认仍禁止明文流量。仅对 BIT 正方教务 jwms.bit.edu.cn 放行 cleartext：
+  CAS 把 jwms 的 service 注册为 http://jwms.bit.edu.cn/，ticket 校验回跳是明文，
+  必须允许这一个域名的明文请求，成绩才能从正方系统(jsxsd)抓到。其它域名保持加密。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">jwms.bit.edu.cn</domain>
+    </domain-config>
+</network-security-config>

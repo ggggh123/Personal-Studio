@@ -56,7 +56,15 @@ class ChatDetailViewModel @AssistedInject constructor(
 
     init {
         repo.observeMessages(sessionId)
-            .onEach { msgs -> _uiState.update { it.copy(messages = msgs) } }
+            // SYSTEM messages (e.g. the grade-context seeded by StartGradeChatUseCase)
+            // are part of the LLM context but must not render as chat bubbles.
+            .onEach { msgs ->
+                _uiState.update {
+                    it.copy(messages = msgs.filter { m ->
+                        m.role != com.example.personal_studio.domain.model.MessageRole.SYSTEM
+                    })
+                }
+            }
             .launchIn(viewModelScope)
 
         prefs.modelName

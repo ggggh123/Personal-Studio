@@ -6,6 +6,7 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 import retrofit2.http.Url
 
 /**
@@ -45,4 +46,17 @@ interface BitCasService {
         @Field("geolocation") geolocation: String = "",
         @Field("_eventId") eventId: String = "submit",
     ): Response<ResponseBody>
+
+    /**
+     * Service-ticket exchange. After a full password login, CAS holds a
+     * ticket-granting cookie (TGC) on sso.bit.edu.cn. GETting
+     * `cas/login?service=<other service>` with that TGC makes CAS issue a
+     * service ticket and 302 to `<service>?ticket=ST-...`; OkHttp follows it,
+     * the target validates the ticket and sets its own session cookie.
+     *
+     * Used to activate the 正方教务 (jwms) session after the initial login —
+     * jwms registered its service as `http://jwms.bit.edu.cn/`.
+     */
+    @GET("cas/login")
+    suspend fun activateService(@Query("service") service: String): Response<ResponseBody>
 }

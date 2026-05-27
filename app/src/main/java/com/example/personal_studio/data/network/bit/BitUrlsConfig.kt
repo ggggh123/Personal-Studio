@@ -25,21 +25,30 @@ package com.example.personal_studio.data.network.bit
  */
 object BitUrlsConfig {
 
-    data class Hosts(val cas: String, val jwapp: String)
+    data class Hosts(val cas: String, val jwapp: String, val jwms: String)
 
-    /** Campus-network direct. */
+    /** Campus-network direct.
+     *  `jwms` = 正方教务系统 (成绩查询 lives here as HTML, NOT in the ehall app).
+     *  CAS registered jwms's service as http://jwms.bit.edu.cn/, but the host
+     *  also serves https; we fetch over https to avoid cleartext (the CAS
+     *  ticket bounce to http is permitted via network_security_config). */
     val LOCAL = Hosts(
         cas   = "https://sso.bit.edu.cn/",
         jwapp = "https://jxzxehallapp.bit.edu.cn/",
+        jwms  = "http://jwms.bit.edu.cn/",
     )
 
     /** Off-campus through BIT's WebVPN gateway. The /https/<encoded>/ prefix
      *  is BIT's URL-rewriting scheme — verified against BIT101-Android's
-     *  DEFAULT_WEB_VPN_URLS reference table. */
+     *  DEFAULT_WEB_VPN_URLS reference table. The jwms encoded host comes from
+     *  BIT101-GO's score module (the `/http/...` jsxsd prefix). WEBVPN grades
+     *  are untested on real device (same pending status as P5 WebVPN). */
     val WEBVPN = Hosts(
         cas   = "https://sso.bit.edu.cn/",
         jwapp = "https://webvpn.bit.edu.cn/https/" +
             "77726476706e69737468656265737421faef5b842238695c720999bcd6572a216b231105adc27d/",
+        jwms  = "https://webvpn.bit.edu.cn/http/" +
+            "77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/",
     )
 
     fun hostsFor(mode: NetworkMode): Hosts = when (mode) {

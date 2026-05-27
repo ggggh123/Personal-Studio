@@ -36,6 +36,7 @@ class BitApiClient @Inject constructor(
 
     private var casRetrofit: Retrofit? = null
     private var jwappRetrofit: Retrofit? = null
+    private var jwmsRetrofit: Retrofit? = null
     private var openedMode: NetworkMode? = null
 
     /** Opens a session at the given [mode]. Idempotent if same mode re-requested. */
@@ -44,14 +45,16 @@ class BitApiClient @Inject constructor(
         val hosts = BitUrlsConfig.hostsFor(mode)
         casRetrofit = newRetrofit(hosts.cas)
         jwappRetrofit = newRetrofit(hosts.jwapp)
+        jwmsRetrofit = newRetrofit(hosts.jwms)
         openedMode = mode
     }
 
-    /** Drops both Retrofit instances and clears the cookie jar. Subsequent
-     *  access to [cas] or [jwapp] will throw until [open] is called again. */
+    /** Drops all Retrofit instances and clears the cookie jar. Subsequent
+     *  access to [cas]/[jwapp]/[jwms] will throw until [open] is called again. */
     fun close() {
         casRetrofit = null
         jwappRetrofit = null
+        jwmsRetrofit = null
         openedMode = null
         cookieJar.clear()
     }
@@ -61,6 +64,10 @@ class BitApiClient @Inject constructor(
 
     val jwapp: BitJwappService
         get() = jwappRetrofit?.create() ?: error("BitApiClient: session not open")
+
+    /** 正方教务 (成绩 HTML) 服务，独立 host jwms.bit.edu.cn。 */
+    val jwms: com.example.personal_studio.data.network.bit.service.BitJwmsService
+        get() = jwmsRetrofit?.create() ?: error("BitApiClient: session not open")
 
     private fun newRetrofit(baseUrl: String): Retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)
