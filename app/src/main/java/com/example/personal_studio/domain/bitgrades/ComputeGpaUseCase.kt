@@ -48,9 +48,13 @@ class ComputeGpaUseCase @Inject constructor() {
         var c = 0.0; var sumScore = 0.0; var sumGpa = 0.0
         rows.forEach { r ->
             val avg = r.courseAvg ?: return@forEach
+            val sigma = com.example.personal_studio.core.util.PeerGpaEstimator.estimateSigma(
+                mean = avg, max = r.courseMaxScore, n = r.courseStudyCount,
+            )
+            val gpa = com.example.personal_studio.core.util.PeerGpaEstimator.correctedGradePoint(avg, sigma)
             c += r.credit
             sumScore += r.credit * avg
-            sumGpa += r.credit * com.example.personal_studio.core.util.BitGpaConverter.toGradePoint(avg)
+            sumGpa += r.credit * gpa
         }
         return if (c == 0.0) (null to null) else (sumScore / c) to (sumGpa / c)
     }
@@ -68,6 +72,7 @@ class ComputeGpaUseCase @Inject constructor() {
         courseName, courseCode, credit, score, gradePoint, gradeLetter, category, attemptType, isPass,
         courseAvg = courseAvg, classRankText = classRankText, majorRankText = majorRankText,
         id = id,
+        courseMaxScore = courseMaxScore, courseStudyCount = courseStudyCount,
     )
     private fun TermRankEntity.toTermRank() = TermRank(classRank, classTotal, majorRank, majorTotal)
 }

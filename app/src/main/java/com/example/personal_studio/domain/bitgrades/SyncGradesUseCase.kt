@@ -87,6 +87,8 @@ class SyncGradesUseCase @Inject constructor(
         }.getOrNull() ?: return e
         return e.copy(
             courseAvg = info.courseAvg,
+            courseMaxScore = info.courseMaxScore,
+            courseStudyCount = info.courseStudyCount,
             classRankText = info.classRankText,
             majorRankText = info.majorRankText,
         )

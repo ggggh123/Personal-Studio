@@ -53,7 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun gradesDao(): GradesDao
 
     companion object {
-        const val VERSION = 9
+        const val VERSION = 10
         const val NAME = "personal-studio.db"
 
         /** Default seed inserted by [KbSeedCallback] on first DB creation. */

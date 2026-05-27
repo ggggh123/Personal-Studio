@@ -8,6 +8,8 @@ class JsxsdDetailParser @Inject constructor() {
 
     data class DetailInfo(
         val courseAvg: Double?,
+        val courseMaxScore: Double?,
+        val courseStudyCount: Int?,
         val classRankText: String?,
         val majorRankText: String?,
     )
@@ -24,8 +26,12 @@ class JsxsdDetailParser @Inject constructor() {
         }
         fun find(vararg keys: String): String? =
             map.entries.firstOrNull { e -> keys.any { it in e.key } }?.value?.takeIf { it.isNotBlank() }
+        val maxScore = find("最高分")?.toDoubleOrNull()
+        val studyCount = find("学习人数")?.let { v -> Regex("""\d+""").find(v)?.value?.toIntOrNull() }
         return DetailInfo(
             courseAvg = find("平均分")?.toDoubleOrNull(),
+            courseMaxScore = maxScore,
+            courseStudyCount = studyCount,
             classRankText = find("班级中占", "班级排名"),
             majorRankText = find("专业中占", "专业排名", "年级"),
         )

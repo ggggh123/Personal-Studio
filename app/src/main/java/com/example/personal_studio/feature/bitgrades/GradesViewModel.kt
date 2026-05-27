@@ -57,7 +57,14 @@ class GradesViewModel @Inject constructor(
         }
         val (selPeerScore, selPeerGpa) = run {
             var c = 0.0; var ss = 0.0; var sg = 0.0
-            included.forEach { course -> course.courseAvg?.let { a -> c += course.credit; ss += course.credit * a; sg += course.credit * com.example.personal_studio.core.util.BitGpaConverter.toGradePoint(a) } }
+            included.forEach { course ->
+                val avg = course.courseAvg ?: return@forEach
+                val sigma = com.example.personal_studio.core.util.PeerGpaEstimator.estimateSigma(
+                    mean = avg, max = course.courseMaxScore, n = course.courseStudyCount,
+                )
+                val gpa = com.example.personal_studio.core.util.PeerGpaEstimator.correctedGradePoint(avg, sigma)
+                c += course.credit; ss += course.credit * avg; sg += course.credit * gpa
+            }
             if (c == 0.0) (null to null) else (ss / c) to (sg / c)
         }
         local.copy(

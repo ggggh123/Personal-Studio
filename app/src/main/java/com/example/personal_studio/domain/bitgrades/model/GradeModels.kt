@@ -15,6 +15,8 @@ data class GradeItem(
     val classRankText: String? = null,    // 本人成绩在班级中占(原文,如"前20%")
     val majorRankText: String? = null,    // 本人成绩在专业中占
     val id: Long = 0,                     // 来源记录主键（会话内稳定，用于选择参与计算）
+    val courseMaxScore: Double? = null,   // cjfx 最高分
+    val courseStudyCount: Int? = null,    // cjfx 学习人数(用于 Jensen 修正估 σ)
 )
 
 /** 排名（班级/专业），任一可缺。 */

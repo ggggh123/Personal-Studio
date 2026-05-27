@@ -17,6 +17,8 @@ class JsxsdDetailParserTest {
         """.trimIndent()
         val d = JsxsdDetailParser().parse(html)
         assertEquals(78.687, d.courseAvg!!, 0.001)
+        assertEquals(100.0, d.courseMaxScore!!, 0.001)
+        assertEquals(1178, d.courseStudyCount)
         assertEquals("67%", d.classRankText)
         assertEquals("63%", d.majorRankText)
     }
