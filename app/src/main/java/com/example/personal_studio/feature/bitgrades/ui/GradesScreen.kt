@@ -67,13 +67,17 @@ fun GradesScreen(
 
         Spacer(Modifier.height(12.dp))
         Panel {
-            GpaOverviewCard(st.book)
+            GpaOverviewCard(
+                gpa = if (st.filtering) st.selectedGpa else st.book.overallGpa,
+                avgScore = if (st.filtering) st.selectedAvgScore else st.book.overallAvgScore,
+                credits = if (st.filtering) st.selectedCredits else st.book.totalCredits,
+                filtering = st.filtering,
+            )
             if (st.filtering) {
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "选中 ${st.selectedCount} 门 · GPA ${String.format(java.util.Locale.US, "%.2f", st.selectedGpa)}" +
-                            (st.selectedAvgScore?.let { " · 均分 ${String.format(java.util.Locale.US, "%.1f", it)}" } ?: ""),
+                        "选中 ${st.selectedCount} 门",
                         color = Amber, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
                     )
                     TextButton(onClick = vm::onClearSelection) { Text("全选", color = FoamMute) }
@@ -90,9 +94,10 @@ fun GradesScreen(
 
         Spacer(Modifier.height(8.dp))
         Panel {
-            Text("成绩分布", color = FoamMute)
+            Text(if (st.filtering) "成绩分布(选中)" else "成绩分布", color = FoamMute)
             val allCourses = st.book.terms.flatMap { it.courses }
-            GradeBarChart(GradeBucketer.bucket(allCourses))
+            val courses = if (st.filtering) allCourses.filter { it.id !in st.excludedIds } else allCourses
+            GradeBarChart(GradeBucketer.bucket(courses))
         }
 
         Spacer(Modifier.height(8.dp))
