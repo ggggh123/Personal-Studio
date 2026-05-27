@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,7 +38,7 @@ import java.util.Locale
 @Composable
 fun WhatIfScreen(onBack: () -> Unit, vm: WhatIfViewModel = hiltViewModel()) {
     val st by vm.uiState.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize().background(Void).statusBarsPadding().padding(16.dp)) {
+    Column(Modifier.fillMaxSize().background(Void).systemBarsPadding().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("← 返回", color = FoamMute) }
             Spacer(Modifier.width(4.dp))

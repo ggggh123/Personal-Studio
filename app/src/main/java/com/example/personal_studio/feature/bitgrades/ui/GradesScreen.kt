@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -49,7 +49,9 @@ fun GradesScreen(
     val st by vm.uiState.collectAsStateWithLifecycle()
     var showSheet by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().background(Void).statusBarsPadding().padding(16.dp)
+    Column(Modifier.fillMaxSize().background(Void)
+        .systemBarsPadding()                    // 同时让出顶部状态栏 + 底部导航栏
+        .padding(16.dp)
         .verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("←", color = FoamMute) }
