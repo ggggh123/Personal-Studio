@@ -124,7 +124,9 @@ fun GradesScreen(
     if (showSheet) {
         AiAnalysisSheet(
             text = st.analysis, analyzing = st.analyzing, error = st.analysisError,
+            generatedAt = st.analysisAt, fromCache = st.analysisFromCache,
             onAskInChat = { vm.onAskInChat { sid -> showSheet = false; onOpenChat(sid) } },
+            onRegenerate = vm::onRegenerate,
             onDismiss = { showSheet = false },
         )
     }

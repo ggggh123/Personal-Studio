@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.bitgrades
 
+import com.example.personal_studio.data.local.datastore.GradesAnalysisCache
 import com.example.personal_studio.data.local.db.dao.GradesDao
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
@@ -28,7 +29,8 @@ class GradesViewModelTest {
                 GradeEntryEntity(0,"2024-2025-2","24春","高数","M1",5.0,"92",4.0,"A","必修","正常",true,1L)))
             every { observeRanks() } returns flowOf(emptyList())
         }
-        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true))
+        val cache = mockk<GradesAnalysisCache> { every { observe } returns flowOf(null) }
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache)
         // uiState is a stateIn(WhileSubscribed) — actively collect so combine runs.
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
@@ -45,7 +47,8 @@ class GradesViewModelTest {
             ))
             every { observeRanks() } returns flowOf(emptyList())
         }
-        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true))
+        val cache = mockk<GradesAnalysisCache> { every { observe } returns flowOf(null) }
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache)
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
         assertEquals(2, vm.uiState.value.selectedCount)

@@ -2,6 +2,7 @@ package com.example.personal_studio.feature.bitgrades
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.personal_studio.data.local.datastore.GradesAnalysisCache
 import com.example.personal_studio.data.local.db.dao.GradesDao
 import com.example.personal_studio.domain.bitgrades.AnalyzeGradesUseCase
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
@@ -12,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -20,6 +23,8 @@ import javax.inject.Inject
 data class GradesUiState(
     val book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null, overallRank = null),
     val analysis: String = "",
+    val analysisAt: Long? = null,            // 上次生成/缓存时间戳;null=没缓存过
+    val analysisFromCache: Boolean = false,  // 当前显示的是缓存(true) 还是新流式生成(false)
     val analyzing: Boolean = false,
     val analysisError: String? = null,
     val excludedIds: Set<Long> = emptySet(),
@@ -38,9 +43,21 @@ class GradesViewModel @Inject constructor(
     private val computeGpa: ComputeGpaUseCase,
     private val analyze: AnalyzeGradesUseCase,
     private val startChat: StartGradeChatUseCase,
+    private val analysisCache: GradesAnalysisCache,
 ) : ViewModel() {
 
     private val _local = MutableStateFlow(GradesUiState())
+
+    init {
+        // 启动时加载缓存(若有),进入成绩单时 AI 报告就有内容可看,无需触发生成。
+        analysisCache.observe.onEach { cached ->
+            if (cached != null) _local.update {
+                // 只在 _local 还没有更新过的 analysis 时填充缓存,避免覆盖正在流式的新内容。
+                if (it.analyzing || it.analysis.isNotBlank()) it
+                else it.copy(analysis = cached.text, analysisAt = cached.at, analysisFromCache = true)
+            }
+        }.launchIn(viewModelScope)
+    }
 
     val uiState: StateFlow<GradesUiState> = combine(
         dao.observeAll(), dao.observeRanks(), _local,
@@ -79,13 +96,31 @@ class GradesViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesUiState())
 
+    /** 打开 AI 分析:有缓存或正在生成 → 仅展示(不重跑);否则触发一次新生成。 */
     fun onAnalyze() {
+        val st = uiState.value
+        if (st.analyzing || st.analysis.isNotBlank()) return
+        runAnalysis()
+    }
+
+    /** 用户主动「重新生成」:清屏 → 流式重跑 → 写回缓存。 */
+    fun onRegenerate() {
+        if (uiState.value.analyzing) return
+        runAnalysis()
+    }
+
+    private fun runAnalysis() {
         val book = uiState.value.book
         if (book.isEmpty) return
-        _local.update { it.copy(analyzing = true, analysis = "", analysisError = null) }
+        _local.update { it.copy(analyzing = true, analysis = "", analysisAt = null, analysisFromCache = false, analysisError = null) }
         viewModelScope.launch {
             try {
                 analyze.invoke(book).collect { delta -> _local.update { it.copy(analysis = it.analysis + delta) } }
+                val finalText = _local.value.analysis
+                if (finalText.isNotBlank()) {
+                    analysisCache.save(finalText)
+                    _local.update { it.copy(analysisAt = System.currentTimeMillis()) }
+                }
             } catch (e: Throwable) {
                 _local.update { it.copy(analysisError = e.message ?: "分析失败") }
             } finally {
