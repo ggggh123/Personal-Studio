@@ -110,6 +110,28 @@ class SyncGradesUseCase @Inject constructor(
         return rows + TermRankEntity("OVERALL", "总计", overallGpa, null, null, null, null, now)
     }
 
+    /** 后台静默同步。假设 apiClient 已 open;不发 Flow,直接返回结果。
+     *  不并发拉 cjfx 详情(Worker 拿到 newEntries 后只对新增条目增量拉)。 */
+    suspend fun syncForBackground(req: GradesSyncRequest): com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult {
+        val login = ssoLogin.invoke(apiClient, req.username, req.password)
+        login.toGradesError()?.let { return com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Stop(it) }
+        return try {
+            apiClient.cas.activateService(JWMS_SERVICE)
+            val resp = apiClient.jwms.getScoreListHtml()
+            val html = (resp.body() ?: resp.errorBody())?.string().orEmpty()
+            if (parser.isReviewGated(html)) {
+                return com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Stop(GradesSyncError.NeedReview)
+            }
+            val now = System.currentTimeMillis()
+            val entries = parser.parse(html, now)
+            com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Ok(entries)
+        } catch (io: java.io.IOException) {
+            com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Transient
+        } catch (e: Throwable) {
+            com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Transient
+        }
+    }
+
     private fun CasLoginDto.toGradesError(): GradesSyncError? = when (this) {
         CasLoginDto.Success -> null
         CasLoginDto.WrongCredentials -> GradesSyncError.WrongCredentials

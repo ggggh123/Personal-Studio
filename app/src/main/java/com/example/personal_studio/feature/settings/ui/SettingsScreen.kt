@@ -349,6 +349,12 @@ fun SettingsScreen(
                 subtitle = "成绩单 · 可视化 · AI 分析",
                 onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.GRADES) },
             )
+            NavigableRowWithSubtitle(
+                key = "GRADES_POLL",
+                value = "成绩更新提醒 →",
+                subtitle = "后台查分新成绩并通知",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_GRADES_POLL) },
+            )
 
             DashedDivider()
 

@@ -151,4 +151,45 @@ class SyncGradesUseCaseTest {
             awaitComplete()
         }
     }
+
+    // —— syncForBackground —— //
+
+    @Test fun `syncForBackground wrong password returns Stop with WrongCredentials`() = runTest {
+        val api = mockk<BitApiClient>(relaxed = true)
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.WrongCredentials), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
+        val r = useCase.syncForBackground(req())
+        assertTrue(r is com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Stop)
+        assertTrue((r as com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Stop).reason is GradesSyncError.WrongCredentials)
+    }
+
+    @Test fun `syncForBackground happy path returns Ok with entries`() = runTest {
+        val cas = mockk<BitCasService>(relaxed = true)
+        val jwms = mockk<BitJwmsService> {
+            coEvery { getScoreListHtml() } returns scoreHtml(
+                "<tr><td>2024-2025-2</td><td>高数</td><td>5.0</td><td>92</td><td>4.0</td></tr>",
+            )
+        }
+        val api = mockk<BitApiClient>(relaxed = true) {
+            coEvery { this@mockk.cas } returns cas
+            coEvery { this@mockk.jwms } returns jwms
+        }
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
+        val r = useCase.syncForBackground(req())
+        assertTrue(r is com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Ok)
+        assertEquals(1, (r as com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Ok).entries.size)
+    }
+
+    @Test fun `syncForBackground review-gated returns Stop NeedReview`() = runTest {
+        val jwms = mockk<BitJwmsService> {
+            coEvery { getScoreListHtml() } returns html("<html><body>请先完成评教</body></html>")
+        }
+        val api = mockk<BitApiClient>(relaxed = true) {
+            coEvery { this@mockk.cas } returns mockk(relaxed = true)
+            coEvery { this@mockk.jwms } returns jwms
+        }
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
+        val r = useCase.syncForBackground(req())
+        assertTrue(r is com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Stop)
+        assertTrue((r as com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult.Stop).reason is GradesSyncError.NeedReview)
+    }
 }

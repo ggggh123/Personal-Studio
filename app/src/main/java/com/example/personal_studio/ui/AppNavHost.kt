@@ -205,7 +205,10 @@ fun AppNavHost(navController: NavHostController) {
                 onClose = { navController.popBackStack() },
             )
         }
-        composable(NavRoutes.GRADES) {
+        composable(
+            NavRoutes.GRADES,
+            deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://grades" }),
+        ) {
             com.example.personal_studio.feature.bitgrades.ui.GradesScreen(
                 onBack = { navController.popBackStack() },
                 onSync = { navController.navigate(NavRoutes.GRADES_SYNC) },
@@ -305,6 +308,14 @@ fun AppNavHost(navController: NavHostController) {
         }
         composable(NavRoutes.SETTINGS_NOTIF) {
             com.example.personal_studio.feature.settings.ui.NotifSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            NavRoutes.SETTINGS_GRADES_POLL,
+            deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://settings/grades-poll" }),
+        ) {
+            com.example.personal_studio.feature.settings.ui.GradesPollSettingsScreen(
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }
