@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import com.example.personal_studio.feature.bitgrades.GradesPollScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class BootCompletedReceiver : BroadcastReceiver() {
 
     @Inject lateinit var gradesPollScheduler: GradesPollScheduler
+    @Inject lateinit var ddlPollScheduler: DdlPollScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
@@ -35,6 +37,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 gradesPollScheduler.rescheduleFromPrefs()
+                ddlPollScheduler.rescheduleFromPrefs()
             } finally {
                 pending.finish()
             }
