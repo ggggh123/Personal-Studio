@@ -355,6 +355,12 @@ fun SettingsScreen(
                 subtitle = "后台查分新成绩并通知",
                 onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_GRADES_POLL) },
             )
+            NavigableRowWithSubtitle(
+                key = "DDL_POLL",
+                value = "作业自动同步 →",
+                subtitle = "后台拉乐学作业 DDL 并通知",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_DDL_POLL) },
+            )
 
             DashedDivider()
 
