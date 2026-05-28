@@ -25,7 +25,7 @@ package com.example.personal_studio.data.network.bit
  */
 object BitUrlsConfig {
 
-    data class Hosts(val cas: String, val jwapp: String, val jwms: String)
+    data class Hosts(val cas: String, val jwapp: String, val jwms: String, val lexue: String)
 
     /** Campus-network direct.
      *  `jwms` = 正方教务系统 (成绩查询 lives here as HTML, NOT in the ehall app).
@@ -36,6 +36,7 @@ object BitUrlsConfig {
         cas   = "https://sso.bit.edu.cn/",
         jwapp = "https://jxzxehallapp.bit.edu.cn/",
         jwms  = "http://jwms.bit.edu.cn/",
+        lexue = "https://lexue.bit.edu.cn/",
     )
 
     /** Off-campus through BIT's WebVPN gateway. The /https/<encoded>/ prefix
@@ -49,6 +50,7 @@ object BitUrlsConfig {
             "77726476706e69737468656265737421faef5b842238695c720999bcd6572a216b231105adc27d/",
         jwms  = "https://webvpn.bit.edu.cn/http/" +
             "77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/",
+        lexue = "https://lexue.bit.edu.cn/",
     )
 
     fun hostsFor(mode: NetworkMode): Hosts = when (mode) {
