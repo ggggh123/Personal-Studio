@@ -67,6 +67,12 @@ interface TimelineDao {
 
     // ---------- Reads ----------
 
+    @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_LEXUE'")
+    suspend fun getLexueDdls(): List<TimelineItemEntity>
+
+    @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_LEXUE' ORDER BY startAt ASC")
+    fun observeLexueDdls(): kotlinx.coroutines.flow.Flow<List<TimelineItemEntity>>
+
     @Query("SELECT * FROM timeline_items WHERE id = :id")
     suspend fun findById(id: Long): TimelineItemEntity?
 

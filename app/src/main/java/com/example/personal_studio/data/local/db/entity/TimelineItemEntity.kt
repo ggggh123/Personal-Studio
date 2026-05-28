@@ -48,4 +48,5 @@ data class TimelineItemEntity(
 
     val createdAt: Long,
     val updatedAt: Long,
+    val courseName: String? = null,
 )
