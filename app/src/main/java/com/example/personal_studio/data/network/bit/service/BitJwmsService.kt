@@ -2,7 +2,10 @@ package com.example.personal_studio.data.network.bit.service
 
 import okhttp3.ResponseBody
 import retrofit2.Response
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Url
 
 /**
@@ -27,4 +30,13 @@ interface BitJwmsService {
      *  (/jsxsd/kscj/cjfx?...)，相对 jwms host 解析。 */
     @GET
     suspend fun getCourseDetailHtml(@Url url: String): Response<ResponseBody>
+
+    /** 考试安排查询页 HTML — 含 `<select id="xnxqid">` 学期下拉,用于抠当前学期。 */
+    @GET("jsxsd/xsks/xsksap_query")
+    suspend fun getExamQueryHtml(): Response<ResponseBody>
+
+    /** 提交学期(xnxqid)拉考试安排列表 HTML — `<table id="dataList">`。 */
+    @FormUrlEncoded
+    @POST("jsxsd/xsks/xsksap_list")
+    suspend fun getExamScheduleHtml(@Field("xnxqid") term: String): Response<ResponseBody>
 }
