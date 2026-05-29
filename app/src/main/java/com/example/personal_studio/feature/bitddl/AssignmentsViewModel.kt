@@ -15,15 +15,22 @@ import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed interface AssignmentsEvent {
+    object NeedLogin : AssignmentsEvent
+}
 
 data class DdlRow(
     val id: Long,
@@ -55,6 +62,9 @@ class AssignmentsViewModel @Inject constructor(
 
     private val transient = MutableStateFlow(AssignmentsUiState())
 
+    private val _events = MutableSharedFlow<AssignmentsEvent>(extraBufferCapacity = 4)
+    val events: SharedFlow<AssignmentsEvent> = _events.asSharedFlow()
+
     val uiState: StateFlow<AssignmentsUiState> = combine(
         dao.observeLexueDdls(), credPrefs.observeAll(), transient,
     ) { rows, creds, t ->
@@ -79,7 +89,7 @@ class AssignmentsViewModel @Inject constructor(
 
     fun onRefresh() {
         val creds = credPrefs.observeAll().value ?: run {
-            transient.value = transient.value.copy(error = "请先在「成绩查询」里登录并勾选记住密码")
+            viewModelScope.launch { _events.emit(AssignmentsEvent.NeedLogin) }
             return
         }
         sync.sync(DdlSyncRequest(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true))

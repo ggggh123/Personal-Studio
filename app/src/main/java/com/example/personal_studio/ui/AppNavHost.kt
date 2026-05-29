@@ -344,6 +344,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
         ) {
             com.example.personal_studio.feature.bitddl.ui.AssignmentsScreen(
                 onBack = { navController.popBackStack() },
+                onNeedLogin = { navController.navigate(NavRoutes.login("assignments")) },
             )
         }
         composable(
