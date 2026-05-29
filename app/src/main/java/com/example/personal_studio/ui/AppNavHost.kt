@@ -131,6 +131,7 @@ fun AppNavHost(navController: NavHostController) {
                 onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
                 onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
                 onOpenWeekGrid = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+                onOpenAssignments = { navController.navigate(NavRoutes.ASSIGNMENTS) },
             )
         }
         composable(NavRoutes.TIMELINE_WEEK_GRID) {
@@ -314,6 +315,22 @@ fun AppNavHost(navController: NavHostController) {
             deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://settings/grades-poll" }),
         ) {
             com.example.personal_studio.feature.settings.ui.GradesPollSettingsScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            NavRoutes.ASSIGNMENTS,
+            deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://assignments" }),
+        ) {
+            com.example.personal_studio.feature.bitddl.ui.AssignmentsScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            NavRoutes.SETTINGS_DDL_POLL,
+            deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://settings/ddl-poll" }),
+        ) {
+            com.example.personal_studio.feature.settings.ui.DdlPollSettingsScreen(
                 onBack = { navController.popBackStack() },
             )
         }

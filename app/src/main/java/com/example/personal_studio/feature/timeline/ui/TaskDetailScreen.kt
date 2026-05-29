@@ -59,6 +59,7 @@ fun TaskDetailScreen(
                 "$s — $e"
             } else "$s"
             Text(timeStr, color = FoamDim)
+            item.courseName?.let { Text("课程: $it", color = FoamDim) }
             item.location?.let { Text("地点: $it", color = FoamDim) }
             item.instructor?.let { Text("老师: $it", color = FoamDim) }
             if (item.type == TimelineType.COURSE) {

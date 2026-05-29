@@ -90,8 +90,16 @@ fun TimelineBubble(
                 TextDecoration.LineThrough else TextDecoration.None,
         )
         Spacer(Modifier.height(2.dp))
-        Text(text = "$timeRange${item.location?.let { "  ·  $it" } ?: ""}",
-            color = FoamDim, style = MaterialTheme.typography.labelSmall)
+        // 副信息行:课程名(仅 IMPORTED_LEXUE 作业非空) · 时间 · 地点。
+        // courseName/location 为空时自动省略,普通任务/课程显示不变。
+        Text(
+            text = buildList {
+                item.courseName?.takeIf { it.isNotBlank() }?.let { add(it) }
+                add(timeRange)
+                item.location?.takeIf { it.isNotBlank() }?.let { add(it) }
+            }.joinToString("  ·  "),
+            color = FoamDim, style = MaterialTheme.typography.labelSmall,
+        )
     }
 }
 

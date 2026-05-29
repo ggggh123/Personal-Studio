@@ -1,7 +1,7 @@
 package com.example.personal_studio.domain.model
 
 /** Source of a timeline item. P4 only writes MANUAL; rest are reserved for P5. */
-enum class TimelineSource { MANUAL, IMPORTED_ICS, IMPORTED_PORTAL, FROM_CHAT }
+enum class TimelineSource { MANUAL, IMPORTED_ICS, IMPORTED_PORTAL, FROM_CHAT, IMPORTED_LEXUE }
 
 enum class TimelineType { COURSE, TASK, CUSTOM }
 
@@ -31,6 +31,8 @@ data class TimelineItem(
     val kbEntryIds: List<Long>,
     val createdAt: Long,
     val updatedAt: Long,
+    /** 仅 IMPORTED_LEXUE 作业行非空:课程名(iCal CATEGORIES)。 */
+    val courseName: String? = null,
 )
 
 /** Aggregate summary of a course series (Settings → 课程列表). */

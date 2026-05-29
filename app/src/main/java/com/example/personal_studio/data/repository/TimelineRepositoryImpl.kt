@@ -112,6 +112,7 @@ class TimelineRepositoryImpl @Inject constructor(
             .getOrDefault(emptyList()),
         createdAt = e.createdAt,
         updatedAt = e.updatedAt,
+        courseName = e.courseName,
     )
 
     private fun toEntity(m: TimelineItem): TimelineItemEntity = TimelineItemEntity(
@@ -138,6 +139,7 @@ class TimelineRepositoryImpl @Inject constructor(
         kbEntryIdsJson = Json.encodeToString(ListSerializer(Long.serializer()), m.kbEntryIds),
         createdAt = m.createdAt,
         updatedAt = m.updatedAt,
+        courseName = m.courseName,
     )
 
     @Suppress("unused") private val _ensureEnumsImported: Pair<TimelineType, TimelineSource> =

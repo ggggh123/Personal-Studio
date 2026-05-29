@@ -49,6 +49,7 @@ fun TimelineScreen(
     onAddCourse: () -> Unit,
     onOpenDetail: (Long) -> Unit,
     onOpenWeekGrid: () -> Unit = {},
+    onOpenAssignments: () -> Unit = {},
     vm: TimelineViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -90,6 +91,7 @@ fun TimelineScreen(
                 )
                 IconButton(onClick = vm::onNextDay) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "next") }
                 TextButton(onClick = vm::onToday) { Text("今日") }
+                TextButton(onClick = onOpenAssignments) { Text("作业 ↗") }
                 IconButton(onClick = onOpenWeekGrid) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = "week grid")
                 }
@@ -353,7 +355,8 @@ private fun ClusterItemRow(
             modifier = Modifier.width(110.dp),
         )
         Text(
-            text = item.title + (item.location?.let { "  ·  $it" } ?: ""),
+            text = (item.courseName?.takeIf { it.isNotBlank() }?.let { "$it · " } ?: "") +
+                item.title + (item.location?.let { "  ·  $it" } ?: ""),
             color = Foam,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
