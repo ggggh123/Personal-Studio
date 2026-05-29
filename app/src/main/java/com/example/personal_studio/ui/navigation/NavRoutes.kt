@@ -68,7 +68,6 @@ object NavRoutes {
 
     // BIT 成绩查询 (P6)
     const val GRADES = "grades"
-    const val GRADES_SYNC = "grades/sync"
     const val GRADES_WHATIF = "grades/whatif"
     const val GRADES_SHARE = "grades/share"
 

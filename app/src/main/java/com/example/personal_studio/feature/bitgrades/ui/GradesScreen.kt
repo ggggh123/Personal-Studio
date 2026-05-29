@@ -34,6 +34,7 @@ import com.example.personal_studio.feature.bitgrades.GradesViewModel
 import com.example.personal_studio.feature.bitgrades.ui.components.GpaOverviewCard
 import com.example.personal_studio.feature.bitgrades.ui.components.TermGradeSection
 import com.example.personal_studio.ui.theme.Amber
+import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
@@ -41,7 +42,7 @@ import com.example.personal_studio.ui.theme.Void
 @Composable
 fun GradesScreen(
     onBack: () -> Unit,
-    onSync: () -> Unit,
+    onNeedLogin: () -> Unit,
     onOpenChat: (Long) -> Unit,
     onOpenWhatIf: () -> Unit,
     onOpenShare: () -> Unit,
@@ -58,13 +59,26 @@ fun GradesScreen(
             TextButton(onBack) { Text("←", color = FoamMute) }
             Text("$ transcript", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
-            TextButton(onSync) { Text("↻ 同步") }
+            TextButton(onClick = { if (st.loggedIn) vm.onSyncNow() else onNeedLogin() }) {
+                Text(if (st.syncing) "同步中…" else "↻ 同步")
+            }
+        }
+
+        // 内联同步进度
+        st.syncSteps.forEach {
+            Text("> $it", color = Phosphor, style = MaterialTheme.typography.labelMedium)
+        }
+        if (st.syncError != null) {
+            Text("⚠ 同步失败", color = Carmine, style = MaterialTheme.typography.labelMedium)
         }
 
         if (st.book.isEmpty) {
             Spacer(Modifier.height(48.dp))
             Text("还没有成绩数据", color = FoamMute)
-            Button(onSync, Modifier.padding(top = 12.dp)) { Text("从教务系统查询成绩") }
+            Button(
+                onClick = { if (st.loggedIn) vm.onSyncNow() else onNeedLogin() },
+                modifier = Modifier.padding(top = 12.dp),
+            ) { Text("从教务系统查询成绩") }
             return@Column
         }
 
