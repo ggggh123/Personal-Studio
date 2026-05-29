@@ -374,6 +374,12 @@ fun SettingsScreen(
                 subtitle = "后台拉乐学作业 DDL 并通知",
                 onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_DDL_POLL) },
             )
+            NavigableRowWithSubtitle(
+                key = "EXAMS",
+                value = "查询考试安排 →",
+                subtitle = "考试时间 · 地点 · 座位 同步进 Timeline",
+                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.EXAMS) },
+            )
 
             DashedDivider()
 
