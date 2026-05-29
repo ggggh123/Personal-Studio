@@ -45,7 +45,7 @@ ui/AppNavHost.kt                               注册 login;startDestination 条
 ui/MainScreen.kt 或 MainActivity.kt            冷启动读 hasSeenLogin → splash → 起始目的地
 feature/bitgrades/ui/GradesScreen.kt           同步按钮走守卫 + 内联同步进度
 feature/bitgrades/GradesViewModel.kt           暴露 loggedIn + 触发同步(吸收 GradesSync 进度)
-feature/bitimport/...ImportNavGraph/ImportViewModel  已登录从"选学期"步开始,凭据步退休
+feature/bitimport/...ImportNavGraph/ImportViewModel  已登录自动用存凭据导入(Credentials 步退休)
 feature/bitddl/AssignmentsViewModel.kt         onRefresh 未登录发"去登录"导航事件
 feature/bitddl/ui/AssignmentsScreen.kt         收事件导航 login(next=assignments)
 feature/settings/ui/SettingsScreen.kt          「BIT 账号」行
@@ -139,7 +139,7 @@ class ValidateCredentialsUseCase @Inject constructor(
 > 收敛后各功能不再单独选网络模式,同步统一用登录时存的 `lastMode`(无则默认 LOCAL)。
 
 - **成绩**:`GradesScreen`「同步成绩」按钮 → `loggedIn` 为 false → `navigate("login?next=grades")`;true → 触发 `SyncGradesUseCase`,**内联显示精简同步进度**(复用 `SyncGradesStep`:登录中/取成绩/落库/完成)。`GradesSyncScreen` 整屏退休,登录表单删除,同步进度反馈并入 `GradesScreen`(或一个无表单的 `GradesSyncProgress` 区块)。
-- **课表导入**:「导入课表」入口走守卫(未登录 → `login?next=import`);进导入向导后**第一步直接是"选学期"**,凭据步删除。`ImportViewModel` 去掉登录字段/`onLogin`,起始步改为 TermPicker。
+- **课表导入**:「导入课表」入口走守卫(未登录 → `login?next=import`);已登录进向导后**自动用存的凭据触发导入**(读 `ImportCredentialPrefs` 构造 `ImportRequest`,直接进 Progress → Preview),Credentials 凭据步退休。注:向导原 `TermPicker`「选学期」步是未接线死代码(从无地方填学期列表),本次不启用,沿用现有"当前学期"导入。
 - **作业 DDL**:`AssignmentsViewModel.onRefresh` 未登录 → 发 `NavigateToLogin` 事件;`AssignmentsScreen` 收到 → `navigate("login?next=assignments")`。已登录直接同步(现状)。
 
 收敛后,三处都不再各自渲染登录表单;唯一的凭据入口是 `BitLoginScreen`。
@@ -253,7 +253,7 @@ UI 屏(`BitLoginScreen`、splash、Settings 账号行)编译 + 真机目检(视�
 3. 正确登录 → 存凭据 + 进 app(或回 next 目标);重开 app 不再首屏弹登录
 4. 跳过 → 进 app;重开不再弹;Settings「BIT 账号」显"未登录"
 5. 未登录点成绩/导入/DDL → 跳登录屏,登录成功回到该功能
-6. 已登录:成绩页直接同步(内联进度)、导入向导从选学期开始、DDL 刷新直接拉
+6. 已登录:成绩页直接同步(内联进度)、导入课表直接自动导入(用存凭据)、DDL 刷新直接拉
 7. Settings「BIT 账号」已登录显学号;退出 → 清凭据 + 两个轮询关闭 + 各功能恢复未登录拦截
 8. 视觉门面真机验收:不偏离终端/磷光绿风格,有高级感
 9. 全量单测绿
