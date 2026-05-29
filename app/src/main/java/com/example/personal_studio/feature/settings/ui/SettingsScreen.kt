@@ -317,6 +317,19 @@ fun SettingsScreen(
             // ── Section: timeline ──────────────────────────────
             SectionHeader("## timeline")
 
+            val acct = state.loggedInUsername
+            if (acct == null) {
+                NavigableRowWithSubtitle(
+                    key = "BIT 账号",
+                    value = "未登录,点此登录 →",
+                    subtitle = "登录后成绩 / 课表 / 作业免再输密码",
+                    onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.login("settings")) },
+                )
+            } else {
+                KeyValueRow(key = "BIT 账号", value = acct, valueColor = Phosphor)
+                NavigableRow(key = "", value = "退出登录", onClick = vm::onLogout)
+            }
+
             NavigableRow(
                 key = "SEMESTER",
                 value = "学期起始日 →",
