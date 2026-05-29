@@ -15,6 +15,11 @@ object NavRoutes {
 
     const val SETTINGS = "settings"
 
+    // Unified login (P8)
+    const val LOGIN = "login?next={next}"
+    fun login(next: String? = null) =
+        if (next.isNullOrBlank()) "login?next=" else "login?next=${Uri.encode(next)}"
+
     // Scanner multi-page flow host (Phase 3).
     const val SCANNER_NEW_DOC = "scanner/new?resumeDocId={resumeDocId}"
     fun scannerNewDoc(resumeDocId: Long? = null) =

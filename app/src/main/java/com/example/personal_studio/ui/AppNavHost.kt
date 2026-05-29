@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.example.personal_studio.feature.auth.ui.BitLoginScreen
 import com.example.personal_studio.feature.bitimport.ImportEntryRoute
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
@@ -291,6 +292,26 @@ fun AppNavHost(navController: NavHostController) {
                 cornersBitmapPx = corners,
                 onConfirm = { _, _ -> navController.popBackStack(NavRoutes.SCANNER, inclusive = false) },
                 onCancel = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = NavRoutes.LOGIN,
+            arguments = listOf(navArgument("next") { type = NavType.StringType; defaultValue = "" }),
+        ) { backStack ->
+            val next = backStack.arguments?.getString("next").orEmpty().ifBlank { null }?.let { Uri.decode(it) }
+            BitLoginScreen(
+                skipVisible = next == null,
+                onSucceeded = {
+                    if (next != null) navController.navigate(next) {
+                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                    } else navController.navigate(NavRoutes.CHAT) {
+                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                    }
+                },
+                onSkipped = {
+                    navController.navigate(NavRoutes.CHAT) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
+                },
             )
         }
 
