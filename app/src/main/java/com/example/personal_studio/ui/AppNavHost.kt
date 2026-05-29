@@ -304,8 +304,10 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onSucceeded = {
                     if (next != null) navController.navigate(next) {
                         popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        launchSingleTop = true   // 守卫场景目标屏可能已在栈中,避免压重复实例
                     } else navController.navigate(NavRoutes.CHAT) {
                         popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 onSkipped = {
