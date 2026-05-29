@@ -40,9 +40,19 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun AssignmentsScreen(onBack: () -> Unit, vm: AssignmentsViewModel = hiltViewModel()) {
+fun AssignmentsScreen(
+    onBack: () -> Unit,
+    onNeedLogin: () -> Unit,
+    vm: AssignmentsViewModel = hiltViewModel(),
+) {
     val st by vm.uiState.collectAsStateWithLifecycle()
     var showFolded by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        vm.events.collect {
+            if (it is com.example.personal_studio.feature.bitddl.AssignmentsEvent.NeedLogin) onNeedLogin()
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(Void).systemBarsPadding().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

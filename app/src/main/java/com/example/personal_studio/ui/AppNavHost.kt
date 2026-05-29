@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.example.personal_studio.feature.auth.ui.BitLoginScreen
 import com.example.personal_studio.feature.bitimport.ImportEntryRoute
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
@@ -27,11 +28,11 @@ import com.example.personal_studio.ui.navigation.NavRoutes
 import java.io.File
 
 @Composable
-fun AppNavHost(navController: NavHostController) {
+fun AppNavHost(navController: NavHostController, startDestination: String = NavRoutes.CHAT) {
     val context = LocalContext.current
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.CHAT,
+        startDestination = startDestination,
     ) {
         composable(NavRoutes.CHAT) {
             ChatListScreen(
@@ -204,6 +205,11 @@ fun AppNavHost(navController: NavHostController) {
         composable(NavRoutes.IMPORT_WIZARD) {
             ImportEntryRoute(
                 onClose = { navController.popBackStack() },
+                onNeedLogin = {
+                    navController.navigate(NavRoutes.login("import")) {
+                        popUpTo(NavRoutes.IMPORT_WIZARD) { inclusive = true }
+                    }
+                },
             )
         }
         composable(
@@ -212,16 +218,10 @@ fun AppNavHost(navController: NavHostController) {
         ) {
             com.example.personal_studio.feature.bitgrades.ui.GradesScreen(
                 onBack = { navController.popBackStack() },
-                onSync = { navController.navigate(NavRoutes.GRADES_SYNC) },
+                onNeedLogin = { navController.navigate(NavRoutes.login("grades")) },
                 onOpenChat = { sid -> navController.navigate(NavRoutes.chatDetail(sid)) },
                 onOpenWhatIf = { navController.navigate(NavRoutes.GRADES_WHATIF) },
                 onOpenShare = { navController.navigate(NavRoutes.GRADES_SHARE) },
-            )
-        }
-        composable(NavRoutes.GRADES_SYNC) {
-            com.example.personal_studio.feature.bitgrades.ui.GradesSyncRoute(
-                onClose = { navController.popBackStack() },
-                onDone = { navController.popBackStack() },
             )
         }
         composable(NavRoutes.GRADES_WHATIF) {
@@ -294,6 +294,28 @@ fun AppNavHost(navController: NavHostController) {
             )
         }
 
+        composable(
+            route = NavRoutes.LOGIN,
+            arguments = listOf(navArgument("next") { type = NavType.StringType; defaultValue = "" }),
+        ) { backStack ->
+            val next = backStack.arguments?.getString("next").orEmpty().ifBlank { null }?.let { Uri.decode(it) }
+            BitLoginScreen(
+                skipVisible = next == null,
+                onSucceeded = {
+                    if (next != null) navController.navigate(next) {
+                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        launchSingleTop = true   // 守卫场景目标屏可能已在栈中,避免压重复实例
+                    } else navController.navigate(NavRoutes.CHAT) {
+                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                onSkipped = {
+                    navController.navigate(NavRoutes.CHAT) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
+                },
+            )
+        }
+
         composable(NavRoutes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
@@ -324,6 +346,7 @@ fun AppNavHost(navController: NavHostController) {
         ) {
             com.example.personal_studio.feature.bitddl.ui.AssignmentsScreen(
                 onBack = { navController.popBackStack() },
+                onNeedLogin = { navController.navigate(NavRoutes.login("assignments")) },
             )
         }
         composable(

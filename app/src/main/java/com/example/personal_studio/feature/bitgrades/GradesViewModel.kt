@@ -3,11 +3,17 @@ package com.example.personal_studio.feature.bitgrades
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.GradesAnalysisCache
+import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.db.dao.GradesDao
+import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitgrades.AnalyzeGradesUseCase
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
 import com.example.personal_studio.domain.bitgrades.StartGradeChatUseCase
+import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
 import com.example.personal_studio.domain.bitgrades.model.GradeBook
+import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
+import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
+import com.example.personal_studio.domain.bitgrades.model.SyncGradesStep
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,6 +41,10 @@ data class GradesUiState(
     val filtering: Boolean = false,   // true when excludedIds non-empty
     val selectedPeerAvgScore: Double? = null,
     val selectedPeerAvgGpa: Double? = null,
+    val loggedIn: Boolean = false,
+    val syncing: Boolean = false,
+    val syncSteps: List<String> = emptyList(),
+    val syncError: GradesSyncError? = null,
 )
 
 @HiltViewModel
@@ -44,6 +54,8 @@ class GradesViewModel @Inject constructor(
     private val analyze: AnalyzeGradesUseCase,
     private val startChat: StartGradeChatUseCase,
     private val analysisCache: GradesAnalysisCache,
+    private val syncGrades: SyncGradesUseCase,
+    private val credPrefs: ImportCredentialPrefs,
 ) : ViewModel() {
 
     private val _local = MutableStateFlow(GradesUiState())
@@ -59,9 +71,16 @@ class GradesViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
+    private data class SyncLocalState(
+        val syncing: Boolean = false,
+        val steps: List<String> = emptyList(),
+        val error: GradesSyncError? = null,
+    )
+    private val syncLocal = MutableStateFlow(SyncLocalState())
+
     val uiState: StateFlow<GradesUiState> = combine(
-        dao.observeAll(), dao.observeRanks(), _local,
-    ) { grades, ranks, local ->
+        dao.observeAll(), dao.observeRanks(), _local, credPrefs.observeAll(), syncLocal,
+    ) { grades, ranks, local, creds, sync ->
         val book = computeGpa.invoke(grades, ranks)
         val allCourses = book.terms.flatMap { it.courses }
         val included = allCourses.filter { it.id !in local.excludedIds }
@@ -93,6 +112,10 @@ class GradesViewModel @Inject constructor(
             filtering = local.excludedIds.isNotEmpty(),
             selectedPeerAvgScore = selPeerScore,
             selectedPeerAvgGpa = selPeerGpa,
+            loggedIn = creds != null,
+            syncing = sync.syncing,
+            syncSteps = sync.steps,
+            syncError = sync.error,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesUiState())
 
@@ -147,4 +170,27 @@ class GradesViewModel @Inject constructor(
     }
 
     fun onClearSelection() = _local.update { it.copy(excludedIds = emptySet()) }
+
+    /** 用已存凭据触发一次成绩同步,进度并入成绩页内联展示。未登录(无凭据)时静默忽略。 */
+    fun onSyncNow() {
+        val creds = credPrefs.observeAll().value ?: return
+        if (syncLocal.value.syncing) return
+        syncLocal.value = SyncLocalState(syncing = true)
+        viewModelScope.launch {
+            val req = GradesSyncRequest(
+                creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true,
+            )
+            syncGrades.sync(req).collect { step ->
+                val cur = syncLocal.value
+                syncLocal.value = when (step) {
+                    SyncGradesStep.LoggingIn -> cur.copy(steps = cur.steps + "登录中…")
+                    SyncGradesStep.FetchingGrades -> cur.copy(steps = cur.steps + "拉取成绩…")
+                    SyncGradesStep.FetchingRanks -> cur.copy(steps = cur.steps + "拉取排名…")
+                    SyncGradesStep.Persisting -> cur.copy(steps = cur.steps + "落库…")
+                    is SyncGradesStep.Done -> cur.copy(syncing = false, steps = cur.steps + "完成")
+                    is SyncGradesStep.Failed -> cur.copy(syncing = false, error = step.err)
+                }
+            }
+        }
+    }
 }

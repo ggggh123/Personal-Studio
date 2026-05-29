@@ -15,6 +15,11 @@ object NavRoutes {
 
     const val SETTINGS = "settings"
 
+    // Unified login (P8)
+    const val LOGIN = "login?next={next}"
+    fun login(next: String? = null) =
+        if (next.isNullOrBlank()) "login?next=" else "login?next=${Uri.encode(next)}"
+
     // Scanner multi-page flow host (Phase 3).
     const val SCANNER_NEW_DOC = "scanner/new?resumeDocId={resumeDocId}"
     fun scannerNewDoc(resumeDocId: Long? = null) =
@@ -63,7 +68,6 @@ object NavRoutes {
 
     // BIT 成绩查询 (P6)
     const val GRADES = "grades"
-    const val GRADES_SYNC = "grades/sync"
     const val GRADES_WHATIF = "grades/whatif"
     const val GRADES_SHARE = "grades/share"
 

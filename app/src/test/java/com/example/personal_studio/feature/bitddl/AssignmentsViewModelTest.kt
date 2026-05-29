@@ -5,6 +5,7 @@ import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
+import app.cash.turbine.test
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -79,5 +80,21 @@ class AssignmentsViewModelTest {
         coVerify { toggle.invoke(5L, true) }
         coVerify { cancel.invoke(5L) }
         job.cancel()
+    }
+
+    @Test fun `refresh without creds emits NeedLogin event`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
+        val vm = AssignmentsViewModel(
+            dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
+            scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
+            sync = mockk(relaxed = true),
+            credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
+            nowProvider = { 0L },
+        )
+        vm.events.test {
+            vm.onRefresh()
+            advanceUntilIdle()
+            assertEquals(AssignmentsEvent.NeedLogin, awaitItem())
+        }
     }
 }
