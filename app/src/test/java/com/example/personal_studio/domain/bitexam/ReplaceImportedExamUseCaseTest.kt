@@ -64,4 +64,34 @@ class ReplaceImportedExamUseCaseTest {
         ReplaceImportedExamUseCase(dao, mockk(relaxed = true)).invoke(listOf(item("u1", 300L)), now = 9L)
         coVerify { dao.deleteById(7L) }
     }
+
+    @Test fun `reconciles insert update-preserving-done and delete in one pass`() = runTest {
+        // existing: u-update (done=true, keep), u-gone (to delete). incoming: u-update, u-new.
+        val keep = examRow(11L, "u-update", done = true)
+        val gone = examRow(22L, "u-gone", done = false)
+        val dao = mockk<TimelineDao>(relaxed = true) {
+            coEvery { getImportedExams() } returns listOf(keep, gone)
+        }
+        val inserted = slot<TimelineItemEntity>()
+        val updated = slot<TimelineItemEntity>()
+        coEvery { dao.insertOne(capture(inserted)) } returns 99L
+        coEvery { dao.update(capture(updated)) } just Runs
+
+        ReplaceImportedExamUseCase(dao, mockk(relaxed = true)).invoke(
+            listOf(item("u-update", 300L), item("u-new", 500L)),
+            now = 9L,
+        )
+
+        // delete the vanished one only
+        coVerify { dao.deleteById(22L) }
+        coVerify(exactly = 0) { dao.deleteById(11L) }
+        // insert the new one
+        assertEquals("u-new", inserted.captured.sourceExternalId)
+        assertEquals(500L, inserted.captured.startAt)
+        assertEquals(false, inserted.captured.isDone)
+        // update the existing one, preserving isDone=true and reusing its id
+        assertEquals(11L, updated.captured.id)
+        assertEquals(300L, updated.captured.startAt)
+        assertEquals(true, updated.captured.isDone)
+    }
 }

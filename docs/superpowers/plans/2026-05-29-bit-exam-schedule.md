@@ -1,5 +1,7 @@
 # P9 · BIT 考试安排同步到 Timeline 实现计划
 
+> **⚠️ 实现变更(2026-05-30):数据源由 正方 jsxsd 改为 ehall studentWdksapApp。** 真机验证发现 BIT 已停用 jsxsd 的 xsks 考试模块;最终实现改用本硕博一体化教学中心(ehall,jxzxehallapp.bit.edu.cn)的 `studentWdksapApp`,接口 `POST jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do`(body `requestParamStr={"XNXQDM":"<学期>","*order":"-KSRQ,-KSSJMS"}`,返回 JSON `datas.cxxsksap.rows`),复用 P5 课表的 jwapp 会话与 warm-up(getAppConfig/switchLang/getCurrentTerm → getExamAppConfig/switchLangExam)。下方任务体中所有关于 `JsxsdExamParser` / jwms / `activateService(JWMS)` / jsxsd HTML 解析的内容均已废弃,仅作历史记录,不代表已落地实现。实际代码:`ExamRowDto` / `ExamRowMapper` / `SyncExamsUseCase` / `BitJwappService.getExamSchedule`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 从 BIT 正方 jsxsd 拉考试安排(课程/起止时间/考点/座位/监考),作为新 `EXAM` 类型灌进 Timeline,并提供独立考试列表页;接 P8 统一登录守卫。

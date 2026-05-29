@@ -40,7 +40,13 @@ class SyncExamsUseCase @Inject constructor(
             apiClient.jwapp.getExamAppConfig()
             apiClient.jwapp.switchLangExam()
             val reqStr = """{"XNXQDM":"$term","*order":"-KSRQ,-KSSJMS"}"""
-            val rows = apiClient.jwapp.getExamSchedule(reqStr).body()?.datas?.cxxsksap?.rows ?: emptyList()
+            val examResp = apiClient.jwapp.getExamSchedule(reqStr)
+            val examBody = examResp.body()
+            if (!examResp.isSuccessful || examBody == null) {
+                emit(ExamSyncStep.Failed(ExamSyncError.ParseFail("考试查询失败 HTTP ${examResp.code()}")))
+                return@flow
+            }
+            val rows = examBody.datas.cxxsksap.rows
             val exams = rows.mapNotNull { mapper.invoke(it, term) }
             replacer.invoke(exams)
             emit(ExamSyncStep.Done(exams.size))

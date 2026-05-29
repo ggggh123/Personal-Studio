@@ -26,6 +26,13 @@ class ScheduleRemindersUseCaseTest {
         assertEquals(30, slots[0].minBefore)
     }
 
+    @Test fun `exam slots include 1440 120 30 with no overdue`() {
+        val slots = ScheduleRemindersUseCase.slotsFor(TimelineType.EXAM)
+        assertEquals(3, slots.size)
+        assertEquals(listOf(1440, 120, 30), slots.map { it.minBefore })
+        assertEquals(true, slots.none { it.isOverdue })
+    }
+
     @Test fun `work name format is reminder_id_minBefore_isOverdue`() {
         val slot = ScheduleRemindersUseCase.slotsFor(TimelineType.TASK).first { it.isOverdue }
         assertEquals("reminder_42_0_true", slot.workName(42L))

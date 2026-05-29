@@ -28,9 +28,12 @@ class ExamsViewModelTest {
     @After fun tearDown() = Dispatchers.resetMain()
 
     private val now = 1_000_000_000_000L
-    private fun row(id: Long, start: Long, done: Boolean) = TimelineItemEntity(
-        id = id, type = TimelineType.EXAM, title = "E$id", startAt = start, endAt = start + 7200_000L,
-        isDone = done, location = "r", notes = "座位: 1",
+    private fun row(
+        id: Long, start: Long, done: Boolean,
+        endAt: Long? = start + 7200_000L, notes: String? = "座位: 1",
+    ) = TimelineItemEntity(
+        id = id, type = TimelineType.EXAM, title = "E$id", startAt = start, endAt = endAt,
+        isDone = done, location = "r", notes = notes,
         sourceType = TimelineSource.IMPORTED_EXAM, sourceExternalId = "u$id", createdAt = 1L, updatedAt = 1L,
     )
     private fun vm(dao: TimelineDao) = ExamsViewModel(
@@ -52,6 +55,33 @@ class ExamsViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(1L), vm.uiState.value.upcoming.map { it.id })
         assertEquals(listOf(2L), vm.uiState.value.past.map { it.id })
+        job.cancel()
+    }
+
+    @Test fun `null endAt with past start lands in past`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) {
+            every { observeImportedExams() } returns flowOf(listOf(
+                row(3, now - 1 * 3600_000L, false, endAt = null),
+            ))
+        }
+        val vm = vm(dao)
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(3L), vm.uiState.value.past.map { it.id })
+        assertEquals(emptyList<Long>(), vm.uiState.value.upcoming.map { it.id })
+        job.cancel()
+    }
+
+    @Test fun `seat is extracted from notes prefix`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) {
+            every { observeImportedExams() } returns flowOf(listOf(
+                row(4, now + 1 * 3600_000L, false, notes = "座位: 78"),
+            ))
+        }
+        val vm = vm(dao)
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals("78", vm.uiState.value.upcoming.single().seat)
         job.cancel()
     }
 

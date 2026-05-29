@@ -1,5 +1,7 @@
 # P9 · BIT 考试安排同步到 Timeline 设计文档
 
+> **⚠️ 实现变更(2026-05-30):数据源由 正方 jsxsd 改为 ehall studentWdksapApp。** 真机验证发现 BIT 已停用 jsxsd 的 xsks 考试模块;最终实现改用本硕博一体化教学中心(ehall,jxzxehallapp.bit.edu.cn)的 `studentWdksapApp`,接口 `POST jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do`(body `requestParamStr={"XNXQDM":"<学期>","*order":"-KSRQ,-KSSJMS"}`,返回 JSON `datas.cxxsksap.rows`),复用 P5 课表的 jwapp 会话与 warm-up(getAppConfig/switchLang/getCurrentTerm → getExamAppConfig/switchLangExam)。下文中所有关于 `JsxsdExamParser` / jwms / `activateService(JWMS)` / jsxsd HTML 解析的章节均已废弃,仅作历史记录。实际代码:`ExamRowDto` / `ExamRowMapper` / `SyncExamsUseCase` / `BitJwappService.getExamSchedule`。
+
 > 状态:设计已对齐,待用户复核 → 转 writing-plans
 > 日期:2026-05-29
 > 数据源:BIT 正方(强智 jsxsd,jwms.bit.edu.cn)考试安排页,与成绩同系统同会话

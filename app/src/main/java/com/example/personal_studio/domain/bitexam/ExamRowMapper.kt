@@ -17,7 +17,7 @@ class ExamRowMapper @Inject constructor() {
         val course = row.kcm?.let { cn(it) }?.takeIf { it.isNotBlank() } ?: return null
         val kch = row.kch ?: course
         return ExamItem(
-            uid = "$term|$kch|${row.ksrq ?: start}",
+            uid = "$term|$kch|$start",
             course = course,
             startAt = start,
             endAt = end,

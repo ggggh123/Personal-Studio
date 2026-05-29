@@ -106,7 +106,6 @@ class ExamsViewModel @Inject constructor(
         is ExamSyncError.WrongCredentials -> "密码错误"
         is ExamSyncError.AccountLocked -> "账号锁定"
         is ExamSyncError.CaptchaRequired -> "需验证码,请网页端登录一次"
-        is ExamSyncError.NeedReview -> "请先完成评教"
         is ExamSyncError.ParseFail -> "教务返回异常"
         is ExamSyncError.NetworkFail -> "网络错误,请重试"
         is ExamSyncError.Unexpected -> "未知错误"

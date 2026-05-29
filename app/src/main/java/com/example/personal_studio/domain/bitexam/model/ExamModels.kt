@@ -2,7 +2,7 @@ package com.example.personal_studio.domain.bitexam.model
 
 import com.example.personal_studio.data.network.bit.NetworkMode
 
-/** 解析自 jsxsd 考试安排页的一条考试。 */
+/** 解析自 ehall studentWdksapApp(cxxsksap)的一条考试。 */
 data class ExamItem(
     val uid: String,          // 去重键:"$term|$courseCode|$startAt"
     val course: String,
@@ -31,7 +31,6 @@ sealed interface ExamSyncError {
     object WrongCredentials : ExamSyncError
     object AccountLocked : ExamSyncError
     object CaptchaRequired : ExamSyncError
-    object NeedReview : ExamSyncError
     data class ParseFail(val message: String) : ExamSyncError
     data class NetworkFail(val cause: String) : ExamSyncError
     data class Unexpected(val cause: String) : ExamSyncError
