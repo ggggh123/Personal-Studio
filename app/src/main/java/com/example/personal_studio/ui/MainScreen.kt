@@ -1,5 +1,7 @@
 package com.example.personal_studio.ui
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,19 +17,25 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.personal_studio.ui.components.TerminalBottomBar
+import com.example.personal_studio.ui.components.TerminalSplash
 import com.example.personal_studio.ui.components.TerminalTab
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.navigation.NavRoutes
 import com.example.personal_studio.ui.theme.Void
 import com.example.personal_studio.ui.theme.scanLines
 import com.example.personal_studio.ui.theme.vignette
+import kotlinx.coroutines.delay
 
 private val tabs = listOf(
     TerminalTab(NavRoutes.CHAT, "chat", Icons.Filled.Terminal),
@@ -36,15 +44,37 @@ private val tabs = listOf(
     TerminalTab(NavRoutes.TIMELINE, "day", Icons.Filled.CalendarMonth),
 )
 
+/** 冷启动品牌屏的最短停留(ms);实际停留 = max(此值, 起始目的地解析时间)。 */
+private const val SPLASH_MIN_MS = 1300L
+
 @Composable
 fun MainScreen(navController: NavHostController = rememberNavController()) {
-    val rootVm: com.example.personal_studio.feature.auth.RootViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    val rootVm: com.example.personal_studio.feature.auth.RootViewModel =
+        androidx.hilt.navigation.compose.hiltViewModel()
     val startDest by rootVm.startDestination.collectAsStateWithLifecycle()
-    if (startDest == null) {
-        com.example.personal_studio.ui.components.TerminalSplash()
-        return
+
+    // 每次冷启动先驻留品牌屏 SPLASH_MIN_MS,再 crossfade 渐变进入。
+    var minElapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(SPLASH_MIN_MS)
+        minElapsed = true
     }
 
+    Crossfade(
+        targetState = (!minElapsed || startDest == null),
+        animationSpec = tween(durationMillis = 450),
+        label = "boot-splash",
+    ) { showSplash ->
+        if (showSplash) {
+            TerminalSplash()
+        } else {
+            startDest?.let { dest -> MainShell(navController = navController, startDestination = dest) }
+        }
+    }
+}
+
+@Composable
+private fun MainShell(navController: NavHostController, startDestination: String) {
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val isTabRoute = tabs.any { it.route == currentRoute }
@@ -102,7 +132,7 @@ fun MainScreen(navController: NavHostController = rememberNavController()) {
                 .background(Void)
                 .let { if (isScannerSubRoute) it else it.scanLines().vignette() },
         ) {
-            AppNavHost(navController = navController, startDestination = startDest!!)
+            AppNavHost(navController = navController, startDestination = startDestination)
         }
     }
 }
