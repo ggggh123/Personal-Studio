@@ -31,6 +31,7 @@ import com.example.personal_studio.domain.model.BubbleState
 import com.example.personal_studio.domain.model.TimelineItem
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
+import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Olive
@@ -86,7 +87,8 @@ fun TimelineBubble(
             text = item.title,
             color = Foam,
             style = MaterialTheme.typography.bodyMedium,
-            textDecoration = if (state is BubbleState.TaskDone || state is BubbleState.CustomDone)
+            textDecoration = if (state is BubbleState.TaskDone || state is BubbleState.CustomDone ||
+                state is BubbleState.ExamDone)
                 TextDecoration.LineThrough else TextDecoration.None,
         )
         Spacer(Modifier.height(2.dp))
@@ -115,15 +117,21 @@ private fun bubbleBaseColor(item: TimelineItem, state: BubbleState): Color = whe
     BubbleState.CustomInProgress -> Phosphor
     BubbleState.CustomOverdue -> Carmine
     BubbleState.CustomDone -> Olive
+
+    BubbleState.ExamUpcoming, BubbleState.ExamImminent,
+    BubbleState.ExamInProgress, BubbleState.ExamPast, BubbleState.ExamDone -> Cyan
 }
 
 private data class VisualMods(val borderWidth: Int, val alpha: Float, val scale: Boolean)
 
 private fun visualMods(state: BubbleState): VisualMods = when (state) {
-    BubbleState.CourseUpcoming, BubbleState.TaskUpcoming, BubbleState.CustomUpcoming -> VisualMods(1, 1f, false)
-    BubbleState.CourseImminent, BubbleState.TaskImminent, BubbleState.CustomImminent -> VisualMods(2, 1f, true)
-    BubbleState.CourseInProgress, BubbleState.CustomInProgress -> VisualMods(2, 1f, false)
-    BubbleState.CoursePast -> VisualMods(1, 0.5f, false)
+    BubbleState.CourseUpcoming, BubbleState.TaskUpcoming, BubbleState.CustomUpcoming,
+    BubbleState.ExamUpcoming -> VisualMods(1, 1f, false)
+    BubbleState.CourseImminent, BubbleState.TaskImminent, BubbleState.CustomImminent,
+    BubbleState.ExamImminent -> VisualMods(2, 1f, true)
+    BubbleState.CourseInProgress, BubbleState.CustomInProgress,
+    BubbleState.ExamInProgress -> VisualMods(2, 1f, false)
+    BubbleState.CoursePast, BubbleState.ExamPast -> VisualMods(1, 0.5f, false)
     BubbleState.TaskOverdue, BubbleState.CustomOverdue -> VisualMods(2, 1f, true)
-    BubbleState.TaskDone, BubbleState.CustomDone -> VisualMods(1, 0.8f, false)
+    BubbleState.TaskDone, BubbleState.CustomDone, BubbleState.ExamDone -> VisualMods(1, 0.8f, false)
 }

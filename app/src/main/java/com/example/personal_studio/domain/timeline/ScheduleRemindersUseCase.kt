@@ -64,6 +64,11 @@ class ScheduleRemindersUseCase(
                 ReminderSlot(0, true),
             )
             TimelineType.CUSTOM -> listOf(ReminderSlot(30, false))
+            TimelineType.EXAM -> listOf(
+                ReminderSlot(1440, false),
+                ReminderSlot(120, false),
+                ReminderSlot(30, false),
+            )
         }
 
         /**

@@ -22,6 +22,7 @@ class TimelineNotifier @Inject constructor() {
             TimelineType.COURSE -> "$minBefore 分钟后${item.location?.let { "  ·  $it" } ?: ""}"
             TimelineType.TASK -> "DDL 还剩 ${humanDuration(minBefore)}"
             TimelineType.CUSTOM -> "$minBefore 分钟后${item.location?.let { "  ·  $it" } ?: ""}"
+            TimelineType.EXAM -> "${humanDuration(minBefore)}后开考${item.location?.let { "  ·  $it" } ?: ""}"
         }
         post(
             context = context,

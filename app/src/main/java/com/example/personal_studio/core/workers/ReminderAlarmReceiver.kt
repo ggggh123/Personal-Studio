@@ -47,6 +47,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                     TimelineType.COURSE -> switches.course
                     TimelineType.TASK -> switches.task
                     TimelineType.CUSTOM -> switches.custom
+                    TimelineType.EXAM -> switches.task
                 }
                 if (!enabled) return@launch
                 if (isOverdue) notifier.postOverdue(context, item)

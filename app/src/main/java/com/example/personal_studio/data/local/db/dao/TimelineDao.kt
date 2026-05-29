@@ -73,6 +73,12 @@ interface TimelineDao {
     @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_LEXUE' ORDER BY startAt ASC")
     fun observeLexueDdls(): kotlinx.coroutines.flow.Flow<List<TimelineItemEntity>>
 
+    @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_EXAM'")
+    suspend fun getImportedExams(): List<TimelineItemEntity>
+
+    @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_EXAM' ORDER BY startAt ASC")
+    fun observeImportedExams(): kotlinx.coroutines.flow.Flow<List<TimelineItemEntity>>
+
     @Query("SELECT * FROM timeline_items WHERE id = :id")
     suspend fun findById(id: Long): TimelineItemEntity?
 
@@ -90,7 +96,7 @@ interface TimelineDao {
         """
         SELECT date(startAt / 1000, 'unixepoch', 'localtime') AS day,
                SUM(CASE WHEN type = 'COURSE' THEN 1 ELSE 0 END) AS courseCount,
-               SUM(CASE WHEN type = 'TASK' THEN 1 ELSE 0 END) AS taskCount
+               SUM(CASE WHEN type IN ('TASK','EXAM') THEN 1 ELSE 0 END) AS taskCount
         FROM timeline_items
         WHERE startAt >= :startInclusive AND startAt < :endExclusive
         GROUP BY day
