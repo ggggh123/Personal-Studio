@@ -1,5 +1,6 @@
 package com.example.personal_studio.data.network.bit.service
 
+import com.example.personal_studio.data.network.bit.dto.ExamResponse
 import com.example.personal_studio.data.network.bit.dto.ScheduleResponse
 import com.example.personal_studio.data.network.bit.dto.TermListResponse
 import com.example.personal_studio.data.network.bit.dto.WeekDateResponse
@@ -52,4 +53,23 @@ interface BitJwappService {
     suspend fun getSchedule(
         @Field("XNXQDM") xnxqdm: String,
     ): Response<ScheduleResponse>
+
+    // ── ehall studentWdksapApp (考试安排) — same host/session, separate app warm-up ──
+
+    @GET("jwapp/sys/funauthapp/api/getAppConfig/studentWdksapApp-{appId}.do")
+    suspend fun getExamAppConfig(
+        @Path("appId") appId: String = "4768687067472349",
+    ): Response<ResponseBody>
+
+    @GET("jwapp/i18n.do")
+    suspend fun switchLangExam(
+        @Query("appName") appName: String = "studentWdksapApp",
+        @Query("EMAP_LANG") emapLang: String = "zh",
+    ): Response<ResponseBody>
+
+    @FormUrlEncoded
+    @POST("jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do")
+    suspend fun getExamSchedule(
+        @Field("requestParamStr") requestParamStr: String,
+    ): Response<ExamResponse>
 }

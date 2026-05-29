@@ -5,7 +5,6 @@ import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.domain.bitexam.model.ExamSyncError
 import com.example.personal_studio.domain.bitexam.model.ExamSyncRequest
 import com.example.personal_studio.domain.bitexam.model.ExamSyncStep
-import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
 import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -13,13 +12,14 @@ import java.io.IOException
 import javax.inject.Inject
 
 /**
- * 考试安排同步:open→sso→activateService(jwms)→GET xsksap_query 抠学期→POST xsksap_list→解析→灌 Timeline。
- * 复用 grades 的 jwms 会话(同 host)。手动触发,无后台轮询。
+ * 考试安排同步:ehall studentWdksapApp(jwapp,同 host 同会话,复用 P5 课表基建)。
+ * ssoLogin → warm-up wdkbby 取当前学期 → warm-up studentWdksapApp → cxxsksap → 映射 → 灌 Timeline。
+ * 手动触发,无后台轮询。
  */
 class SyncExamsUseCase @Inject constructor(
     private val apiClient: BitApiClient,
     private val ssoLogin: SsoLoginUseCase,
-    private val parser: JsxsdExamParser,
+    private val mapper: ExamRowMapper,
     private val replacer: ReplaceImportedExamUseCase,
 ) {
     fun sync(req: ExamSyncRequest): Flow<ExamSyncStep> = flow {
@@ -29,14 +29,19 @@ class SyncExamsUseCase @Inject constructor(
             val login = ssoLogin.invoke(apiClient, req.username, req.password)
             login.toExamError()?.let { emit(ExamSyncStep.Failed(it)); return@flow }
 
-            apiClient.cas.activateService(SyncGradesUseCase.JWMS_SERVICE)
+            // warm-up wdkbby 取当前学年学期(与 app 无关,全校统一)
+            apiClient.jwapp.getAppConfig()
+            apiClient.jwapp.switchLang()
+            val term = apiClient.jwapp.getCurrentTerm().body()?.datas?.dqxnxq?.rows?.firstOrNull()?.code
+                ?: run { emit(ExamSyncStep.Failed(ExamSyncError.ParseFail("无当前学期"))); return@flow }
 
             emit(ExamSyncStep.FetchingExams)
-            val queryHtml = (apiClient.jwms.getExamQueryHtml().let { it.body() ?: it.errorBody() })?.string().orEmpty()
-            val term = JsxsdExamParser.extractCurrentTerm(queryHtml)
-                ?: run { emit(ExamSyncStep.Failed(ExamSyncError.ParseFail("无学期"))); return@flow }
-            val listHtml = (apiClient.jwms.getExamScheduleHtml(term).let { it.body() ?: it.errorBody() })?.string().orEmpty()
-            val exams = parser.parse(listHtml, term)
+            // warm-up studentWdksapApp(否则 cxxsksap 403)
+            apiClient.jwapp.getExamAppConfig()
+            apiClient.jwapp.switchLangExam()
+            val reqStr = """{"XNXQDM":"$term","*order":"-KSRQ,-KSSJMS"}"""
+            val rows = apiClient.jwapp.getExamSchedule(reqStr).body()?.datas?.cxxsksap?.rows ?: emptyList()
+            val exams = rows.mapNotNull { mapper.invoke(it, term) }
             replacer.invoke(exams)
             emit(ExamSyncStep.Done(exams.size))
         } catch (io: IOException) {
