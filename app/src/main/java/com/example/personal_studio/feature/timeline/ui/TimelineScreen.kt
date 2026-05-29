@@ -355,7 +355,8 @@ private fun ClusterItemRow(
             modifier = Modifier.width(110.dp),
         )
         Text(
-            text = item.title + (item.location?.let { "  ·  $it" } ?: ""),
+            text = (item.courseName?.takeIf { it.isNotBlank() }?.let { "$it · " } ?: "") +
+                item.title + (item.location?.let { "  ·  $it" } ?: ""),
             color = Foam,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
