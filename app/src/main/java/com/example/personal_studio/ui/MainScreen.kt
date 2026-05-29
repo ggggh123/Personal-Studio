@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -37,6 +38,13 @@ private val tabs = listOf(
 
 @Composable
 fun MainScreen(navController: NavHostController = rememberNavController()) {
+    val rootVm: com.example.personal_studio.feature.auth.RootViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    val startDest by rootVm.startDestination.collectAsStateWithLifecycle()
+    if (startDest == null) {
+        com.example.personal_studio.ui.components.TerminalSplash()
+        return
+    }
+
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val isTabRoute = tabs.any { it.route == currentRoute }
@@ -94,7 +102,7 @@ fun MainScreen(navController: NavHostController = rememberNavController()) {
                 .background(Void)
                 .let { if (isScannerSubRoute) it else it.scanLines().vignette() },
         ) {
-            AppNavHost(navController = navController)
+            AppNavHost(navController = navController, startDestination = startDest!!)
         }
     }
 }

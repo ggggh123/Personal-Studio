@@ -28,11 +28,11 @@ import com.example.personal_studio.ui.navigation.NavRoutes
 import java.io.File
 
 @Composable
-fun AppNavHost(navController: NavHostController) {
+fun AppNavHost(navController: NavHostController, startDestination: String = NavRoutes.CHAT) {
     val context = LocalContext.current
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.CHAT,
+        startDestination = startDestination,
     ) {
         composable(NavRoutes.CHAT) {
             ChatListScreen(
