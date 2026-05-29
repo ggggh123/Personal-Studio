@@ -75,6 +75,22 @@ class ImportViewModel @Inject constructor(
     fun onNetworkModeChange(m: NetworkMode) = _uiState.update { it.copy(networkMode = m) }
     fun onShowPasswordToggle() = _uiState.update { it.copy(showPassword = !it.showPassword) }
 
+    /** 已登录时由 ImportEntryRoute 调用:用存好的凭据直接导入,跳过凭据表单。 */
+    fun startWithSavedCreds() {
+        val saved = credPrefs.observeAll().value ?: return
+        _uiState.update {
+            it.copy(
+                username = saved.username,
+                password = saved.password,
+                networkMode = saved.lastMode ?: NetworkMode.LOCAL,
+                rememberPwd = true,
+            )
+        }
+        onLogin()
+    }
+
+    fun isLoggedIn(): Boolean = credPrefs.observeAll().value != null
+
     fun onLogin() {
         val st = _uiState.value
         val channel = Channel<Boolean>(Channel.RENDEZVOUS).also { confirmChannel = it }

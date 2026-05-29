@@ -205,6 +205,11 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
         composable(NavRoutes.IMPORT_WIZARD) {
             ImportEntryRoute(
                 onClose = { navController.popBackStack() },
+                onNeedLogin = {
+                    navController.navigate(NavRoutes.login("import")) {
+                        popUpTo(NavRoutes.IMPORT_WIZARD) { inclusive = true }
+                    }
+                },
             )
         }
         composable(
