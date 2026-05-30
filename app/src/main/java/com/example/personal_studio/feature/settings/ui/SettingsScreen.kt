@@ -59,7 +59,6 @@ import com.example.personal_studio.ui.theme.Void
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
-    onNavigateToImport: () -> Unit,
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
@@ -317,19 +316,6 @@ fun SettingsScreen(
             // ── Section: timeline ──────────────────────────────
             SectionHeader("## timeline")
 
-            val acct = state.loggedInUsername
-            if (acct == null) {
-                NavigableRowWithSubtitle(
-                    key = "BIT 账号",
-                    value = "未登录,点此登录 →",
-                    subtitle = "登录后成绩 / 课表 / 作业免再输密码",
-                    onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.login("settings")) },
-                )
-            } else {
-                KeyValueRow(key = "BIT 账号", value = acct, valueColor = Phosphor)
-                NavigableRow(key = "", value = "退出登录", onClick = vm::onLogout)
-            }
-
             NavigableRow(
                 key = "SEMESTER",
                 value = "学期起始日 →",
@@ -349,36 +335,6 @@ fun SettingsScreen(
                 key = "COURSES",
                 value = "课程列表 →",
                 onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.TIMELINE_COURSE_LIST) },
-            )
-            NavigableRowWithSubtitle(
-                key = "IMPORT",
-                value = "从教务系统导入课表 →",
-                subtitle = "BIT 统一身份认证 · 校内/校外均可",
-                onClick = onNavigateToImport,
-            )
-            NavigableRowWithSubtitle(
-                key = "GRADES",
-                value = "从教务系统查询成绩 →",
-                subtitle = "成绩单 · 可视化 · AI 分析",
-                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.GRADES) },
-            )
-            NavigableRowWithSubtitle(
-                key = "GRADES_POLL",
-                value = "成绩更新提醒 →",
-                subtitle = "后台查分新成绩并通知",
-                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_GRADES_POLL) },
-            )
-            NavigableRowWithSubtitle(
-                key = "DDL_POLL",
-                value = "作业自动同步 →",
-                subtitle = "后台拉乐学作业 DDL 并通知",
-                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.SETTINGS_DDL_POLL) },
-            )
-            NavigableRowWithSubtitle(
-                key = "EXAMS",
-                value = "查询考试安排 →",
-                subtitle = "考试时间 · 地点 · 座位 同步进 Timeline",
-                onClick = { onNavigate(com.example.personal_studio.ui.navigation.NavRoutes.EXAMS) },
             )
 
             DashedDivider()
