@@ -406,39 +406,6 @@ private fun NavigableRow(key: String, value: String, onClick: () -> Unit) {
     }
 }
 
-/** Same shape as [NavigableRow] but renders a small dim subtitle under the
- *  value — used for rows that need a short explanation (e.g. IMPORT). */
-@Composable
-private fun NavigableRowWithSubtitle(
-    key: String,
-    value: String,
-    subtitle: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = androidx.compose.ui.Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(vertical = 4.dp),
-    ) {
-        Text(
-            key,
-            style = MaterialTheme.typography.labelSmall,
-            color = Phosphor,
-            modifier = androidx.compose.ui.Modifier.width(140.dp),
-        )
-        Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
-        Column {
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = Foam)
-            Text(
-                "# $subtitle",
-                style = MaterialTheme.typography.labelSmall,
-                color = FoamDim,
-            )
-        }
-    }
-}
-
 @Composable
 private fun StatusLine(ok: Boolean, body: String) {
     val tag = if (ok) "ok" else "err"
