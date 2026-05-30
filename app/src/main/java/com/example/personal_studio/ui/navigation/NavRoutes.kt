@@ -8,6 +8,7 @@ object NavRoutes {
     const val SCANNER = "scanner"
     const val KNOWLEDGE = "knowledge"
     const val TIMELINE = "timeline"
+    const val PROFILE = "profile"
 
     // Sub-destinations
     const val CHAT_DETAIL = "chat/detail/{sessionId}"
