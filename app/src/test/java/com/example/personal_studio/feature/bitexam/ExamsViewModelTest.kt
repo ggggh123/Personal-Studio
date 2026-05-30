@@ -6,7 +6,6 @@ import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -30,15 +29,14 @@ class ExamsViewModelTest {
     private val now = 1_000_000_000_000L
     private fun row(
         id: Long, start: Long, done: Boolean,
-        endAt: Long? = start + 7200_000L, notes: String? = "座位: 1",
+        endAt: Long? = start + 7200_000L, notes: String? = "座位: 1", instructor: String? = null,
     ) = TimelineItemEntity(
         id = id, type = TimelineType.EXAM, title = "E$id", startAt = start, endAt = endAt,
-        isDone = done, location = "r", notes = notes,
+        isDone = done, location = "r", instructor = instructor, notes = notes,
         sourceType = TimelineSource.IMPORTED_EXAM, sourceExternalId = "u$id", createdAt = 1L, updatedAt = 1L,
     )
     private fun vm(dao: TimelineDao) = ExamsViewModel(
-        dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
-        scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true), sync = mockk(relaxed = true),
+        dao = dao, sync = mockk(relaxed = true),
         credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
         nowProvider = { now },
     )
@@ -85,24 +83,22 @@ class ExamsViewModelTest {
         job.cancel()
     }
 
+    @Test fun `invigilator is mapped from instructor`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) {
+            every { observeImportedExams() } returns flowOf(listOf(
+                row(6, now + 1 * 3600_000L, false, instructor = "刘峡壁"),
+            ))
+        }
+        val vm = vm(dao)
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals("刘峡壁", vm.uiState.value.upcoming.single().invigilator)
+        job.cancel()
+    }
+
     @Test fun `refresh without creds emits NeedLogin`() = runTest {
         val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
         val vm = vm(dao)
         vm.events.test { vm.onRefresh(); advanceUntilIdle(); assertEquals(ExamsEvent.NeedLogin, awaitItem()) }
-    }
-
-    @Test fun `toggle done delegates`() = runTest {
-        val toggle = mockk<com.example.personal_studio.domain.timeline.ToggleDoneUseCase>(relaxed = true)
-        val cancel = mockk<com.example.personal_studio.domain.timeline.CancelRemindersUseCase>(relaxed = true)
-        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
-        val vm = ExamsViewModel(dao, toggle, cancel, mockk(relaxed = true), mockk(relaxed = true),
-            mockk(relaxed = true),
-            mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) }, { now })
-        val job = launch { vm.uiState.collect {} }
-        advanceUntilIdle()
-        vm.onToggleDone(5L, true); advanceUntilIdle()
-        coVerify { toggle.invoke(5L, true) }
-        coVerify { cancel.invoke(5L) }
-        job.cancel()
     }
 }

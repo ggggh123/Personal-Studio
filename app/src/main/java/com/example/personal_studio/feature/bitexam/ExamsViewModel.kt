@@ -6,14 +6,10 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
-import com.example.personal_studio.data.repository.TimelineRepository
 import com.example.personal_studio.domain.bitexam.SyncExamsUseCase
 import com.example.personal_studio.domain.bitexam.model.ExamSyncError
 import com.example.personal_studio.domain.bitexam.model.ExamSyncRequest
 import com.example.personal_studio.domain.bitexam.model.ExamSyncStep
-import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
-import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
-import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +26,7 @@ import javax.inject.Inject
 
 data class ExamRow(
     val id: Long, val course: String, val startAt: Long, val endAt: Long?,
-    val location: String?, val seat: String?, val isDone: Boolean,
+    val location: String?, val seat: String?, val invigilator: String?,
 )
 
 data class ExamsUiState(
@@ -46,10 +42,6 @@ sealed interface ExamsEvent { object NeedLogin : ExamsEvent }
 @HiltViewModel
 class ExamsViewModel @Inject constructor(
     private val dao: TimelineDao,
-    private val toggleDone: ToggleDoneUseCase,
-    private val cancelReminders: CancelRemindersUseCase,
-    private val scheduleReminders: ScheduleRemindersUseCase,
-    private val repo: TimelineRepository,
     private val sync: SyncExamsUseCase,
     private val credPrefs: ImportCredentialPrefs,
     private val nowProvider: () -> Long = System::currentTimeMillis,
@@ -59,6 +51,7 @@ class ExamsViewModel @Inject constructor(
     private val _events = MutableSharedFlow<ExamsEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<ExamsEvent> = _events.asSharedFlow()
 
+    // 考试无「手动完成」概念:已考/未考完全由时间(endAt ?: startAt vs now)决定。
     val uiState: StateFlow<ExamsUiState> = combine(
         dao.observeImportedExams(), credPrefs.observeAll(), transient,
     ) { rows, creds, t ->
@@ -71,15 +64,6 @@ class ExamsViewModel @Inject constructor(
             credsSaved = creds != null,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ExamsUiState())
-
-    fun onToggleDone(id: Long, done: Boolean) = viewModelScope.launch {
-        toggleDone(id, done)
-        cancelReminders(id)
-        if (!done) {
-            val item = repo.findById(id)
-            if (item != null && item.startAt > nowProvider()) scheduleReminders(item)
-        }
-    }
 
     fun onRefresh() {
         val creds = credPrefs.observeAll().value ?: run {
@@ -99,7 +83,7 @@ class ExamsViewModel @Inject constructor(
 
     private fun TimelineItemEntity.toRow() = ExamRow(
         id, title, startAt, endAt, location,
-        notes?.removePrefix("座位: ")?.takeIf { it != notes }, isDone,
+        notes?.removePrefix("座位: ")?.takeIf { it != notes }, instructor,
     )
 
     private fun ExamSyncError.toMessage(): String = when (this) {
