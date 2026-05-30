@@ -50,6 +50,7 @@ fun TimelineScreen(
     onOpenDetail: (Long) -> Unit,
     onOpenWeekGrid: () -> Unit = {},
     onOpenAssignments: () -> Unit = {},
+    onOpenExams: () -> Unit = {},
     vm: TimelineViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -92,6 +93,7 @@ fun TimelineScreen(
                 IconButton(onClick = vm::onNextDay) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "next") }
                 TextButton(onClick = vm::onToday) { Text("今日") }
                 TextButton(onClick = onOpenAssignments) { Text("作业 ↗") }
+                TextButton(onClick = onOpenExams) { Text("考试 ↗") }
                 IconButton(onClick = onOpenWeekGrid) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = "week grid")
                 }
@@ -219,11 +221,11 @@ private fun computeBubbleLayout(startEpoch: Long, zone: ZoneId): BubbleLayout {
     }
 }
 
-/** Returns the bubble's intended height for COURSE rows (so the bottom edge
- *  aligns with `endAt` on the axis). Other types fall back to wrap-content
- *  so DDLs (TASK) and short events stay readable. */
+/** Returns the bubble's intended height for COURSE / EXAM rows (so the bottom
+ *  edge aligns with `endAt` on the axis — both are timed blocks). Other types
+ *  fall back to wrap-content so DDLs (TASK) and short events stay readable. */
 private fun computeBubbleHeight(item: TimelineItem): Dp? {
-    if (item.type != TimelineType.COURSE || item.endAt == null) return null
+    if ((item.type != TimelineType.COURSE && item.type != TimelineType.EXAM) || item.endAt == null) return null
     val durationMs = item.endAt - item.startAt
     if (durationMs <= 0) return null
     val durationHours = durationMs / 3_600_000f

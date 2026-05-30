@@ -16,6 +16,7 @@ class ComputeBubbleStateUseCase @Inject constructor() {
     private val courseImminent = 15 * MIN_MS
     private val taskImminent = 2 * 60 * MIN_MS
     private val customImminent = 30 * MIN_MS
+    private val examImminent = 2 * 60 * MIN_MS
 
     operator fun invoke(item: TimelineItem, now: Long): BubbleState {
         return when (item.type) {
@@ -42,6 +43,16 @@ class ComputeBubbleStateUseCase @Inject constructor() {
                     item.startAt <= now -> BubbleState.CustomInProgress
                     item.startAt - now <= customImminent -> BubbleState.CustomImminent
                     else -> BubbleState.CustomUpcoming
+                }
+            }
+            TimelineType.EXAM -> {
+                val end = item.endAt ?: item.startAt
+                when {
+                    item.isDone -> BubbleState.ExamDone
+                    end <= now -> BubbleState.ExamPast
+                    item.startAt <= now -> BubbleState.ExamInProgress
+                    item.startAt - now <= examImminent -> BubbleState.ExamImminent
+                    else -> BubbleState.ExamUpcoming
                 }
             }
         }

@@ -1,9 +1,9 @@
 package com.example.personal_studio.domain.model
 
 /** Source of a timeline item. P4 only writes MANUAL; rest are reserved for P5. */
-enum class TimelineSource { MANUAL, IMPORTED_ICS, IMPORTED_PORTAL, FROM_CHAT, IMPORTED_LEXUE }
+enum class TimelineSource { MANUAL, IMPORTED_ICS, IMPORTED_PORTAL, FROM_CHAT, IMPORTED_LEXUE, IMPORTED_EXAM }
 
-enum class TimelineType { COURSE, TASK, CUSTOM }
+enum class TimelineType { COURSE, TASK, CUSTOM, EXAM }
 
 /** Pure domain shape — Compose / VM never see Room entities. */
 data class TimelineItem(
@@ -82,6 +82,11 @@ sealed class BubbleState {
     object CustomInProgress : BubbleState()
     object CustomOverdue    : BubbleState()
     object CustomDone       : BubbleState()
+    object ExamUpcoming   : BubbleState()
+    object ExamImminent   : BubbleState()
+    object ExamInProgress : BubbleState()
+    object ExamPast       : BubbleState()
+    object ExamDone       : BubbleState()
 }
 
 /** A single reminder: minBefore=0 + isOverdue=true means "DDL just hit". */

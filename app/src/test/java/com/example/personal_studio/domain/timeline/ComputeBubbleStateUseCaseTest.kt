@@ -97,6 +97,35 @@ class ComputeBubbleStateUseCaseTest {
         assertEquals(BubbleState.CustomDone, out)
     }
 
+    @Test fun `exam done regardless of time`() {
+        val out = useCase(item(TimelineType.EXAM, startAt = 0L, endAt = 60 * mins, isDone = true), now = 100 * hours)
+        assertEquals(BubbleState.ExamDone, out)
+    }
+
+    @Test fun `exam past when end has passed`() {
+        val now = 70 * mins
+        val out = useCase(item(TimelineType.EXAM, startAt = 0L, endAt = 60 * mins), now)
+        assertEquals(BubbleState.ExamPast, out)
+    }
+
+    @Test fun `exam in progress when between start and end`() {
+        val now = 30 * mins
+        val out = useCase(item(TimelineType.EXAM, startAt = 0L, endAt = 60 * mins), now)
+        assertEquals(BubbleState.ExamInProgress, out)
+    }
+
+    @Test fun `exam imminent within 2h`() {
+        val now = 0L
+        val out = useCase(item(TimelineType.EXAM, startAt = 1 * hours, endAt = 3 * hours), now)
+        assertEquals(BubbleState.ExamImminent, out)
+    }
+
+    @Test fun `exam upcoming when more than 2h ahead`() {
+        val now = 0L
+        val out = useCase(item(TimelineType.EXAM, startAt = 3 * hours, endAt = 5 * hours), now)
+        assertEquals(BubbleState.ExamUpcoming, out)
+    }
+
     @Test fun `boundary now equals startAt is imminent for course`() {
         val now = 0L
         val out = useCase(item(TimelineType.COURSE, startAt = 0L, endAt = 60 * mins), now)

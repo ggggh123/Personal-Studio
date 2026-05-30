@@ -133,6 +133,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
                 onOpenWeekGrid = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
                 onOpenAssignments = { navController.navigate(NavRoutes.ASSIGNMENTS) },
+                onOpenExams = { navController.navigate(NavRoutes.EXAMS) },
             )
         }
         composable(NavRoutes.TIMELINE_WEEK_GRID) {
@@ -347,6 +348,15 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             com.example.personal_studio.feature.bitddl.ui.AssignmentsScreen(
                 onBack = { navController.popBackStack() },
                 onNeedLogin = { navController.navigate(NavRoutes.login("assignments")) },
+            )
+        }
+        composable(
+            NavRoutes.EXAMS,
+            deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://exams" }),
+        ) {
+            com.example.personal_studio.feature.bitexam.ui.ExamsScreen(
+                onBack = { navController.popBackStack() },
+                onNeedLogin = { navController.navigate(NavRoutes.login("exams")) },
             )
         }
         composable(
