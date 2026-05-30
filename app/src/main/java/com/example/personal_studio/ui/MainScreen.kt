@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import kotlinx.coroutines.delay
 private val tabs = listOf(
     TerminalTab(NavRoutes.CHAT, "chat", Icons.Filled.Terminal),
     TerminalTab(NavRoutes.SCANNER, "scan", Icons.Filled.CameraAlt),
+    TerminalTab(NavRoutes.PROFILE, "我", Icons.Filled.Person, prominent = true),
     TerminalTab(NavRoutes.KNOWLEDGE, "kb", Icons.AutoMirrored.Filled.MenuBook),
     TerminalTab(NavRoutes.TIMELINE, "day", Icons.Filled.CalendarMonth),
 )
@@ -116,7 +118,7 @@ private fun MainShell(navController: NavHostController, startDestination: String
                     selectedRoute = currentRoute,
                     onTabClick = { tab ->
                         navController.navigate(tab.route) {
-                            popUpTo(NavRoutes.CHAT) { saveState = true }
+                            popUpTo(NavRoutes.PROFILE) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
