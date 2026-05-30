@@ -75,4 +75,38 @@ class ImportViewModelTest {
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.done)
     }
+
+    /** 重试必须重新跑导入(回 Progress),而不是把已登录用户送回 Credentials splash。 */
+    @Test fun `retry re-runs import instead of returning to splash`() = runTest {
+        val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
+            every { import(any(), any()) } returns flowOf()
+        }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val vm = ImportViewModel(importUseCase, credPrefs)
+        vm.onRetry()
+        advanceUntilIdle()
+        verify { importUseCase.import(any(), any()) }
+    }
+
+    /** 导入失败时保留 error 且不把 currentScreen 设回 Credentials(splash);error 由 ImportEntryRoute 渲染。 */
+    @Test fun `failed keeps error and stays off Credentials splash`() = runTest {
+        val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
+            every { import(any(), any()) } returns flowOf(
+                com.example.personal_studio.domain.bitimport.model.ImportStep.LoggingIn,
+                com.example.personal_studio.domain.bitimport.model.ImportStep.Failed(
+                    com.example.personal_studio.domain.bitimport.model.ImportError.ParseFail("x"),
+                ),
+            )
+        }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val vm = ImportViewModel(importUseCase, credPrefs)
+        vm.onLogin()
+        advanceUntilIdle()
+        assertEquals(true, vm.uiState.value.error != null)
+        assertEquals(false, vm.uiState.value.currentScreen == ImportScreen.Credentials)
+    }
 }

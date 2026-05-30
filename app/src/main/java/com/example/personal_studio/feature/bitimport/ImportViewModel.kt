@@ -122,8 +122,10 @@ class ImportViewModel @Inject constructor(
 
     fun onDismissError() = _uiState.update { it.copy(error = null) }
 
-    fun onRetry() = _uiState.update {
-        it.copy(error = null, currentScreen = ImportScreen.Credentials, progressSteps = emptyList())
+    /** 重试 = 用已存凭据重跑导入(回 Progress),而不是回 Credentials(对已登录用户是 splash 占位)。 */
+    fun onRetry() {
+        _uiState.update { it.copy(error = null, progressSteps = emptyList()) }
+        onLogin()
     }
 
     private fun reduce(st: ImportUiState, step: ImportStep): ImportUiState = when (step) {
@@ -153,7 +155,9 @@ class ImportViewModel @Inject constructor(
             if (step.err is ImportError.WrongCredentials || step.err is ImportError.AccountLocked) {
                 viewModelScope.launch { credPrefs.clear() }
             }
-            st.copy(error = step.err, currentScreen = ImportScreen.Credentials)
+            // 不回 Credentials(对已登录用户渲染成 splash,error 看不到);保留当前屏,
+            // error 由 ImportEntryRoute 优先渲染成 ErrorBanner。
+            st.copy(error = step.err)
         }
     }
 }
