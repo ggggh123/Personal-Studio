@@ -59,4 +59,20 @@ class ImportViewModelTest {
         advanceUntilIdle()
         verify { importUseCase.import(any(), any()) }
     }
+
+    /** 取消导入必须「退出向导」(done=true 触发 onClose 回上级),而不是把已登录用户
+     *  送回 Credentials 屏 —— 那对已登录用户渲染成 TerminalSplash,会卡死在裸 logo。 */
+    @Test fun `cancel exits wizard via done flag, not back to Credentials splash`() = runTest {
+        val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
+            every { import(any(), any()) } returns
+                flowOf(com.example.personal_studio.domain.bitimport.model.ImportStep.Cancelled)
+        }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val vm = ImportViewModel(importUseCase, credPrefs)
+        vm.onLogin()
+        advanceUntilIdle()
+        assertEquals(true, vm.uiState.value.done)
+    }
 }

@@ -146,7 +146,9 @@ class ImportViewModel @Inject constructor(
             }
             st.copy(writing = false, done = true)
         }
-        is ImportStep.Cancelled -> st.copy(currentScreen = ImportScreen.Credentials)
+        // 取消 = 退出向导(复用 done→onClose 回上级)。不要回 Credentials —— 对已登录用户
+        // 它渲染成 TerminalSplash,且推进逻辑只在 LaunchedEffect(Unit) 跑一次,会卡死在裸 logo。
+        is ImportStep.Cancelled -> st.copy(done = true)
         is ImportStep.Failed -> {
             if (step.err is ImportError.WrongCredentials || step.err is ImportError.AccountLocked) {
                 viewModelScope.launch { credPrefs.clear() }
