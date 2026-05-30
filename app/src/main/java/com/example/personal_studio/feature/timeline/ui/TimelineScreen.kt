@@ -49,8 +49,6 @@ fun TimelineScreen(
     onAddCourse: () -> Unit,
     onOpenDetail: (Long) -> Unit,
     onOpenWeekGrid: () -> Unit = {},
-    onOpenAssignments: () -> Unit = {},
-    onOpenExams: () -> Unit = {},
     vm: TimelineViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -92,8 +90,6 @@ fun TimelineScreen(
                 )
                 IconButton(onClick = vm::onNextDay) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "next") }
                 TextButton(onClick = vm::onToday) { Text("今日") }
-                TextButton(onClick = onOpenAssignments) { Text("作业 ↗") }
-                TextButton(onClick = onOpenExams) { Text("考试 ↗") }
                 IconButton(onClick = onOpenWeekGrid) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = "week grid")
                 }
