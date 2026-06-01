@@ -1,6 +1,9 @@
 package com.example.personal_studio.data.network.bit.service
 
+import com.example.personal_studio.data.network.bit.dto.BuildingResponse
+import com.example.personal_studio.data.network.bit.dto.CampusResponse
 import com.example.personal_studio.data.network.bit.dto.ExamResponse
+import com.example.personal_studio.data.network.bit.dto.RoomOccupancyResponse
 import com.example.personal_studio.data.network.bit.dto.ScheduleResponse
 import com.example.personal_studio.data.network.bit.dto.TermListResponse
 import com.example.personal_studio.data.network.bit.dto.WeekDateResponse
@@ -72,4 +75,28 @@ interface BitJwappService {
     suspend fun getExamSchedule(
         @Field("requestParamStr") requestParamStr: String,
     ): Response<ExamResponse>
+
+    // ── ehall kxjasbyMobile (空教室) — 同 host/session,复用 wdkbby warm-up ──
+
+    @GET("jwapp/sys/kxjasbyMobile/modules/jxllb/ggzdpx.do")
+    suspend fun getCampuses(
+        @Query("dicCode") dicCode: String = "48682",
+        @Query("SFSY") sfsy: String = "1",
+        @Query("order") order: String = "+DM",
+    ): Response<CampusResponse>
+
+    @GET("jwapp/sys/kxjasbyMobile/modules/jxllb/cxjxl.do")
+    suspend fun getBuildings(
+        @Query("XXXQDM") campusCode: String? = null,
+    ): Response<BuildingResponse>
+
+    @FormUrlEncoded
+    @POST("jwapp/sys/kxjasbyMobile/kxjasbyController/cxkxjasqk.do")
+    suspend fun getRoomOccupancy(
+        @Field("XQDM") xqdm: String,
+        @Field("JXLDM") jxldm: String,
+        @Field("RQ") rq: String,
+        @Field("XNXQDM") xnxqdm: String,
+        @Field("XNDM") xndm: String,
+    ): Response<RoomOccupancyResponse>
 }
