@@ -159,4 +159,18 @@ class EmptyRoomViewModelTest {
         assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
         job.cancel()
     }
+
+    @Test fun `loadBuildings populates campuses and buildings`() = runTest {
+        val repo = mockk<EmptyRoomRepository>(relaxed = true) {
+            coEvery { openAndLogin(any(), any(), any()) } returns EmptyRoomResult.Ok("2025-2026-2")
+            coEvery { campuses() } returns listOf(Campus("01", "良乡"))
+            coEvery { buildings(any()) } returns listOf(Building("J1", "理教", "01"))
+        }
+        val vm = vm(repo)
+        val job = launch { vm.uiState.collect {} }
+        vm.loadBuildings(); advanceUntilIdle()
+        assertEquals(listOf("良乡"), vm.uiState.value.campuses.map { it.name })
+        assertEquals(listOf("理教"), vm.uiState.value.buildings.map { it.name })
+        job.cancel()
+    }
 }

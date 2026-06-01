@@ -59,7 +59,6 @@ import com.example.personal_studio.ui.theme.vignette
 fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomViewModel = hiltViewModel()) {
     val st by vm.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
-        vm.loadBuildings()
         vm.events.collect { if (it is EmptyRoomEvent.NeedLogin) onNeedLogin() }
     }
 

@@ -82,8 +82,6 @@ class EmptyRoomRepository @Inject constructor(
             buildings(campusCode).map { b -> async { occupancy(b, date, term, nowMinute) } }.map { it.await() }.flatten()
         }
 
-    fun clearDayCache() { occupancyCache.clear() }
-
     /** 把学期串 "2025-2026-2" 拆成 (XNXQDM, XNDM, XQDM)。 */
     private fun deriveTerm(term: String): Triple<String, String, String> =
         Triple(term, term.substringBeforeLast('-'), term.substringAfterLast('-'))
