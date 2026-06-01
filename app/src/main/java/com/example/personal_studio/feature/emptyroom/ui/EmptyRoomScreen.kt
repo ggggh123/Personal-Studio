@@ -115,7 +115,8 @@ fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomVi
             Spacer(Modifier.height(8.dp))
             when {
                 st.loading -> Text("查询中…", color = FoamDim, style = MaterialTheme.typography.labelMedium)
-                st.rooms.isEmpty() -> Text("点「现在去自习」/「下节课后」一键找,或选校区/楼后查询", color = FoamDim, style = MaterialTheme.typography.labelMedium)
+                st.selectedCampus == null -> Text("请先在上方选择校区,再「现在去自习」/「下节课后」/查询", color = FoamDim, style = MaterialTheme.typography.labelMedium)
+                st.rooms.isEmpty() -> Text("点「现在去自习」/「下节课后」找空教室,或选楼精确查询", color = FoamDim, style = MaterialTheme.typography.labelMedium)
                 else -> {
                     val display = st.rooms.sortedWith(
                         compareByDescending<RoomFreeSlots> { freeAt(it, atMinute, clock) }.thenBy { it.roomName },

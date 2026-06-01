@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -34,8 +36,8 @@ data class EmptyRoomUiState(
     val error: String? = null,
     val campuses: List<Campus> = emptyList(),
     val buildings: List<Building> = emptyList(),
-    val selectedCampus: Campus? = null,
-    val selectedBuilding: Building? = null,
+    val selectedCampus: Campus? = null,        // 必须由用户手动选,查询才基于它
+    val selectedBuilding: Building? = null,     // null = 该校区全部楼
     val date: String = "",
     val rooms: List<RoomFreeSlots> = emptyList(),
     val minFreeHours: Int = 0,
@@ -61,23 +63,43 @@ class EmptyRoomViewModel @Inject constructor(
     // 的 cookie/retrofit。withLock 保证同一时刻只有一个操作占用会话。
     private val sessionMutex = Mutex()
 
-    fun onSmartNow() {
-        val creds = credPrefs.observeAll().value ?: run {
-            viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) }; return
+    init {
+        // 有凭据(进屏或登录回来)即拉校区列表供手动选;无凭据则等用户操作时触发登录。
+        credPrefs.observeAll()
+            .onEach { creds -> if (creds != null && _ui.value.campuses.isEmpty()) loadCampuses() }
+            .launchIn(viewModelScope)
+    }
+
+    /** 拉校区列表(供用户手动选)。不预选校区。 */
+    fun loadCampuses() {
+        val creds = credPrefs.observeAll().value ?: return
+        viewModelScope.launch {
+            sessionMutex.withLock {
+                try {
+                    ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL) ?: return@withLock
+                    _ui.update { it.copy(campuses = repo.campuses()) }
+                } catch (_: Throwable) {
+                } finally {
+                    repo.close()
+                }
+            }
         }
+    }
+
+    /** 现在去自习:基于已选校区,扫该校区现在空的教室,按连续空闲时长降序。 */
+    fun onSmartNow() {
+        val creds = credentialsOrLogin() ?: return
+        val campus = selectedCampusOrPrompt() ?: return
         viewModelScope.launch {
             sessionMutex.withLock {
                 _ui.update { it.copy(loading = true, error = null) }
                 try {
                     val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
                         ?: return@withLock
-                    val campuses = repo.campuses()
-                    val campus = _ui.value.selectedCampus ?: campuses.firstOrNull()
-                    if (campus == null) { _ui.update { it.copy(loading = false, error = "无校区") }; return@withLock }
                     val rooms = repo.occupancyForCampus(campus.code, _ui.value.date, term, nowMinute())
                         .filter { it.status.freeNow }
                         .sortedByDescending { it.status.freeUntilMinuteOfDay ?: 0 }
-                    _ui.update { it.copy(loading = false, campuses = campuses, selectedCampus = campus, rooms = rooms) }
+                    _ui.update { it.copy(loading = false, rooms = rooms) }
                 } catch (e: Throwable) {
                     _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
                 } finally {
@@ -87,10 +109,10 @@ class EmptyRoomViewModel @Inject constructor(
         }
     }
 
+    /** 查询:基于已选校区(选了楼则只查该楼,否则全校区),应用条件筛。 */
     fun onQuery() {
-        val creds = credPrefs.observeAll().value ?: run {
-            viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) }; return
-        }
+        val creds = credentialsOrLogin() ?: return
+        val campus = selectedCampusOrPrompt() ?: return
         viewModelScope.launch {
             sessionMutex.withLock {
                 _ui.update { it.copy(loading = true, error = null) }
@@ -98,12 +120,10 @@ class EmptyRoomViewModel @Inject constructor(
                     val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
                         ?: return@withLock
                     val st = _ui.value
-                    val campus = st.selectedCampus ?: repo.campuses().firstOrNull()
-                    if (campus == null) { _ui.update { it.copy(loading = false, error = "无校区") }; return@withLock }
                     val raw = st.selectedBuilding?.let { repo.occupancy(it, st.date, term, nowMinute()) }
                         ?: repo.occupancyForCampus(campus.code, st.date, term, nowMinute())
                     val rooms = applyFilterAndSort(raw, st.minFreeHours)
-                    _ui.update { it.copy(loading = false, selectedCampus = campus, rooms = rooms) }
+                    _ui.update { it.copy(loading = false, rooms = rooms) }
                 } catch (e: Throwable) {
                     _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
                 } finally {
@@ -113,11 +133,10 @@ class EmptyRoomViewModel @Inject constructor(
         }
     }
 
-    /** 下节课后去哪:取今天 now 之后下一节课的结束时刻作为查询起点,找该时刻起空的教室。 */
+    /** 下节课后去哪:取今天 now 之后下一节课的结束时刻作为查询起点,基于已选校区找该时刻起空的教室。 */
     fun onAfterNextClass() {
-        val creds = credPrefs.observeAll().value ?: run {
-            viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) }; return
-        }
+        val creds = credentialsOrLogin() ?: return
+        val campus = selectedCampusOrPrompt() ?: return
         viewModelScope.launch {
             sessionMutex.withLock {
                 _ui.update { it.copy(loading = true, error = null) }
@@ -133,12 +152,10 @@ class EmptyRoomViewModel @Inject constructor(
                     } ?: nowMinute()
                     val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
                         ?: return@withLock
-                    val campus = _ui.value.selectedCampus ?: repo.campuses().firstOrNull()
-                    if (campus == null) { _ui.update { it.copy(loading = false, error = "无校区") }; return@withLock }
                     val rooms = repo.occupancyForCampus(campus.code, _ui.value.date, term, atMinute)
                         .filter { it.status.freeNow }
                         .sortedByDescending { it.status.freeUntilMinuteOfDay ?: 0 }
-                    _ui.update { it.copy(loading = false, selectedCampus = campus, rooms = rooms) }
+                    _ui.update { it.copy(loading = false, rooms = rooms) }
                 } catch (e: Throwable) {
                     _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
                 } finally {
@@ -148,19 +165,23 @@ class EmptyRoomViewModel @Inject constructor(
         }
     }
 
-    /** 加载校区 + 当前(或首个)校区的教学楼,供筛选条用。由用户选校区时触发(不在进屏时自动跑,避免与
-     *  首屏点按钮并发占用同一会话)。 */
-    fun loadBuildings() {
+    /** 用户选校区:更新选中并拉该校区的教学楼。 */
+    fun onSelectCampus(c: Campus) {
+        _ui.update { it.copy(selectedCampus = c, buildings = emptyList(), selectedBuilding = null, error = null) }
+        loadBuildings()
+    }
+    fun onSelectBuilding(b: Building?) { _ui.update { it.copy(selectedBuilding = b) } }
+    fun onSelectDate(d: String) { _ui.update { it.copy(date = d) } }
+    fun onMinFreeHours(h: Int) { _ui.update { it.copy(minFreeHours = h) } }
+
+    private fun loadBuildings() {
         val creds = credPrefs.observeAll().value ?: return
+        val campus = _ui.value.selectedCampus ?: return
         viewModelScope.launch {
             sessionMutex.withLock {
                 try {
                     ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL) ?: return@withLock
-                    val campuses = repo.campuses()
-                    val campus = _ui.value.selectedCampus ?: campuses.firstOrNull() ?: return@withLock
-                    _ui.update {
-                        it.copy(campuses = campuses, selectedCampus = campus, buildings = repo.buildings(campus.code))
-                    }
+                    _ui.update { it.copy(buildings = repo.buildings(campus.code)) }
                 } catch (_: Throwable) {
                 } finally {
                     repo.close()
@@ -169,13 +190,19 @@ class EmptyRoomViewModel @Inject constructor(
         }
     }
 
-    fun onSelectCampus(c: Campus) {
-        _ui.update { it.copy(selectedCampus = c, buildings = emptyList(), selectedBuilding = null) }
-        loadBuildings()
+    /** 无凭据时发 NeedLogin 并返回 null;否则返回凭据。 */
+    private fun credentialsOrLogin(): com.example.personal_studio.data.local.datastore.SavedCredentials? {
+        val creds = credPrefs.observeAll().value
+        if (creds == null) { viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) } }
+        return creds
     }
-    fun onSelectBuilding(b: Building?) { _ui.update { it.copy(selectedBuilding = b) } }
-    fun onSelectDate(d: String) { _ui.update { it.copy(date = d) } }
-    fun onMinFreeHours(h: Int) { _ui.update { it.copy(minFreeHours = h) } }
+
+    /** 未选校区时提示并返回 null;否则返回已选校区。 */
+    private fun selectedCampusOrPrompt(): Campus? {
+        val campus = _ui.value.selectedCampus
+        if (campus == null) _ui.update { it.copy(error = "请先选择校区") }
+        return campus
+    }
 
     private fun applyFilterAndSort(rooms: List<RoomFreeSlots>, minHours: Int): List<RoomFreeSlots> {
         val now = nowMinute()
