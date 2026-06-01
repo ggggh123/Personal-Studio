@@ -136,7 +136,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
         }
         composable(NavRoutes.PROFILE) {
             com.example.personal_studio.feature.profile.ui.ProfileScreen(
-                onOpenImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
+                onOpenTimetable = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
                 onOpenGrades = { navController.navigate(NavRoutes.GRADES) },
                 onOpenAssignments = { navController.navigate(NavRoutes.ASSIGNMENTS) },
                 onOpenExams = { navController.navigate(NavRoutes.EXAMS) },

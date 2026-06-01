@@ -49,12 +49,18 @@ class ProfileViewModelTest {
         isDone = false, sourceType = TimelineSource.IMPORTED_EXAM, sourceExternalId = "e$id",
         createdAt = 1L, updatedAt = 1L,
     )
+    private fun course(id: Long, start: Long) = TimelineItemEntity(
+        id = id, type = TimelineType.COURSE, title = "C$id", startAt = start, endAt = start + 2700_000L,
+        isDone = false, sourceType = TimelineSource.IMPORTED_PORTAL, sourceExternalId = "c$id",
+        createdAt = 1L, updatedAt = 1L,
+    )
 
     private fun vm(
         creds: SavedCredentials? = null,
         book: GradeBook = GradeBook(emptyList(), 0.0, 0.0, null, overallRank = null),
         ddls: List<TimelineItemEntity> = emptyList(),
         exams: List<TimelineItemEntity> = emptyList(),
+        weekItems: List<TimelineItemEntity> = emptyList(),
         grades: GradesSyncState = GradesSyncState(false, 6, null, emptySet()),
         ddlSync: DdlSyncState = DdlSyncState(false, 12, null, emptySet(), null),
         logout: LogoutUseCase = mockk(relaxed = true),
@@ -66,6 +72,7 @@ class ProfileViewModelTest {
         val timelineDao = mockk<TimelineDao>(relaxed = true) {
             every { observeLexueDdls() } returns flowOf(ddls)
             every { observeImportedExams() } returns flowOf(exams)
+            every { observeItemsInRange(any(), any()) } returns flowOf(weekItems)
         }
         val computeGpa = mockk<ComputeGpaUseCase> { every { this@mockk.invoke(any(), any()) } returns book }
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
@@ -118,6 +125,18 @@ class ProfileViewModelTest {
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
         assertEquals(1, vm.uiState.value.examCount)
+        job.cancel()
+    }
+
+    @Test fun `remaining courses this week counts future COURSE only`() = runTest {
+        val vm = vm(weekItems = listOf(
+            course(1, now + 3600_000L),   // 未来课 → 计入
+            course(2, now - 3600_000L),   // 已过课 → 排除
+            exam(9, now + 3600_000L),     // 非 COURSE → 排除
+        ))
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(1, vm.uiState.value.remainingCoursesThisWeek)
         job.cancel()
     }
 

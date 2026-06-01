@@ -37,7 +37,7 @@ import com.example.personal_studio.ui.theme.Rule
 
 @Composable
 fun ProfileScreen(
-    onOpenImport: () -> Unit,
+    onOpenTimetable: () -> Unit,
     onOpenGrades: () -> Unit,
     onOpenAssignments: () -> Unit,
     onOpenExams: () -> Unit,
@@ -55,12 +55,16 @@ fun ProfileScreen(
         AccountCard(st, onLogin = onLogin, onLogout = vm::onLogout)
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GridCard(Modifier.weight(1f), "课表导入", null, !st.loggedIn, onOpenImport)
-            GridCard(Modifier.weight(1f), "成绩", st.gpa?.let { "GPA %.2f".format(it) }, !st.loggedIn, onOpenGrades)
+            GridCard(
+                Modifier.weight(1f), "▦", "我的课表",
+                if (st.remainingCoursesThisWeek > 0) "本周剩 ${st.remainingCoursesThisWeek} 节" else null,
+                dimmed = false, onClick = onOpenTimetable,
+            )
+            GridCard(Modifier.weight(1f), "★", "成绩", st.gpa?.let { "GPA %.2f".format(it) }, !st.loggedIn, onOpenGrades)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GridCard(Modifier.weight(1f), "作业 DDL", if (st.ddlCount > 0) "${st.ddlCount} 待办" else null, !st.loggedIn, onOpenAssignments)
-            GridCard(Modifier.weight(1f), "考试安排", if (st.examCount > 0) "${st.examCount} 即将" else null, !st.loggedIn, onOpenExams)
+            GridCard(Modifier.weight(1f), "✎", "作业 DDL", if (st.ddlCount > 0) "${st.ddlCount} 待办" else null, !st.loggedIn, onOpenAssignments)
+            GridCard(Modifier.weight(1f), "◷", "考试安排", if (st.examCount > 0) "${st.examCount} 即将" else null, !st.loggedIn, onOpenExams)
         }
 
         Spacer(Modifier.height(2.dp))
@@ -97,12 +101,12 @@ private fun AccountCard(st: ProfileUiState, onLogin: () -> Unit, onLogout: () ->
 }
 
 @Composable
-private fun GridCard(modifier: Modifier, name: String, status: String?, dimmed: Boolean, onClick: () -> Unit) {
+private fun GridCard(modifier: Modifier, icon: String, name: String, status: String?, dimmed: Boolean, onClick: () -> Unit) {
     Column(
         modifier.border(1.dp, Rule).background(Deep).clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 14.dp),
     ) {
-        Text("▦ $name", color = if (dimmed) FoamMute else Foam, style = MaterialTheme.typography.headlineSmall,
+        Text("$icon $name", color = if (dimmed) FoamMute else Foam, style = MaterialTheme.typography.headlineSmall,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(4.dp))
         Text(status ?: " ", color = Cyan, style = MaterialTheme.typography.labelMedium, maxLines = 1)
