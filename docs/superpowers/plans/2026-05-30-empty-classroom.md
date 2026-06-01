@@ -298,8 +298,8 @@ class ComputeFreeSlotsUseCaseTest {
     }
 
     @Test fun `freeNow false during a busy period gives next free time`() {
-        // 忙 3 → 09:40 在第3节(忙);下一个空是第4节 10:45
-        val r = uc.invoke(RoomOccupancyDto("104", "3"), "理教", clock, nowMinute = 9 * 60 + 40)
+        // 忙 3 → 10:10 在第3节(忙);下一个空是第4节 10:45
+        val r = uc.invoke(RoomOccupancyDto("104", "3"), "理教", clock, nowMinute = 10 * 60 + 10)
         assertEquals(false, r.status.freeNow)
         assertEquals(10 * 60 + 45, r.status.nextFreeMinuteOfDay)
     }
