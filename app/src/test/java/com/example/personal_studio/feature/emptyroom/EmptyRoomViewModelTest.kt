@@ -13,6 +13,9 @@ import com.example.personal_studio.domain.emptyroom.model.Campus
 import com.example.personal_studio.domain.emptyroom.model.EmptyRoomError
 import com.example.personal_studio.domain.emptyroom.model.RoomFreeSlots
 import com.example.personal_studio.domain.emptyroom.model.RoomStatus
+import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
+import com.example.personal_studio.domain.model.TimelineSource
+import com.example.personal_studio.domain.model.TimelineType
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -48,6 +51,13 @@ class EmptyRoomViewModelTest {
     private fun freeRoom(name: String, freeNow: Boolean, until: Int?) = RoomFreeSlots(
         roomName = name, buildingName = "理教", busyPeriods = emptySet(), freeRanges = listOf(1..13),
         status = RoomStatus(freeNow = freeNow, freeUntilMinuteOfDay = until, nextFreeMinuteOfDay = null),
+    )
+
+    private fun courseRow(endMinuteOfDay: Int) = TimelineItemEntity(
+        id = 1, type = TimelineType.COURSE, title = "C",
+        startAt = (endMinuteOfDay - 90) * 60_000L, endAt = endMinuteOfDay * 60_000L,
+        isDone = false, sourceType = TimelineSource.IMPORTED_PORTAL, sourceExternalId = "c1",
+        createdAt = 1L, updatedAt = 1L,
     )
 
     private fun vm(
@@ -126,6 +136,27 @@ class EmptyRoomViewModelTest {
         val job = launch { vm.events.collect { events += it } }
         vm.onSmartNow(); advanceUntilIdle()
         assertEquals(listOf(EmptyRoomEvent.NeedLogin), events)
+        job.cancel()
+    }
+
+    @Test fun `after-next-class queries from today's next course end`() = runTest {
+        val repo = mockk<EmptyRoomRepository>(relaxed = true) {
+            coEvery { openAndLogin(any(), any(), any()) } returns EmptyRoomResult.Ok("2025-2026-2")
+            coEvery { campuses() } returns listOf(Campus("01", "良乡"))
+            coEvery { occupancyForCampus(any(), any(), any(), any()) } returns listOf(
+                freeRoom("A", freeNow = true, until = 18 * 60),
+            )
+        }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val dao = mockk<TimelineDao>(relaxed = true) {
+            every { observeItemsInRange(any(), any()) } returns flowOf(listOf(courseRow(11 * 60 + 30)))
+        }
+        val vm = EmptyRoomViewModel(repo, credPrefs, dao, nowProvider = { 0L })
+        val job = launch { vm.uiState.collect {} }
+        vm.onAfterNextClass(); advanceUntilIdle()
+        assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
         job.cancel()
     }
 }
