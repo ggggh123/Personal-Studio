@@ -89,7 +89,8 @@ class EmptyRoomViewModel @Inject constructor(
                 val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
                     ?: return@launch
                 val st = _ui.value
-                val campus = st.selectedCampus ?: repo.campuses().firstOrNull() ?: return@launch
+                val campus = st.selectedCampus ?: repo.campuses().firstOrNull()
+                if (campus == null) { _ui.update { it.copy(loading = false, error = "无校区") }; return@launch }
                 val raw = st.selectedBuilding?.let { repo.occupancy(it, st.date, term, nowMinute()) }
                     ?: repo.occupancyForCampus(campus.code, st.date, term, nowMinute())
                 val rooms = applyFilterAndSort(raw, st.minFreeHours)

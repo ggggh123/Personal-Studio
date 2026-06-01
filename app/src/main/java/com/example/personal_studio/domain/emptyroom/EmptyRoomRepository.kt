@@ -4,6 +4,7 @@ import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
+import com.example.personal_studio.data.network.bit.dto.RoomOccupancyDto
 import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
 import com.example.personal_studio.domain.emptyroom.model.Building
 import com.example.personal_studio.domain.emptyroom.model.Campus
@@ -28,8 +29,8 @@ class EmptyRoomRepository @Inject constructor(
     private val compute: ComputeFreeSlotsUseCase,
     private val timetablePrefs: TimetablePreferences,
 ) {
-    // (楼code|日期) → 占用结果缓存(当天稳定)。
-    private val occupancyCache = mutableMapOf<String, List<RoomFreeSlots>>()
+    // (楼code|日期) → 原始占用行缓存(时间无关;status 每次按 live nowMinute 重算)。
+    private val occupancyCache = mutableMapOf<String, List<RoomOccupancyDto>>()
     private var campusesCache: List<Campus>? = null
     private val buildingsCache = mutableMapOf<String, List<Building>>() // campusCode("" =all) → buildings
 
@@ -61,19 +62,18 @@ class EmptyRoomRepository @Inject constructor(
             .also { buildingsCache[key] = it }
     }
 
-    /** 拉某楼某日占用并算空闲。nowMinute = 用于状态计算的当天分钟数。 */
+    /** 拉某楼某日占用并算空闲。nowMinute = 用于状态计算的当天分钟数(每次重算,不缓存进结果)。 */
     suspend fun occupancy(building: Building, date: String, term: String, nowMinute: Int): List<RoomFreeSlots> {
         val cacheKey = "${building.code}|$date"
-        occupancyCache[cacheKey]?.let { return it }
         val clock = PeriodClock(timetablePrefs.periods.first())
-        val (xnxqdm, xndm, xqdm) = deriveTerm(term)
-        val resp = apiClient.jwapp.getRoomOccupancy(
-            xqdm = xqdm, jxldm = building.code, rq = date, xnxqdm = xnxqdm, xndm = xndm,
-        )
-        val rows = resp.body()?.datas?.cxkxjasqk?.rows.orEmpty()
-        val result = rows.map { compute.invoke(it, building.name, clock, nowMinute) }
-        occupancyCache[cacheKey] = result
-        return result
+        val rawRows = occupancyCache[cacheKey] ?: run {
+            val (xnxqdm, xndm, xqdm) = deriveTerm(term)
+            val resp = apiClient.jwapp.getRoomOccupancy(
+                xqdm = xqdm, jxldm = building.code, rq = date, xnxqdm = xnxqdm, xndm = xndm,
+            )
+            (resp.body()?.datas?.cxkxjasqk?.rows.orEmpty()).also { occupancyCache[cacheKey] = it }
+        }
+        return rawRows.map { compute.invoke(it, building.name, clock, nowMinute) }
     }
 
     /** 全校区:并发拉该校区所有楼,合并。 */
