@@ -142,6 +142,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onOpenExams = { navController.navigate(NavRoutes.EXAMS) },
                 onOpenGradesPoll = { navController.navigate(NavRoutes.SETTINGS_GRADES_POLL) },
                 onOpenDdlPoll = { navController.navigate(NavRoutes.SETTINGS_DDL_POLL) },
+                onOpenEmptyRoom = { navController.navigate(NavRoutes.EMPTY_ROOM) },
                 onLogin = { navController.navigate(NavRoutes.login(null)) },
             )
         }
@@ -365,6 +366,15 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             com.example.personal_studio.feature.bitexam.ui.ExamsScreen(
                 onBack = { navController.popBackStack() },
                 onNeedLogin = { navController.navigate(NavRoutes.login("exams")) },
+            )
+        }
+        composable(
+            NavRoutes.EMPTY_ROOM,
+            deepLinks = listOf(navDeepLink { uriPattern = "personalstudio://empty-room" }),
+        ) {
+            com.example.personal_studio.feature.emptyroom.ui.EmptyRoomScreen(
+                onBack = { navController.popBackStack() },
+                onNeedLogin = { navController.navigate(NavRoutes.login("empty-room")) },
             )
         }
         composable(

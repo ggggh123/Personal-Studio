@@ -43,6 +43,7 @@ fun ProfileScreen(
     onOpenExams: () -> Unit,
     onOpenGradesPoll: () -> Unit,
     onOpenDdlPoll: () -> Unit,
+    onOpenEmptyRoom: () -> Unit,
     onLogin: () -> Unit,
     vm: ProfileViewModel = hiltViewModel(),
 ) {
@@ -65,6 +66,10 @@ fun ProfileScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GridCard(Modifier.weight(1f), "✎", "作业 DDL", if (st.ddlCount > 0) "${st.ddlCount} 待办" else null, !st.loggedIn, onOpenAssignments)
             GridCard(Modifier.weight(1f), "◷", "考试安排", if (st.examCount > 0) "${st.examCount} 即将" else null, !st.loggedIn, onOpenExams)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            GridCard(Modifier.weight(1f), "⌂", "空教室", null, !st.loggedIn, onOpenEmptyRoom)
+            Spacer(Modifier.weight(1f))
         }
 
         Spacer(Modifier.height(2.dp))
