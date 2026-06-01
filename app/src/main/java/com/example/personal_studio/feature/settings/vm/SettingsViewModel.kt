@@ -23,7 +23,6 @@ data class SettingsUiState(
     val modelDraft: String = "",
     val savedModel: String? = null,
     val testConnection: TestConnectionState = TestConnectionState.Idle,
-    val loggedInUsername: String? = null,
 )
 
 sealed interface TestConnectionState {
@@ -37,11 +36,6 @@ sealed interface TestConnectionState {
 class SettingsViewModel @Inject constructor(
     private val prefs: UserPreferencesRepository,
     private val llm: LLMProvider,
-    private val credPrefs: com.example.personal_studio.data.local.datastore.ImportCredentialPrefs,
-    private val gradesSyncPrefs: com.example.personal_studio.data.local.datastore.GradesSyncPrefs,
-    private val ddlSyncPrefs: com.example.personal_studio.data.local.datastore.DdlSyncPrefs,
-    private val gradesPollScheduler: com.example.personal_studio.feature.bitgrades.GradesPollScheduler,
-    private val ddlPollScheduler: com.example.personal_studio.feature.bitddl.DdlPollScheduler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -59,22 +53,6 @@ class SettingsViewModel @Inject constructor(
         prefs.modelName
             .onEach { saved -> _uiState.update { it.copy(savedModel = saved) } }
             .launchIn(viewModelScope)
-
-        credPrefs.observeAll()
-            .onEach { saved -> _uiState.update { it.copy(loggedInUsername = saved?.username) } }
-            .launchIn(viewModelScope)
-    }
-
-    // BIT account ------------------------------------------------------------
-
-    fun onLogout() {
-        credPrefs.clear()
-        gradesPollScheduler.cancel()
-        ddlPollScheduler.cancel()
-        viewModelScope.launch {
-            gradesSyncPrefs.setEnabled(false)
-            ddlSyncPrefs.setEnabled(false)
-        }
     }
 
     // API key ----------------------------------------------------------------

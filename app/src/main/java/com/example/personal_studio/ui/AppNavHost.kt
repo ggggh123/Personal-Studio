@@ -132,8 +132,17 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
                 onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
                 onOpenWeekGrid = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+            )
+        }
+        composable(NavRoutes.PROFILE) {
+            com.example.personal_studio.feature.profile.ui.ProfileScreen(
+                onOpenTimetable = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+                onOpenGrades = { navController.navigate(NavRoutes.GRADES) },
                 onOpenAssignments = { navController.navigate(NavRoutes.ASSIGNMENTS) },
                 onOpenExams = { navController.navigate(NavRoutes.EXAMS) },
+                onOpenGradesPoll = { navController.navigate(NavRoutes.SETTINGS_GRADES_POLL) },
+                onOpenDdlPoll = { navController.navigate(NavRoutes.SETTINGS_DDL_POLL) },
+                onLogin = { navController.navigate(NavRoutes.login(null)) },
             )
         }
         composable(NavRoutes.TIMELINE_WEEK_GRID) {
@@ -306,13 +315,13 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                     if (next != null) navController.navigate(next) {
                         popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         launchSingleTop = true   // 守卫场景目标屏可能已在栈中,避免压重复实例
-                    } else navController.navigate(NavRoutes.CHAT) {
+                    } else navController.navigate(NavRoutes.PROFILE) {
                         popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
                 onSkipped = {
-                    navController.navigate(NavRoutes.CHAT) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
+                    navController.navigate(NavRoutes.PROFILE) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
                 },
             )
         }
@@ -321,7 +330,6 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             SettingsScreen(
                 onBack = { navController.popBackStack() },
                 onNavigate = { route -> navController.navigate(route) },
-                onNavigateToImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
             )
         }
         composable(NavRoutes.SETTINGS_TIMETABLE) {

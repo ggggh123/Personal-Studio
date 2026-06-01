@@ -1,5 +1,7 @@
 package com.example.personal_studio.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,11 +28,13 @@ import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Rule
+import com.example.personal_studio.ui.theme.Void
 
 data class TerminalTab(
     val route: String,
     val label: String,
     val icon: ImageVector,
+    val prominent: Boolean = false,
 )
 
 @Composable
@@ -61,38 +66,58 @@ fun TerminalBottomBar(
         ) {
         tabs.forEach { tab ->
             val selected = tab.route == selectedRoute
-            val tint = if (selected) Phosphor else FoamMute
-            Box(
-                modifier = Modifier
-                    .clickable { onTabClick(tab) }
-                    .padding(vertical = 6.dp, horizontal = 4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+            if (tab.prominent) {
+                // 中央凸起方块:上移浮起,描边方块,像实体按钮
+                Box(
+                    modifier = Modifier
+                        .clickable { onTabClick(tab) }
+                        .offset(y = (-12).dp)
+                        .size(46.dp)
+                        .border(1.dp, Phosphor)
+                        .background(if (selected) Phosphor.copy(alpha = 0.16f) else Void),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = tab.icon,
-                        contentDescription = tab.label,
-                        tint = tint,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = tint,
-                    )
-                    Spacer(Modifier.height(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(if (selected) 14.dp else 0.dp)
-                            .height(2.dp)
-                            .drawBehind {
-                                if (selected) drawRect(Phosphor)
-                            }
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = tab.label,
+                            tint = Phosphor,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Text(text = tab.label, style = MaterialTheme.typography.labelSmall, color = Phosphor)
+                    }
+                }
+            } else {
+                val tint = if (selected) Phosphor else FoamMute
+                Box(
+                    modifier = Modifier
+                        .clickable { onTabClick(tab) }
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = tab.label,
+                            tint = tint,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(text = tab.label, style = MaterialTheme.typography.labelSmall, color = tint)
+                        Spacer(Modifier.height(3.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(if (selected) 14.dp else 0.dp)
+                                .height(2.dp)
+                                .drawBehind { if (selected) drawRect(Phosphor) },
+                        )
+                    }
                 }
             }
         }

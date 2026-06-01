@@ -21,21 +21,21 @@ class RootViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
 
-    @Test fun `unseen login starts at LOGIN`() = runTest {
+    @Test fun `seen login goes to PROFILE`() = runTest {
+        val prefs = mockk<LoginPrefs> { every { observe } returns flowOf(true) }
+        val vm = RootViewModel(prefs)
+        val job = launch { vm.startDestination.collect {} }
+        advanceUntilIdle()
+        assertEquals(NavRoutes.PROFILE, vm.startDestination.value)
+        job.cancel()
+    }
+
+    @Test fun `unseen login goes to LOGIN`() = runTest {
         val prefs = mockk<LoginPrefs> { every { observe } returns flowOf(false) }
         val vm = RootViewModel(prefs)
         val job = launch { vm.startDestination.collect {} }
         advanceUntilIdle()
         assertEquals(NavRoutes.LOGIN, vm.startDestination.value)
-        job.cancel()
-    }
-
-    @Test fun `seen login starts at CHAT`() = runTest {
-        val prefs = mockk<LoginPrefs> { every { observe } returns flowOf(true) }
-        val vm = RootViewModel(prefs)
-        val job = launch { vm.startDestination.collect {} }
-        advanceUntilIdle()
-        assertEquals(NavRoutes.CHAT, vm.startDestination.value)
         job.cancel()
     }
 }
