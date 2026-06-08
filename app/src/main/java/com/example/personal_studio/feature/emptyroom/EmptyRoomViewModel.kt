@@ -3,11 +3,10 @@ package com.example.personal_studio.feature.emptyroom
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
-import com.example.personal_studio.data.local.db.dao.TimelineDao
+import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.emptyroom.EmptyRoomRepository
 import com.example.personal_studio.domain.emptyroom.EmptyRoomResult
-import com.example.personal_studio.domain.model.TimelineType
 import com.example.personal_studio.domain.emptyroom.model.Building
 import com.example.personal_studio.domain.emptyroom.model.Campus
 import com.example.personal_studio.domain.emptyroom.model.EmptyRoomError
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -27,20 +25,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class EmptyRoomUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val campuses: List<Campus> = emptyList(),
-    val buildings: List<Building> = emptyList(),
-    val selectedCampus: Campus? = null,        // 必须由用户手动选,查询才基于它
-    val selectedBuilding: Building? = null,     // null = 该校区全部楼
+    val buildings: List<Building> = emptyList(),        // 所有选中校区合并的楼(去重)
+    val selectedCampusCodes: Set<String> = emptySet(),  // 多选校区,必须非空才能查
+    val selectedBuildingCodes: Set<String> = emptySet(), // 多选楼;空 = 选中校区的全部楼
+    val requiredFreePeriods: Set<Int> = emptySet(),      // 须全部空闲的节次(1..13);空 = 不限
     val date: String = "",
     val rooms: List<RoomFreeSlots> = emptyList(),
-    val minFreeHours: Int = 0,
+    val queried: Boolean = false,                        // 是否执行过查询(区分「未查」与「查了无结果」)
 )
 
 sealed interface EmptyRoomEvent { object NeedLogin : EmptyRoomEvent }
@@ -49,7 +48,6 @@ sealed interface EmptyRoomEvent { object NeedLogin : EmptyRoomEvent }
 class EmptyRoomViewModel @Inject constructor(
     private val repo: EmptyRoomRepository,
     private val credPrefs: ImportCredentialPrefs,
-    private val dao: TimelineDao,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -86,33 +84,43 @@ class EmptyRoomViewModel @Inject constructor(
         }
     }
 
-    /** 现在去自习:基于已选校区,扫该校区现在空的教室,按连续空闲时长降序。 */
-    fun onSmartNow() {
-        val creds = credentialsOrLogin() ?: return
-        val campus = selectedCampusOrPrompt() ?: return
-        viewModelScope.launch {
-            sessionMutex.withLock {
-                _ui.update { it.copy(loading = true, error = null) }
-                try {
-                    val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
-                        ?: return@withLock
-                    val rooms = repo.occupancyForCampus(campus.code, _ui.value.date, term, nowMinute())
-                        .filter { it.status.freeNow }
-                        .sortedByDescending { it.status.freeUntilMinuteOfDay ?: 0 }
-                    _ui.update { it.copy(loading = false, rooms = rooms) }
-                } catch (e: Throwable) {
-                    _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
-                } finally {
-                    repo.close()
-                }
-            }
+    /** 勾/取消校区(多选);变化后重新合并各选中校区的楼,并清空上次查询。 */
+    fun onToggleCampus(c: Campus) {
+        _ui.update {
+            val codes = it.selectedCampusCodes.toMutableSet().apply { if (!add(c.code)) remove(c.code) }
+            it.copy(selectedCampusCodes = codes, rooms = emptyList(), queried = false, error = null)
+        }
+        loadBuildings()
+    }
+
+    /** 勾/取消教学楼(多选)。 */
+    fun onToggleBuilding(b: Building) {
+        _ui.update {
+            val codes = it.selectedBuildingCodes.toMutableSet().apply { if (!add(b.code)) remove(b.code) }
+            it.copy(selectedBuildingCodes = codes, rooms = emptyList(), queried = false, error = null)
         }
     }
 
-    /** 查询:基于已选校区(选了楼则只查该楼,否则全校区),应用条件筛。 */
+    /** 选「全部教学楼」= 清空具体楼选择(查选中校区的所有楼)。 */
+    fun onSelectAllBuildings() {
+        _ui.update { it.copy(selectedBuildingCodes = emptySet(), rooms = emptyList(), queried = false, error = null) }
+    }
+
+    /** 勾/取消「须空闲节次」(多选,1..13)。空 = 不限。 */
+    fun onTogglePeriod(p: Int) {
+        _ui.update {
+            val periods = it.requiredFreePeriods.toMutableSet().apply { if (!add(p)) remove(p) }
+            it.copy(requiredFreePeriods = periods, rooms = emptyList(), queried = false, error = null)
+        }
+    }
+
+    /** 查询:基于选中校区合并出的楼(选了具体楼则只查这些,否则全部),列出教室。 */
     fun onQuery() {
         val creds = credentialsOrLogin() ?: return
-        val campus = selectedCampusOrPrompt() ?: return
+        if (_ui.value.selectedCampusCodes.isEmpty()) {
+            _ui.update { it.copy(error = "请先选择校区") }
+            return
+        }
         viewModelScope.launch {
             sessionMutex.withLock {
                 _ui.update { it.copy(loading = true, error = null) }
@@ -120,10 +128,13 @@ class EmptyRoomViewModel @Inject constructor(
                     val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
                         ?: return@withLock
                     val st = _ui.value
-                    val raw = st.selectedBuilding?.let { repo.occupancy(it, st.date, term, nowMinute()) }
-                        ?: repo.occupancyForCampus(campus.code, st.date, term, nowMinute())
-                    val rooms = applyFilterAndSort(raw, st.minFreeHours)
-                    _ui.update { it.copy(loading = false, rooms = rooms) }
+                    val targets = if (st.selectedBuildingCodes.isEmpty()) st.buildings
+                        else st.buildings.filter { it.code in st.selectedBuildingCodes }
+                    val raw = repo.occupancyForBuildings(targets, st.date, term, nowMinute())
+                    // 「须空闲节次」筛:选中的节次必须都不在该教室占用集中
+                    val req = st.requiredFreePeriods
+                    val filtered = if (req.isEmpty()) raw else raw.filter { room -> req.none { it in room.busyPeriods } }
+                    _ui.update { it.copy(loading = false, rooms = sortRooms(filtered), queried = true) }
                 } catch (e: Throwable) {
                     _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
                 } finally {
@@ -132,56 +143,26 @@ class EmptyRoomViewModel @Inject constructor(
             }
         }
     }
-
-    /** 下节课后去哪:取今天 now 之后下一节课的结束时刻作为查询起点,基于已选校区找该时刻起空的教室。 */
-    fun onAfterNextClass() {
-        val creds = credentialsOrLogin() ?: return
-        val campus = selectedCampusOrPrompt() ?: return
-        viewModelScope.launch {
-            sessionMutex.withLock {
-                _ui.update { it.copy(loading = true, error = null) }
-                try {
-                    val (dayStart, dayEnd) = todayBounds()
-                    val courses = dao.observeItemsInRange(dayStart, dayEnd).first()
-                        .filter { it.type == TimelineType.COURSE }
-                    val now = nowProvider()
-                    val nextEnd = courses.map { it.endAt ?: it.startAt }.filter { it >= now }.minOrNull()
-                    val atMinute = nextEnd?.let {
-                        val t = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime()
-                        t.hour * 60 + t.minute
-                    } ?: nowMinute()
-                    val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
-                        ?: return@withLock
-                    val rooms = repo.occupancyForCampus(campus.code, _ui.value.date, term, atMinute)
-                        .filter { it.status.freeNow }
-                        .sortedByDescending { it.status.freeUntilMinuteOfDay ?: 0 }
-                    _ui.update { it.copy(loading = false, rooms = rooms) }
-                } catch (e: Throwable) {
-                    _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
-                } finally {
-                    repo.close()
-                }
-            }
-        }
-    }
-
-    /** 用户选校区:更新选中并拉该校区的教学楼。 */
-    fun onSelectCampus(c: Campus) {
-        _ui.update { it.copy(selectedCampus = c, buildings = emptyList(), selectedBuilding = null, error = null) }
-        loadBuildings()
-    }
-    fun onSelectBuilding(b: Building?) { _ui.update { it.copy(selectedBuilding = b) } }
-    fun onSelectDate(d: String) { _ui.update { it.copy(date = d) } }
-    fun onMinFreeHours(h: Int) { _ui.update { it.copy(minFreeHours = h) } }
 
     private fun loadBuildings() {
         val creds = credPrefs.observeAll().value ?: return
-        val campus = _ui.value.selectedCampus ?: return
+        val selected = _ui.value.campuses.filter { it.code in _ui.value.selectedCampusCodes }
+        if (selected.isEmpty()) {
+            _ui.update { it.copy(buildings = emptyList(), selectedBuildingCodes = emptySet()) }
+            return
+        }
         viewModelScope.launch {
             sessionMutex.withLock {
                 try {
                     ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL) ?: return@withLock
-                    _ui.update { it.copy(buildings = repo.buildings(campus.code)) }
+                    val merged = selected.flatMap { repo.buildings(it.code) }.distinctBy { it.code }
+                    _ui.update { st ->
+                        st.copy(
+                            buildings = merged,
+                            // 仅保留仍属于某个选中校区的楼选择
+                            selectedBuildingCodes = st.selectedBuildingCodes.filter { code -> merged.any { it.code == code } }.toSet(),
+                        )
+                    }
                 } catch (_: Throwable) {
                 } finally {
                     repo.close()
@@ -190,31 +171,35 @@ class EmptyRoomViewModel @Inject constructor(
         }
     }
 
+    /** 查询日期前/后移 days 天;下限为今天(查过去无意义)。换日期清空上次结果。 */
+    fun onShiftDate(days: Int) {
+        _ui.update {
+            val target = LocalDate.parse(it.date).plusDays(days.toLong())
+            val capped = if (target.isBefore(todayLocalDate())) todayLocalDate() else target
+            it.copy(date = capped.toString(), rooms = emptyList(), queried = false, error = null)
+        }
+    }
+
+    /** 回到今天。 */
+    fun onResetToday() {
+        _ui.update { it.copy(date = todayLocalDate().toString(), rooms = emptyList(), queried = false, error = null) }
+    }
+
     /** 无凭据时发 NeedLogin 并返回 null;否则返回凭据。 */
-    private fun credentialsOrLogin(): com.example.personal_studio.data.local.datastore.SavedCredentials? {
+    private fun credentialsOrLogin(): SavedCredentials? {
         val creds = credPrefs.observeAll().value
         if (creds == null) { viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) } }
         return creds
     }
 
-    /** 未选校区时提示并返回 null;否则返回已选校区。 */
-    private fun selectedCampusOrPrompt(): Campus? {
-        val campus = _ui.value.selectedCampus
-        if (campus == null) _ui.update { it.copy(error = "请先选择校区") }
-        return campus
-    }
-
-    private fun applyFilterAndSort(rooms: List<RoomFreeSlots>, minHours: Int): List<RoomFreeSlots> {
-        val now = nowMinute()
-        val filtered = if (minHours <= 0) rooms else rooms.filter {
-            it.status.freeNow && (it.status.freeUntilMinuteOfDay ?: now) - now >= minHours * 60
-        }
-        return filtered.sortedWith(
+    /** 现在空的排前,其次空闲节次多的排前,再按楼/房号。 */
+    private fun sortRooms(rooms: List<RoomFreeSlots>): List<RoomFreeSlots> =
+        rooms.sortedWith(
             compareByDescending<RoomFreeSlots> { it.status.freeNow }
-                .thenByDescending { it.status.freeUntilMinuteOfDay ?: 0 }
+                .thenBy { it.busyPeriods.size }
+                .thenBy { it.buildingName }
                 .thenBy { it.roomName },
         )
-    }
 
     private suspend fun ensureSession(u: String, p: String, mode: NetworkMode): String? {
         return when (val r = repo.openAndLogin(u, p, mode)) {
@@ -242,15 +227,8 @@ class EmptyRoomViewModel @Inject constructor(
         return t.hour * 60 + t.minute
     }
 
-    private fun todayBounds(): Pair<Long, Long> {
-        val z = ZoneId.systemDefault()
-        val d = Instant.ofEpochMilli(nowProvider()).atZone(z).toLocalDate()
-        val start = d.atStartOfDay(z).toInstant().toEpochMilli()
-        val end = d.plusDays(1).atStartOfDay(z).toInstant().toEpochMilli()
-        return start to end
-    }
-
-    private fun today(): String =
+    private fun todayLocalDate(): LocalDate =
         Instant.ofEpochMilli(nowProvider()).atZone(ZoneId.systemDefault()).toLocalDate()
-            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
+    private fun today(): String = todayLocalDate().toString()
 }

@@ -76,10 +76,10 @@ class EmptyRoomRepository @Inject constructor(
         return rawRows.map { compute.invoke(it, building.name, clock, nowMinute) }
     }
 
-    /** 全校区:并发拉该校区所有楼,合并。 */
-    suspend fun occupancyForCampus(campusCode: String, date: String, term: String, nowMinute: Int): List<RoomFreeSlots> =
+    /** 并发拉给定各楼的占用,合并(支持跨校区多选)。 */
+    suspend fun occupancyForBuildings(targets: List<Building>, date: String, term: String, nowMinute: Int): List<RoomFreeSlots> =
         coroutineScope {
-            buildings(campusCode).map { b -> async { occupancy(b, date, term, nowMinute) } }.map { it.await() }.flatten()
+            targets.map { b -> async { occupancy(b, date, term, nowMinute) } }.map { it.await() }.flatten()
         }
 
     /** 把学期串 "2025-2026-2" 拆成 (XNXQDM, XNDM, XQDM)。 */

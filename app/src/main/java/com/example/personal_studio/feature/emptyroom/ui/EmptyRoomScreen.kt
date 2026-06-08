@@ -3,7 +3,6 @@ package com.example.personal_studio.feature.emptyroom.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,10 +16,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,14 +27,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.core.util.DefaultTimetable
 import com.example.personal_studio.domain.emptyroom.PeriodClock
 import com.example.personal_studio.domain.emptyroom.model.Building
-import com.example.personal_studio.domain.emptyroom.model.Campus
 import com.example.personal_studio.domain.emptyroom.model.RoomFreeSlots
 import com.example.personal_studio.feature.emptyroom.EmptyRoomEvent
 import com.example.personal_studio.feature.emptyroom.EmptyRoomViewModel
@@ -62,132 +57,163 @@ fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomVi
         vm.events.collect { if (it is EmptyRoomEvent.NeedLogin) onNeedLogin() }
     }
 
-    // 客户端节次时钟 + 时间轴时刻(分钟);拖动后列表按该时刻空闲重排、网格高亮当前节。
+    // 客户端节次时钟 + 进屏时刻(分钟):用于教室卡「此刻空/占用」与网格高亮当前节。
     val clock = remember { PeriodClock(DefaultTimetable.PERIODS) }
     val nowMin = remember {
         val t = java.time.Instant.ofEpochMilli(System.currentTimeMillis())
             .atZone(java.time.ZoneId.systemDefault()).toLocalTime()
-        (t.hour * 60 + t.minute).coerceIn(AXIS_START, AXIS_END)
+        t.hour * 60 + t.minute
     }
-    var atMinute by remember { mutableStateOf(nowMin) }
+    val todayStr = remember {
+        java.time.Instant.ofEpochMilli(System.currentTimeMillis())
+            .atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
+    }
+    val isToday = st.date == todayStr
 
     Box(Modifier.fillMaxSize().background(Void).scanLines().vignette(cornerDim = 0.42f, centerGlow = 0.03f)) {
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onBack) { Text("←", color = FoamMute) }
                 Text("$ empty-room", color = Cyan, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.weight(1f))
-                Text(st.date, color = FoamDim, style = MaterialTheme.typography.labelMedium)
             }
 
-            // 智能区:一键现在去自习 / 下节课后(免逐级选)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SmartButton("⚡ 现在去自习", Phosphor, Modifier.weight(1f)) { vm.onSmartNow() }
-                SmartButton("↪ 下节课后", Amber, Modifier.weight(1f)) { vm.onAfterNextClass() }
-            }
+            LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 查询日期(可前后步进)
+                item {
+                    Spacer(Modifier.height(4.dp))
+                    StepLabel("查询日期")
+                    Spacer(Modifier.height(6.dp))
+                    DateRow(st.date, todayStr, onShift = { vm.onShiftDate(it) }, onToday = { vm.onResetToday() })
+                }
 
-            // 校区 / 教学楼 筛选
-            Spacer(Modifier.height(8.dp))
-            FilterBar(st.campuses, st.buildings, st.selectedCampus, st.selectedBuilding,
-                onCampus = { vm.onSelectCampus(it) }, onBuilding = { vm.onSelectBuilding(it); vm.onQuery() })
-
-            // 条件筛 + 查询
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(0, 1, 2, 3).forEach { h ->
-                        Chip(if (h == 0) "不限" else "≥${h}h", selected = st.minFreeHours == h) { vm.onMinFreeHours(h) }
+                // ① 选校区:整行大条目,可多选
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    StepLabel("① 选择校区(可多选)")
+                }
+                if (st.campuses.isEmpty()) {
+                    item { Hint("加载校区中…") }
+                } else {
+                    items(st.campuses, key = { "C" + it.code }) { c ->
+                        SelectRow(c.name, c.code in st.selectedCampusCodes) { vm.onToggleCampus(c) }
                     }
                 }
-                Spacer(Modifier.width(8.dp))
-                SmartButton("↻ 查询", Cyan, Modifier.width(76.dp)) { vm.onQuery() }
-            }
 
-            st.error?.let { Spacer(Modifier.height(6.dp)); Text("⚠ $it", color = Amber, style = MaterialTheme.typography.labelMedium) }
+                // ② 选教学楼:含「全部」,可多选
+                if (st.selectedCampusCodes.isNotEmpty()) {
+                    item { Spacer(Modifier.height(4.dp)); StepLabel("② 选择教学楼(可多选)") }
+                    item { SelectRow("全部教学楼", st.selectedBuildingCodes.isEmpty()) { vm.onSelectAllBuildings() } }
+                    items(st.buildings, key = { "B" + it.code }) { b ->
+                        SelectRow(b.name, b.code in st.selectedBuildingCodes) { vm.onToggleBuilding(b) }
+                    }
 
-            // 时间轴:拖动看任意时刻的空教室
-            if (st.rooms.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                TimeAxis(atMinute) { atMinute = it }
-            }
+                    // ③ 须空闲的节次(可选)
+                    item {
+                        Spacer(Modifier.height(4.dp))
+                        StepLabel("③ 须空闲的节次(可选)")
+                        Spacer(Modifier.height(2.dp))
+                        Hint("留空=不限;选中的节次须全部空闲")
+                        Spacer(Modifier.height(6.dp))
+                        PeriodPicker(st.requiredFreePeriods) { vm.onTogglePeriod(it) }
+                    }
 
-            Spacer(Modifier.height(8.dp))
-            when {
-                st.loading -> Text("查询中…", color = FoamDim, style = MaterialTheme.typography.labelMedium)
-                st.selectedCampus == null -> Text("请先在上方选择校区,再「现在去自习」/「下节课后」/查询", color = FoamDim, style = MaterialTheme.typography.labelMedium)
-                st.rooms.isEmpty() -> Text("点「现在去自习」/「下节课后」找空教室,或选楼精确查询", color = FoamDim, style = MaterialTheme.typography.labelMedium)
-                else -> {
-                    val display = st.rooms.sortedWith(
-                        compareByDescending<RoomFreeSlots> { freeAt(it, atMinute, clock) }.thenBy { it.roomName },
-                    )
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(display, key = { it.buildingName + it.roomName }) { RoomCard(it, atMinute, clock) }
+                    // ④ 查询
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        QueryButton(if (st.loading) "查询中…" else "↻ 查询空教室", enabled = !st.loading) { vm.onQuery() }
                     }
                 }
+
+                st.error?.let { item { Text("⚠ $it", color = Amber, style = MaterialTheme.typography.labelMedium) } }
+
+                // 结果
+                item {
+                    when {
+                        st.loading -> Hint("查询中…")
+                        st.selectedCampusCodes.isEmpty() -> Hint("请先选择校区")
+                        !st.queried -> Hint(
+                            "已选 " + (if (st.selectedBuildingCodes.isEmpty()) "全部教学楼" else "${st.selectedBuildingCodes.size} 栋楼") +
+                                ",点上方「查询空教室」",
+                        )
+                        st.rooms.isEmpty() -> Hint("该范围当日无空闲教室记录")
+                        else -> Text("共 ${st.rooms.size} 间", color = FoamDim, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                if (st.queried && !st.loading) {
+                    items(st.rooms, key = { it.buildingName + it.roomName }) { RoomCard(it, nowMin, clock, showNow = isToday) }
+                }
+                item { Spacer(Modifier.height(12.dp)) }
             }
         }
     }
 }
 
 @Composable
-private fun SmartButton(text: String, color: Color, modifier: Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.border(1.dp, color).background(Deep).clickable { onClick() }.padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = color, style = MaterialTheme.typography.titleSmall, maxLines = 1) }
+private fun StepLabel(text: String) {
+    Text(text, color = Cyan, style = MaterialTheme.typography.titleSmall)
 }
 
 @Composable
-private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        Modifier.border(1.dp, if (selected) Phosphor else Rule)
-            .background(if (selected) Phosphor.copy(alpha = 0.12f) else Deep)
-            .clickable { onClick() }.padding(horizontal = 12.dp, vertical = 5.dp),
-    ) { Text(text, color = if (selected) Phosphor else FoamMute, style = MaterialTheme.typography.labelMedium, maxLines = 1) }
+private fun Hint(text: String) {
+    Text(text, color = FoamDim, style = MaterialTheme.typography.bodyMedium)
 }
 
+/** 整行大条目(多选):选中态加粗 phosphor 边框 + 淡底 + ☑ 标记;文字左对齐、完整显示。 */
 @Composable
-private fun FilterBar(
-    campuses: List<Campus>, buildings: List<Building>,
-    selectedCampus: Campus?, selectedBuilding: Building?,
-    onCampus: (Campus) -> Unit, onBuilding: (Building?) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (campuses.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            campuses.forEach { c -> Chip(c.name, selectedCampus?.code == c.code) { onCampus(c) } }
-        }
-        if (buildings.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Chip("全校区", selectedBuilding == null) { onBuilding(null) }
-            buildings.forEach { b -> Chip(b.name, selectedBuilding?.code == b.code) { onBuilding(b) } }
-        }
-    }
-}
-
-/** 时间轴滑块:08:00–21:00,拖动选时刻。 */
-@Composable
-private fun TimeAxis(atMinute: Int, onChange: (Int) -> Unit) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("时刻 ", color = FoamDim, style = MaterialTheme.typography.labelMedium)
-            Text(minuteToHHmm(atMinute), color = Cyan, style = MaterialTheme.typography.labelLarge)
-        }
-        Slider(
-            value = atMinute.toFloat(),
-            onValueChange = { onChange(it.toInt()) },
-            valueRange = AXIS_START.toFloat()..AXIS_END.toFloat(),
-            colors = SliderDefaults.colors(
-                thumbColor = Phosphor, activeTrackColor = Phosphor, inactiveTrackColor = Rule,
-            ),
+private fun SelectRow(text: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .border(if (selected) 2.dp else 1.dp, if (selected) Phosphor else Rule)
+            .background(if (selected) Phosphor.copy(alpha = 0.10f) else Deep)
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            if (selected) "☑" else "☐",
+            color = if (selected) Phosphor else FoamMute, style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text, color = if (selected) Foam else FoamMute, style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
+/** 节次多选:1..13 等宽方格,选中高亮 phosphor。 */
 @Composable
-private fun RoomCard(room: RoomFreeSlots, atMinute: Int, clock: PeriodClock) {
+private fun PeriodPicker(selected: Set<Int>, onToggle: (Int) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        (1..13).forEach { p ->
+            val sel = p in selected
+            Box(
+                Modifier.weight(1f).height(34.dp)
+                    .border(if (sel) 2.dp else 1.dp, if (sel) Phosphor else Rule)
+                    .background(if (sel) Phosphor.copy(alpha = 0.18f) else Deep)
+                    .clickable { onToggle(p) },
+                contentAlignment = Alignment.Center,
+            ) { Text("$p", color = if (sel) Phosphor else FoamMute, style = MaterialTheme.typography.labelMedium) }
+        }
+    }
+}
+
+@Composable
+private fun QueryButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    val color = if (enabled) Cyan else FoamMute
+    Box(
+        Modifier.fillMaxWidth().border(1.dp, color).background(Deep)
+            .clickable(enabled = enabled) { onClick() }.padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(text, color = color, style = MaterialTheme.typography.titleMedium, maxLines = 1) }
+}
+
+@Composable
+private fun RoomCard(room: RoomFreeSlots, nowMin: Int, clock: PeriodClock, showNow: Boolean) {
     var expanded by remember { mutableStateOf(false) }
-    val curPeriod = clock.periodAt(atMinute)
-    val freeNow = freeAt(room, atMinute, clock)
+    // 仅当查询日期为今天时,「此刻」与当前节高亮才有意义。
+    val curPeriod = if (showNow) clock.periodAt(nowMin) else null
+    val freeNow = curPeriod == null || curPeriod !in room.busyPeriods
     Column(
         Modifier.fillMaxWidth().border(1.dp, Rule).background(Deep)
             .clickable { expanded = !expanded }.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -195,17 +221,61 @@ private fun RoomCard(room: RoomFreeSlots, atMinute: Int, clock: PeriodClock) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${room.buildingName} ${room.roomName}", color = Foam,
                 style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(10.dp))
-            Text(
-                if (freeNow) "此刻空" else "此刻占用",
-                color = if (freeNow) Phosphor else Carmine, style = MaterialTheme.typography.labelMedium,
-            )
+            if (showNow) {
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (freeNow) "此刻空" else "此刻占用",
+                    color = if (freeNow) Phosphor else Carmine, style = MaterialTheme.typography.labelMedium,
+                )
+            }
         }
         Spacer(Modifier.height(6.dp))
         Text("空闲 " + prettyFree(room.freeRanges), color = FoamMute, style = MaterialTheme.typography.bodySmall)
         if (expanded) { Spacer(Modifier.height(8.dp)); OccupancyGrid(room.busyPeriods, curPeriod) }
     }
 }
+
+/** 日期步进行:◀ 周X yyyy-MM-dd ▶,显示「今天/明天/后天」;非今天时可一键回今天。 */
+@Composable
+private fun DateRow(date: String, todayStr: String, onShift: (Int) -> Unit, onToday: () -> Unit) {
+    val d = java.time.LocalDate.parse(date)
+    val today = java.time.LocalDate.parse(todayStr)
+    val daysFromToday = java.time.temporal.ChronoUnit.DAYS.between(today, d)
+    val rel = when (daysFromToday) {
+        0L -> "今天"; 1L -> "明天"; 2L -> "后天"; else -> null
+    }
+    val atToday = daysFromToday == 0L
+    Row(
+        Modifier.fillMaxWidth().border(1.dp, Rule).background(Deep)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepperButton("◀", enabled = !atToday) { onShift(-1) }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("${weekdayCn(d.dayOfWeek.value)}  $date", color = Foam, style = MaterialTheme.typography.titleMedium)
+            if (rel != null) {
+                Text(rel, color = Cyan, style = MaterialTheme.typography.labelSmall)
+            } else {
+                Text("↺ 回到今天", color = Amber, style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.clickable { onToday() })
+            }
+        }
+        StepperButton("▶", enabled = true) { onShift(1) }
+    }
+}
+
+@Composable
+private fun StepperButton(sym: String, enabled: Boolean, onClick: () -> Unit) {
+    val color = if (enabled) Cyan else Rule
+    Box(
+        Modifier.border(1.dp, color).background(Deep)
+            .clickable(enabled = enabled) { onClick() }.padding(horizontal = 16.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) { Text(sym, color = color, style = MaterialTheme.typography.titleMedium) }
+}
+
+private fun weekdayCn(dow: Int): String =
+    "周" + listOf("一", "二", "三", "四", "五", "六", "日")[(dow - 1).coerceIn(0, 6)]
 
 /** 节次×占用 可视化:13 格,忙=Carmine,空=Phosphor 淡底;当前时刻所在节加亮边框。 */
 @Composable
@@ -224,16 +294,5 @@ private fun OccupancyGrid(busy: Set<Int>, highlight: Int?) {
     }
 }
 
-private const val AXIS_START = 8 * 60     // 08:00
-private const val AXIS_END = 21 * 60      // 21:00
-
-/** 某时刻教室是否空闲:该时刻所在节次不在忙集(课间也算空)。 */
-private fun freeAt(room: RoomFreeSlots, minute: Int, clock: PeriodClock): Boolean {
-    val p = clock.periodAt(minute)
-    return p == null || p !in room.busyPeriods
-}
-
 private fun prettyFree(ranges: List<IntRange>): String =
     if (ranges.isEmpty()) "无" else ranges.joinToString(", ") { if (it.first == it.last) "${it.first}" else "${it.first}~${it.last}" } + " 节"
-
-private fun minuteToHHmm(m: Int): String = "%02d:%02d".format(m / 60, m % 60)
