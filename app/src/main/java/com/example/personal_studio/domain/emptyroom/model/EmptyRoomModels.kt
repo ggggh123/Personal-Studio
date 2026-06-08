@@ -11,6 +11,7 @@ data class Building(val code: String, val name: String, val campusCode: String)
 data class RoomFreeSlots(
     val roomName: String,
     val buildingName: String,
+    val buildingCode: String,   // 稳定楼身份:跨校区合并时区分同名楼,做列表 key 防撞键
     val busyPeriods: Set<Int>,
     val freeRanges: List<IntRange>,
     val status: RoomStatus,

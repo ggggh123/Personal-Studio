@@ -48,7 +48,7 @@ class EmptyRoomViewModelTest {
     private val b2 = Building("J2", "文教", "01")
 
     private fun room(name: String, freeNow: Boolean, busy: Set<Int> = emptySet()) = RoomFreeSlots(
-        roomName = name, buildingName = "理教", busyPeriods = busy, freeRanges = listOf(1..13),
+        roomName = name, buildingName = "理教", buildingCode = "J1", busyPeriods = busy, freeRanges = listOf(1..13),
         status = RoomStatus(freeNow = freeNow, freeUntilMinuteOfDay = null, nextFreeMinuteOfDay = null),
     )
 
@@ -169,6 +169,55 @@ class EmptyRoomViewModelTest {
         vm.onToggleCampus(liangxiang); advanceUntilIdle()
         vm.onTogglePeriod(3); vm.onQuery(); advanceUntilIdle()
         assertEquals(listOf("B"), vm.uiState.value.rooms.map { it.roomName })
+        job.cancel()
+    }
+
+    @Test fun `required periods filter uses AND semantics across multiple periods`() = runTest {
+        val vm = vm(repo {
+            coEvery { buildings("01") } returns listOf(b1)
+            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(
+                room("A", freeNow = true, busy = setOf(5)),  // 第5节占用 → 选了{3,5}时被筛掉
+                room("B", freeNow = true, busy = setOf(7)),  // 第3、5节都空 → 保留
+            )
+        })
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        vm.onToggleCampus(liangxiang); advanceUntilIdle()
+        vm.onTogglePeriod(3); vm.onTogglePeriod(5); vm.onQuery(); advanceUntilIdle()
+        assertEquals(listOf("B"), vm.uiState.value.rooms.map { it.roomName })
+        job.cancel()
+    }
+
+    @Test fun `deselecting a campus drops its building selection`() = runTest {
+        val bCampus2 = Building("J9", "中教", "02")
+        val vm = vm(repo {
+            coEvery { campuses() } returns listOf(liangxiang, zhongguancun)
+            coEvery { buildings("01") } returns listOf(b1)
+            coEvery { buildings("02") } returns listOf(bCampus2)
+        })
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        vm.onToggleCampus(liangxiang); advanceUntilIdle()
+        vm.onToggleCampus(zhongguancun); advanceUntilIdle()
+        vm.onToggleBuilding(bCampus2); advanceUntilIdle()           // 选中中关村的楼
+        assertEquals(setOf("J9"), vm.uiState.value.selectedBuildingCodes)
+        vm.onToggleCampus(zhongguancun); advanceUntilIdle()         // 撤掉中关村
+        assertEquals(listOf("理教"), vm.uiState.value.buildings.map { it.name })
+        assertEquals(emptySet<String>(), vm.uiState.value.selectedBuildingCodes)  // 其楼选择被清掉
+        job.cancel()
+    }
+
+    @Test fun `query failure surfaces error and stops loading`() = runTest {
+        val vm = vm(repo {
+            coEvery { buildings("01") } returns listOf(b1)
+            coEvery { occupancyForBuildings(any(), any(), any(), any()) } throws RuntimeException("boom")
+        })
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        vm.onToggleCampus(liangxiang); advanceUntilIdle()
+        vm.onQuery(); advanceUntilIdle()
+        assertEquals("网络错误,请重试", vm.uiState.value.error)
+        assertEquals(false, vm.uiState.value.loading)
         job.cancel()
     }
 

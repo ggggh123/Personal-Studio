@@ -73,7 +73,7 @@ class EmptyRoomRepository @Inject constructor(
             )
             (resp.body()?.datas?.cxkxjasqk?.rows.orEmpty()).also { occupancyCache[cacheKey] = it }
         }
-        return rawRows.map { compute.invoke(it, building.name, clock, nowMinute) }
+        return rawRows.map { compute.invoke(it, building.code, building.name, clock, nowMinute) }
     }
 
     /** 并发拉给定各楼的占用,合并(支持跨校区多选)。 */

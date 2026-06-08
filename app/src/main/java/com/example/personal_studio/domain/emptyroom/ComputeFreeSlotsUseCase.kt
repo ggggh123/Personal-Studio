@@ -10,6 +10,7 @@ class ComputeFreeSlotsUseCase @Inject constructor() {
 
     fun invoke(
         dto: RoomOccupancyDto,
+        buildingCode: String,
         buildingName: String,
         clock: PeriodClock,
         nowMinute: Int,
@@ -21,6 +22,7 @@ class ComputeFreeSlotsUseCase @Inject constructor() {
         return RoomFreeSlots(
             roomName = dto.roomName.orEmpty(),
             buildingName = buildingName,
+            buildingCode = buildingCode,
             busyPeriods = busy,
             freeRanges = ranges,
             status = status,

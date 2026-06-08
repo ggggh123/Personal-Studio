@@ -140,7 +140,7 @@ fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomVi
                     }
                 }
                 if (st.queried && !st.loading) {
-                    items(st.rooms, key = { it.buildingName + it.roomName }) { RoomCard(it, nowMin, clock, showNow = isToday) }
+                    items(st.rooms, key = { it.buildingCode + "|" + it.roomName }) { RoomCard(it, nowMin, clock, showNow = isToday) }
                 }
                 item { Spacer(Modifier.height(12.dp)) }
             }
