@@ -2,6 +2,8 @@ package com.example.personal_studio.domain.bitddl
 
 import com.example.personal_studio.data.local.datastore.DdlSyncPrefs
 import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.domain.bitddl.model.BackgroundDdlResult
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
@@ -43,6 +45,17 @@ class SyncAssignmentsUseCase @Inject constructor(
             apiClient.close()
         }
     }
+
+    /** Auto 模式:先按 [req].networkMode 试,连接级失败(NetworkFail)自动换另一网络模式重试一次,
+     *  成功后回告生效模式。其余失败不回退。 */
+    fun syncAuto(req: DdlSyncRequest, onModeSucceeded: (NetworkMode) -> Unit): Flow<DdlSyncStep> =
+        autoNetworkFallback(
+            first = req.networkMode,
+            isConnFail = { it is DdlSyncStep.Failed && it.error is DdlSyncError.NetworkFail },
+            isDone = { it is DdlSyncStep.Done },
+            switchingStep = { DdlSyncStep.SwitchingMode(it) },
+            onModeSucceeded = onModeSucceeded,
+        ) { mode -> sync(req.copy(networkMode = mode)) }
 
     /** 后台:假设 apiClient 已 open。 */
     suspend fun syncForBackground(req: DdlSyncRequest): BackgroundDdlResult = fetchEvents(req)

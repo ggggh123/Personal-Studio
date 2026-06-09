@@ -92,10 +92,15 @@ class AssignmentsViewModel @Inject constructor(
             viewModelScope.launch { _events.emit(AssignmentsEvent.NeedLogin) }
             return
         }
-        sync.sync(DdlSyncRequest(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true))
+        val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+        sync.syncAuto(
+            DdlSyncRequest(creds.username, creds.password, firstMode, true),
+            onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
+        )
             .onEach { step ->
                 transient.value = when (step) {
                     DdlSyncStep.FetchingCalendar -> transient.value.copy(syncing = true, error = null)
+                    is DdlSyncStep.SwitchingMode -> transient.value.copy(syncing = true, error = null)
                     is DdlSyncStep.Done -> transient.value.copy(syncing = false, error = null)
                     is DdlSyncStep.Failed -> transient.value.copy(syncing = false, error = step.error.toMessage())
                 }
