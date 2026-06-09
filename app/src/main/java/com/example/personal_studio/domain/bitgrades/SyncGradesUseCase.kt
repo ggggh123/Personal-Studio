@@ -5,6 +5,7 @@ import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.data.local.db.entity.TermRankEntity
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
@@ -89,9 +90,13 @@ class SyncGradesUseCase @Inject constructor(
         req: GradesSyncRequest,
         onModeSucceeded: (NetworkMode) -> Unit,
     ): Flow<SyncGradesStep> =
-        autoGradesFallback(req.networkMode, onModeSucceeded) { mode ->
-            sync(req.copy(networkMode = mode))
-        }
+        autoNetworkFallback(
+            first = req.networkMode,
+            isConnFail = { it is SyncGradesStep.Failed && it.err is GradesSyncError.NetworkFail },
+            isDone = { it is SyncGradesStep.Done },
+            switchingStep = { SyncGradesStep.SwitchingMode(it) },
+            onModeSucceeded = onModeSucceeded,
+        ) { mode -> sync(req.copy(networkMode = mode)) }
 
     /** 拉一门课的 cjfx 详情并合并平均分/排名。无 detailPath 或任何失败都非致命：
      *  原样返回该条目（不阻断整次同步）。 */
@@ -168,43 +173,6 @@ class SyncGradesUseCase @Inject constructor(
     }
 }
 
-/**
- * 纯编排:首选 [first] 模式,经 [attempt] 跑一次同步;若以 NetworkFail 收尾且还有另一种模式,
- * 抑制那个失败、emit [SyncGradesStep.SwitchingMode] 再换模式重试。Done 即停并回告 [onModeSucceeded];
- * 非网络失败也停(换网络无用)。不依赖 BitApiClient,纯函数式,便于单测。
- *
- * **有意取舍**:回退**只在连接级失败**([GradesSyncError.NetworkFail],即 sync() 捕到的
- * IOException——UnknownHost/Connect/Timeout)触发。校外用校内 host 的主流失败正是连接级,能正确
- * 回退。而 EmptyGrades/ParseFail/Unexpected **不**触发回退:它们可能是真实状态(无成绩/评教未完成/
- * 页面结构变动),盲目翻网会掩盖真因。代价是校外极少数"伪可达"(captive portal 返 200 垃圾页)不
- * 自动换网,用户可手动切。见 AutoGradesFallbackTest 里固化此边界的用例。
- */
-internal fun autoGradesFallback(
-    first: NetworkMode,
-    onModeSucceeded: (NetworkMode) -> Unit,
-    attempt: (NetworkMode) -> Flow<SyncGradesStep>,
-): Flow<SyncGradesStep> = flow {
-    val modes = listOf(first, otherMode(first))
-    for ((idx, mode) in modes.withIndex()) {
-        val hasFallbackLeft = idx < modes.lastIndex
-        var terminal: SyncGradesStep? = null
-        attempt(mode).collect { step ->
-            terminal = step
-            // 首选模式的网络失败先憋住(后面会换模式重试),避免 UI 闪一下"失败"再成功。
-            val suppress = step is SyncGradesStep.Failed &&
-                step.err is GradesSyncError.NetworkFail && hasFallbackLeft
-            if (!suppress) emit(step)
-        }
-        when (val t = terminal) {
-            is SyncGradesStep.Done -> { onModeSucceeded(mode); return@flow }
-            is SyncGradesStep.Failed ->
-                if (t.err is GradesSyncError.NetworkFail && hasFallbackLeft) {
-                    emit(SyncGradesStep.SwitchingMode(otherMode(mode)))
-                } else return@flow
-            else -> return@flow
-        }
-    }
-}
-
-private fun otherMode(m: NetworkMode): NetworkMode =
-    if (m == NetworkMode.LOCAL) NetworkMode.WEBVPN else NetworkMode.LOCAL
+// 回退编排已上提为共享纯函数 data/network/bit/NetworkFallback.kt:autoNetworkFallback。
+// 成绩的判据(NetworkFail 才回退、EmptyGrades/ParseFail 不回退)在 syncAuto 内联,
+// 并由 AutoGradesFallbackTest 固化。

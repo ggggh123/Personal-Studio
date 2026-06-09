@@ -1,6 +1,7 @@
 package com.example.personal_studio.domain.bitgrades
 
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.SyncGradesStep
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +16,20 @@ import java.io.IOException
 class AutoGradesFallbackTest {
 
     private fun netFail() = SyncGradesStep.Failed(GradesSyncError.NetworkFail(IOException("unreachable")))
+
+    /** 复刻 SyncGradesUseCase.syncAuto 的判据,锁定成绩在共享 autoNetworkFallback 上的取舍。 */
+    private fun autoGradesFallback(
+        first: NetworkMode,
+        onModeSucceeded: (NetworkMode) -> Unit,
+        attempt: (NetworkMode) -> Flow<SyncGradesStep>,
+    ): Flow<SyncGradesStep> = autoNetworkFallback(
+        first = first,
+        isConnFail = { it is SyncGradesStep.Failed && it.err is GradesSyncError.NetworkFail },
+        isDone = { it is SyncGradesStep.Done },
+        switchingStep = { SyncGradesStep.SwitchingMode(it) },
+        onModeSucceeded = onModeSucceeded,
+        attempt = attempt,
+    )
 
     @Test fun `falls back to the other mode on NetworkFail and reports the winning mode`() = runTest {
         val won = mutableListOf<NetworkMode>()
