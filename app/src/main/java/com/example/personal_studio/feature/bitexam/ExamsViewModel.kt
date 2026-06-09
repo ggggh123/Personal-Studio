@@ -70,10 +70,15 @@ class ExamsViewModel @Inject constructor(
             viewModelScope.launch { _events.emit(ExamsEvent.NeedLogin) }
             return
         }
-        sync.sync(ExamSyncRequest(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true))
+        val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+        sync.syncAuto(
+            ExamSyncRequest(creds.username, creds.password, firstMode, true),
+            onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
+        )
             .onEach { step ->
                 transient.value = when (step) {
                     ExamSyncStep.LoggingIn, ExamSyncStep.FetchingExams -> transient.value.copy(syncing = true, error = null)
+                    is ExamSyncStep.SwitchingMode -> transient.value.copy(syncing = true, error = null)
                     is ExamSyncStep.Done -> transient.value.copy(syncing = false, error = null)
                     is ExamSyncStep.Failed -> transient.value.copy(syncing = false, error = step.error.toMessage())
                 }

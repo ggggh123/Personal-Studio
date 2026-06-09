@@ -2,12 +2,17 @@ package com.example.personal_studio.feature.bitexam
 
 import app.cash.turbine.test
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
+import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
+import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.domain.bitexam.SyncExamsUseCase
+import com.example.personal_studio.domain.bitexam.model.ExamSyncStep
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -100,5 +105,26 @@ class ExamsViewModelTest {
         val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
         val vm = vm(dao)
         vm.events.test { vm.onRefresh(); advanceUntilIdle(); assertEquals(ExamsEvent.NeedLogin, awaitItem()) }
+    }
+
+    @Test fun `refresh auto-fallback persists the winning mode and clears syncing`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val sync = mockk<SyncExamsUseCase> {
+            every { syncAuto(any(), any()) } answers {
+                // 模拟首选 LOCAL 不可达、回退到 WEBVPN 成功:回告生效模式。
+                secondArg<(NetworkMode) -> Unit>().invoke(NetworkMode.WEBVPN)
+                flowOf(ExamSyncStep.SwitchingMode(NetworkMode.WEBVPN), ExamSyncStep.Done(0))
+            }
+        }
+        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, nowProvider = { now })
+        val job = launch { vm.uiState.collect {} }
+        vm.onRefresh()
+        advanceUntilIdle()
+        assertEquals(false, vm.uiState.value.syncing)
+        verify { creds.save("u", "p", NetworkMode.WEBVPN) }
+        job.cancel()
     }
 }

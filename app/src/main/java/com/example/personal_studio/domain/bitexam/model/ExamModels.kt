@@ -25,6 +25,8 @@ sealed interface ExamSyncStep {
     object FetchingExams : ExamSyncStep
     data class Done(val total: Int) : ExamSyncStep
     data class Failed(val error: ExamSyncError) : ExamSyncStep
+    /** Auto 回退:首选网络不可达,正改用 [to] 重试。 */
+    data class SwitchingMode(val to: NetworkMode) : ExamSyncStep
 }
 
 sealed interface ExamSyncError {

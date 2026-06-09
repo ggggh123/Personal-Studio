@@ -1,6 +1,8 @@
 package com.example.personal_studio.domain.bitexam
 
 import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.domain.bitexam.model.ExamSyncError
 import com.example.personal_studio.domain.bitexam.model.ExamSyncRequest
@@ -58,6 +60,17 @@ class SyncExamsUseCase @Inject constructor(
             apiClient.close()
         }
     }
+
+    /** Auto 模式:先按 [req].networkMode 试,连接级失败(NetworkFail)自动换另一网络模式重试一次,
+     *  成功后回告生效模式。其余失败不回退。 */
+    fun syncAuto(req: ExamSyncRequest, onModeSucceeded: (NetworkMode) -> Unit): Flow<ExamSyncStep> =
+        autoNetworkFallback(
+            first = req.networkMode,
+            isConnFail = { it is ExamSyncStep.Failed && it.error is ExamSyncError.NetworkFail },
+            isDone = { it is ExamSyncStep.Done },
+            switchingStep = { ExamSyncStep.SwitchingMode(it) },
+            onModeSucceeded = onModeSucceeded,
+        ) { mode -> sync(req.copy(networkMode = mode)) }
 
     private fun CasLoginDto.toExamError(): ExamSyncError? = when (this) {
         CasLoginDto.Success -> null
