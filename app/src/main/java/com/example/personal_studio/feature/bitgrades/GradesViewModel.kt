@@ -177,16 +177,22 @@ class GradesViewModel @Inject constructor(
         if (syncLocal.value.syncing) return
         syncLocal.value = SyncLocalState(syncing = true)
         viewModelScope.launch {
-            val req = GradesSyncRequest(
-                creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true,
-            )
-            syncGrades.sync(req).collect { step ->
+            val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+            val req = GradesSyncRequest(creds.username, creds.password, firstMode, true)
+            syncGrades.syncAuto(req, onModeSucceeded = { winning ->
+                // 回退成功后把生效的网络模式记下来,下次直接走对的(只在失败时再翻)。
+                if (winning != firstMode) credPrefs.save(creds.username, creds.password, winning)
+            }).collect { step ->
                 val cur = syncLocal.value
                 syncLocal.value = when (step) {
                     SyncGradesStep.LoggingIn -> cur.copy(steps = cur.steps + "登录中…")
                     SyncGradesStep.FetchingGrades -> cur.copy(steps = cur.steps + "拉取成绩…")
                     SyncGradesStep.FetchingRanks -> cur.copy(steps = cur.steps + "拉取排名…")
                     SyncGradesStep.Persisting -> cur.copy(steps = cur.steps + "落库…")
+                    is SyncGradesStep.SwitchingMode -> cur.copy(
+                        steps = cur.steps + if (step.to == NetworkMode.WEBVPN)
+                            "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…",
+                    )
                     is SyncGradesStep.Done -> cur.copy(syncing = false, steps = cur.steps + "完成")
                     is SyncGradesStep.Failed -> cur.copy(syncing = false, error = step.err)
                 }

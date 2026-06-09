@@ -17,6 +17,8 @@ sealed class SyncGradesStep {
     object Persisting : SyncGradesStep()
     data class Done(val termCount: Int, val courseCount: Int) : SyncGradesStep()
     data class Failed(val err: GradesSyncError) : SyncGradesStep()
+    /** Auto 回退:首选网络模式不可达,正改用 [to] 重试。 */
+    data class SwitchingMode(val to: NetworkMode) : SyncGradesStep()
 }
 
 /** 用户可见失败。排名不可用是非致命的(降级为 null)，不在此列。 */

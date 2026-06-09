@@ -65,6 +65,12 @@ class BitApiClient @Inject constructor(
     val cas: BitCasService
         get() = casRetrofit?.create() ?: error("BitApiClient: session not open")
 
+    /** CAS-login endpoint for the currently-open [NetworkMode], used to activate
+     *  service tickets for webvpn-proxied targets like jwms — off campus it routes
+     *  through the webvpn gateway (see [BitUrlsConfig.casLoginEndpoint]). */
+    fun casLoginEndpoint(): String =
+        BitUrlsConfig.casLoginEndpoint(openedMode ?: error("BitApiClient: session not open"))
+
     val jwapp: BitJwappService
         get() = jwappRetrofit?.create() ?: error("BitApiClient: session not open")
 
