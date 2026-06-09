@@ -14,6 +14,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -261,6 +262,28 @@ class EmptyRoomViewModelTest {
         advanceUntilIdle()
         vm.onShiftDate(-5); advanceUntilIdle()
         assertEquals("1970-01-01", vm.uiState.value.date)  // 下限=今天
+        job.cancel()
+    }
+
+    @Test fun `query auto-falls-back to WEBVPN on IOException and persists the winning mode`() = runTest {
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val repo = mockk<EmptyRoomRepository>(relaxed = true) {
+            // 校内不可达(IOException),校外成功 → 应自动回退。
+            coEvery { openAndLogin("u", "p", NetworkMode.LOCAL) } throws java.io.IOException("unreachable")
+            coEvery { openAndLogin("u", "p", NetworkMode.WEBVPN) } returns EmptyRoomResult.Ok("2025-2026-2")
+            coEvery { campuses() } returns listOf(liangxiang)
+            coEvery { buildings("01") } returns listOf(b1)
+            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("A", true))
+        }
+        val vm = EmptyRoomViewModel(repo, credPrefs, nowProvider = { 0L })
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        vm.onToggleCampus(liangxiang); advanceUntilIdle()
+        vm.onQuery(); advanceUntilIdle()
+        assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
+        verify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
         job.cancel()
     }
 
