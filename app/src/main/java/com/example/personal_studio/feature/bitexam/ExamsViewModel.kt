@@ -33,6 +33,7 @@ data class ExamsUiState(
     val upcoming: List<ExamRow> = emptyList(),
     val past: List<ExamRow> = emptyList(),
     val syncing: Boolean = false,
+    val syncSteps: List<String> = emptyList(),  // 刷新时逐步累积的状态文案(同成绩页)
     val error: String? = null,
     val credsSaved: Boolean = false,
 )
@@ -71,20 +72,26 @@ class ExamsViewModel @Inject constructor(
             return
         }
         val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+        transient.value = transient.value.copy(syncing = true, error = null, syncSteps = emptyList())
         sync.syncAuto(
             ExamSyncRequest(creds.username, creds.password, firstMode, true),
             onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
         )
             .onEach { step ->
+                val cur = transient.value
                 transient.value = when (step) {
-                    ExamSyncStep.LoggingIn, ExamSyncStep.FetchingExams -> transient.value.copy(syncing = true, error = null)
-                    is ExamSyncStep.SwitchingMode -> transient.value.copy(syncing = true, error = null)
-                    is ExamSyncStep.Done -> transient.value.copy(syncing = false, error = null)
-                    is ExamSyncStep.Failed -> transient.value.copy(syncing = false, error = step.error.toMessage())
+                    ExamSyncStep.LoggingIn -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "登录中…")
+                    ExamSyncStep.FetchingExams -> cur.copy(syncSteps = cur.syncSteps + "拉取考试安排…")
+                    is ExamSyncStep.SwitchingMode -> cur.copy(syncSteps = cur.syncSteps + switchMsg(step.to))
+                    is ExamSyncStep.Done -> cur.copy(syncing = false, syncSteps = cur.syncSteps + "完成 · ${step.total} 场考试")
+                    is ExamSyncStep.Failed -> cur.copy(syncing = false, error = step.error.toMessage())
                 }
             }
             .launchIn(viewModelScope)
     }
+
+    private fun switchMsg(to: NetworkMode): String =
+        if (to == NetworkMode.WEBVPN) "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…"
 
     private fun TimelineItemEntity.toRow() = ExamRow(
         id, title, startAt, endAt, location,

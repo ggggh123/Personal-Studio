@@ -44,6 +44,7 @@ data class AssignmentsUiState(
     val upcoming: List<DdlRow> = emptyList(),
     val doneOrOverdue: List<DdlRow> = emptyList(),
     val syncing: Boolean = false,
+    val syncSteps: List<String> = emptyList(),  // 刷新时逐步累积的状态文案(同成绩页)
     val error: String? = null,
     val credsSaved: Boolean = false,
 )
@@ -93,20 +94,25 @@ class AssignmentsViewModel @Inject constructor(
             return
         }
         val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+        transient.value = transient.value.copy(syncing = true, error = null, syncSteps = emptyList())
         sync.syncAuto(
             DdlSyncRequest(creds.username, creds.password, firstMode, true),
             onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
         )
             .onEach { step ->
+                val cur = transient.value
                 transient.value = when (step) {
-                    DdlSyncStep.FetchingCalendar -> transient.value.copy(syncing = true, error = null)
-                    is DdlSyncStep.SwitchingMode -> transient.value.copy(syncing = true, error = null)
-                    is DdlSyncStep.Done -> transient.value.copy(syncing = false, error = null)
-                    is DdlSyncStep.Failed -> transient.value.copy(syncing = false, error = step.error.toMessage())
+                    DdlSyncStep.FetchingCalendar -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "登录并拉取乐学日历…")
+                    is DdlSyncStep.SwitchingMode -> cur.copy(syncSteps = cur.syncSteps + switchMsg(step.to))
+                    is DdlSyncStep.Done -> cur.copy(syncing = false, syncSteps = cur.syncSteps + "完成 · ${step.total} 项作业")
+                    is DdlSyncStep.Failed -> cur.copy(syncing = false, error = step.error.toMessage())
                 }
             }
             .launchIn(viewModelScope)
     }
+
+    private fun switchMsg(to: NetworkMode): String =
+        if (to == NetworkMode.WEBVPN) "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…"
 
     private fun TimelineItemEntity.toRow() = DdlRow(id, title, courseName, startAt, isDone)
 

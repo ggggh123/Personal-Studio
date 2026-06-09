@@ -111,6 +111,25 @@ class AssignmentsViewModelTest {
         job.cancel()
     }
 
+    @Test fun `refresh accumulates progress steps for the UI`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val sync = mockk<SyncAssignmentsUseCase> {
+            every { syncAuto(any(), any()) } returns flowOf(DdlSyncStep.FetchingCalendar, DdlSyncStep.Done(5, 2))
+        }
+        val vm = AssignmentsViewModel(
+            dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
+            scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
+            sync = sync, credPrefs = creds, nowProvider = { now },
+        )
+        val job = launch { vm.uiState.collect {} }
+        vm.onRefresh(); advanceUntilIdle()
+        assertEquals(listOf("登录并拉取乐学日历…", "完成 · 5 项作业"), vm.uiState.value.syncSteps)
+        job.cancel()
+    }
+
     @Test fun `refresh without creds emits NeedLogin event`() = runTest {
         val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
         val vm = AssignmentsViewModel(

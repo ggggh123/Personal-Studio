@@ -127,4 +127,21 @@ class ExamsViewModelTest {
         verify { creds.save("u", "p", NetworkMode.WEBVPN) }
         job.cancel()
     }
+
+    @Test fun `refresh accumulates progress steps for the UI`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val sync = mockk<SyncExamsUseCase> {
+            every { syncAuto(any(), any()) } returns flowOf(
+                ExamSyncStep.LoggingIn, ExamSyncStep.FetchingExams, ExamSyncStep.Done(3),
+            )
+        }
+        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, nowProvider = { now })
+        val job = launch { vm.uiState.collect {} }
+        vm.onRefresh(); advanceUntilIdle()
+        assertEquals(listOf("登录中…", "拉取考试安排…", "完成 · 3 场考试"), vm.uiState.value.syncSteps)
+        job.cancel()
+    }
 }
