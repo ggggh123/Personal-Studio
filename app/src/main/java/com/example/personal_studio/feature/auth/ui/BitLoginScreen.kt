@@ -209,15 +209,34 @@ fun BitLoginScreen(
                         )
                         Text("记住密码（Keystore 加密）", color = FoamMute, style = MaterialTheme.typography.labelMedium)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = st.networkMode == NetworkMode.LOCAL,
-                            onClick = { vm.onNetworkModeChange(NetworkMode.LOCAL) }, label = { Text("校内") },
+                    // 网络默认「自动」(校内↔校外按需回退);手动指定收进可展开高级区。
+                    var showAdvanced by remember { mutableStateOf(false) }
+                    val modeLabel = when (st.modeOverride) {
+                        null -> "自动"
+                        NetworkMode.LOCAL -> "校内"
+                        NetworkMode.WEBVPN -> "校外"
+                    }
+                    TextButton(onClick = { showAdvanced = !showAdvanced }) {
+                        Text(
+                            (if (showAdvanced) "▾ " else "▸ ") + "网络：$modeLabel",
+                            color = FoamMute, style = MaterialTheme.typography.labelMedium,
                         )
-                        FilterChip(
-                            selected = st.networkMode == NetworkMode.WEBVPN,
-                            onClick = { vm.onNetworkModeChange(NetworkMode.WEBVPN) }, label = { Text("校外") },
-                        )
+                    }
+                    if (showAdvanced) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = st.modeOverride == null,
+                                onClick = { vm.onNetworkModeChange(null) }, label = { Text("自动") },
+                            )
+                            FilterChip(
+                                selected = st.modeOverride == NetworkMode.LOCAL,
+                                onClick = { vm.onNetworkModeChange(NetworkMode.LOCAL) }, label = { Text("校内") },
+                            )
+                            FilterChip(
+                                selected = st.modeOverride == NetworkMode.WEBVPN,
+                                onClick = { vm.onNetworkModeChange(NetworkMode.WEBVPN) }, label = { Text("校外") },
+                            )
+                        }
                     }
                 }
 

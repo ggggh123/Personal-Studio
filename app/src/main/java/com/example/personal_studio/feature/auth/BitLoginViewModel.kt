@@ -24,7 +24,8 @@ data class BitLoginUiState(
     val password: String = "",
     val showPassword: Boolean = false,
     val rememberPwd: Boolean = true,
-    val networkMode: NetworkMode = NetworkMode.LOCAL,
+    /** null = 自动(默认,按需校内↔校外回退);非 null = 手动覆盖固定该模式。 */
+    val modeOverride: NetworkMode? = null,
     val loading: Boolean = false,
     val error: LoginOutcome? = null,
 )
@@ -49,13 +50,9 @@ class BitLoginViewModel @Inject constructor(
 
     init {
         credPrefs.observeAll().value?.let { saved ->
+            // 默认走自动(modeOverride=null);lastMode 只作 Auto 的首选 mode,在 onLogin 时按需读取。
             _uiState.update {
-                it.copy(
-                    username = saved.username,
-                    password = saved.password,
-                    rememberPwd = true,
-                    networkMode = saved.lastMode ?: NetworkMode.LOCAL,
-                )
+                it.copy(username = saved.username, password = saved.password, rememberPwd = true)
             }
         }
     }
@@ -64,7 +61,8 @@ class BitLoginViewModel @Inject constructor(
     fun onPasswordChange(v: String) = _uiState.update { it.copy(password = v) }
     fun onShowPasswordToggle() = _uiState.update { it.copy(showPassword = !it.showPassword) }
     fun onRememberToggle(v: Boolean) = _uiState.update { it.copy(rememberPwd = v) }
-    fun onNetworkModeChange(m: NetworkMode) = _uiState.update { it.copy(networkMode = m) }
+    /** null = 自动;LOCAL/WEBVPN = 手动覆盖。 */
+    fun onNetworkModeChange(m: NetworkMode?) = _uiState.update { it.copy(modeOverride = m) }
     fun onDismissError() = _uiState.update { it.copy(error = null) }
 
     fun onLogin() {
@@ -72,9 +70,18 @@ class BitLoginViewModel @Inject constructor(
         if (st.username.isBlank() || st.password.isBlank() || st.loading) return
         _uiState.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            val outcome = validate.invoke(LoginRequest(st.username, st.password, st.networkMode))
+            val override = st.modeOverride
+            val (outcome, mode) = if (override != null) {
+                // 手动覆盖:单次该 mode,不回退。
+                validate.invoke(LoginRequest(st.username, st.password, override)) to override
+            } else {
+                // 自动:从上次生效 mode 起 try-fallback(校内↔校外)。
+                val first = credPrefs.observeAll().value?.lastMode ?: NetworkMode.LOCAL
+                val r = validate.validateAuto(LoginRequest(st.username, st.password, first))
+                r.outcome to r.mode
+            }
             if (outcome is LoginOutcome.Success) {
-                if (st.rememberPwd) credPrefs.save(st.username, st.password, st.networkMode)
+                if (st.rememberPwd) credPrefs.save(st.username, st.password, mode)
                 else credPrefs.clear()
                 loginPrefs.setHasSeenLogin(true)
                 _uiState.update { it.copy(loading = false) }

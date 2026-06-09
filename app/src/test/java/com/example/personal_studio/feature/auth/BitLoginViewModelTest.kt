@@ -5,7 +5,9 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.LoginPrefs
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitimport.ValidateCredentialsUseCase
+import com.example.personal_studio.domain.bitimport.model.AutoLoginResult
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
+import com.example.personal_studio.domain.bitimport.model.LoginRequest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -39,7 +41,7 @@ class BitLoginViewModelTest {
 
     @Test fun `successful login saves creds + sets flag + emits Succeeded`() = runTest {
         val validate = mockk<ValidateCredentialsUseCase>()
-        coEvery { validate.invoke(any()) } returns LoginOutcome.Success
+        coEvery { validate.validateAuto(any()) } returns AutoLoginResult(LoginOutcome.Success, NetworkMode.LOCAL)
         val credPrefs = creds()
         val loginPrefs = mockk<LoginPrefs>(relaxed = true)
         val sut = vm(validate, credPrefs, loginPrefs)
@@ -53,8 +55,31 @@ class BitLoginViewModelTest {
         coVerify { loginPrefs.setHasSeenLogin(true) }
     }
 
-    @Test fun `login without rememberPwd clears creds`() = runTest {
+    @Test fun `auto login fallback persists the reachable mode`() = runTest {
+        val validate = mockk<ValidateCredentialsUseCase>()
+        // 自动:校内不可达、回退校外成功 → validateAuto 回告 WEBVPN。
+        coEvery { validate.validateAuto(any()) } returns AutoLoginResult(LoginOutcome.Success, NetworkMode.WEBVPN)
+        val credPrefs = creds()
+        val sut = vm(validate, credPrefs)
+        sut.onUsernameChange("u"); sut.onPasswordChange("p")
+        sut.onLogin(); advanceUntilIdle()
+        coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
+    }
+
+    @Test fun `manual override uses single mode without auto-fallback`() = runTest {
         val validate = mockk<ValidateCredentialsUseCase> { coEvery { this@mockk.invoke(any()) } returns LoginOutcome.Success }
+        val credPrefs = creds()
+        val sut = vm(validate, credPrefs)
+        sut.onUsernameChange("u"); sut.onPasswordChange("p")
+        sut.onNetworkModeChange(NetworkMode.WEBVPN)   // 手动指定校外
+        sut.onLogin(); advanceUntilIdle()
+        coVerify { validate.invoke(LoginRequest("u", "p", NetworkMode.WEBVPN)) }
+        coVerify(exactly = 0) { validate.validateAuto(any()) }
+        coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
+    }
+
+    @Test fun `login without rememberPwd clears creds`() = runTest {
+        val validate = mockk<ValidateCredentialsUseCase> { coEvery { this@mockk.validateAuto(any()) } returns AutoLoginResult(LoginOutcome.Success, NetworkMode.LOCAL) }
         val credPrefs = creds()
         val sut = vm(validate, credPrefs)
         sut.onUsernameChange("u"); sut.onPasswordChange("p"); sut.onRememberToggle(false)
@@ -63,7 +88,7 @@ class BitLoginViewModelTest {
     }
 
     @Test fun `wrong credentials sets error and does not save`() = runTest {
-        val validate = mockk<ValidateCredentialsUseCase> { coEvery { this@mockk.invoke(any()) } returns LoginOutcome.WrongCredentials }
+        val validate = mockk<ValidateCredentialsUseCase> { coEvery { this@mockk.validateAuto(any()) } returns AutoLoginResult(LoginOutcome.WrongCredentials, NetworkMode.LOCAL) }
         val credPrefs = creds()
         val sut = vm(validate, credPrefs)
         sut.onUsernameChange("u"); sut.onPasswordChange("p")
