@@ -48,7 +48,7 @@ class ImportViewModelTest {
 
     @Test fun `startWithSavedCreds triggers import when creds saved`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns flowOf()
+            every { importAuto(any(), any(), any()) } returns flowOf()
         }
         val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns
@@ -57,14 +57,14 @@ class ImportViewModelTest {
         val vm = ImportViewModel(importUseCase, creds)
         vm.startWithSavedCreds()
         advanceUntilIdle()
-        verify { importUseCase.import(any(), any()) }
+        verify { importUseCase.importAuto(any(), any(), any()) }
     }
 
     /** 取消导入必须「退出向导」(done=true 触发 onClose 回上级),而不是把已登录用户
      *  送回 Credentials 屏 —— 那对已登录用户渲染成 TerminalSplash,会卡死在裸 logo。 */
     @Test fun `cancel exits wizard via done flag, not back to Credentials splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns
+            every { importAuto(any(), any(), any()) } returns
                 flowOf(com.example.personal_studio.domain.bitimport.model.ImportStep.Cancelled)
         }
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
@@ -79,7 +79,7 @@ class ImportViewModelTest {
     /** 重试必须重新跑导入(回 Progress),而不是把已登录用户送回 Credentials splash。 */
     @Test fun `retry re-runs import instead of returning to splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns flowOf()
+            every { importAuto(any(), any(), any()) } returns flowOf()
         }
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
@@ -87,13 +87,35 @@ class ImportViewModelTest {
         val vm = ImportViewModel(importUseCase, credPrefs)
         vm.onRetry()
         advanceUntilIdle()
-        verify { importUseCase.import(any(), any()) }
+        verify { importUseCase.importAuto(any(), any(), any()) }
+    }
+
+    /** 回退到校外成功后,持久化的是**生效 mode**(WEBVPN),而非 UI 首选的 LOCAL。 */
+    @Test fun `auto-fallback persists the winning mode on done`() = runTest {
+        val importUseCase = mockk<ImportCoursesUseCase> {
+            every { importAuto(any(), any(), any()) } answers {
+                thirdArg<(NetworkMode) -> Unit>().invoke(NetworkMode.WEBVPN)
+                flowOf(
+                    com.example.personal_studio.domain.bitimport.model.ImportStep.Done(
+                        com.example.personal_studio.domain.bitimport.model.ImportResult(1, 1, "T"),
+                    ),
+                )
+            }
+        }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val vm = ImportViewModel(importUseCase, creds)
+        vm.onLogin()
+        advanceUntilIdle()
+        assertEquals(true, vm.uiState.value.done)
+        verify { creds.save("u", "p", NetworkMode.WEBVPN) }
     }
 
     /** 导入失败时保留 error 且不把 currentScreen 设回 Credentials(splash);error 由 ImportEntryRoute 渲染。 */
     @Test fun `failed keeps error and stays off Credentials splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns flowOf(
+            every { importAuto(any(), any(), any()) } returns flowOf(
                 com.example.personal_studio.domain.bitimport.model.ImportStep.LoggingIn,
                 com.example.personal_studio.domain.bitimport.model.ImportStep.Failed(
                     com.example.personal_studio.domain.bitimport.model.ImportError.ParseFail("x"),

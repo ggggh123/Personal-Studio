@@ -93,17 +93,27 @@ class ImportViewModel @Inject constructor(
 
     fun onLogin() {
         val st = _uiState.value
-        val channel = Channel<Boolean>(Channel.RENDEZVOUS).also { confirmChannel = it }
+        val firstMode = st.networkMode
         val req = ImportRequest(
             credentials = ImportCredentials(st.username, st.password),
-            networkMode = st.networkMode,
+            networkMode = firstMode,
             rememberPwd = st.rememberPwd,
             termCodeOverride = st.selectedTerm?.code,
         )
         viewModelScope.launch {
-            importUseCase.import(req, channel).collect { step ->
-                _uiState.update { reduce(it, step) }
-            }
+            importUseCase.importAuto(
+                req = req,
+                // 每次 attempt 取一个新 channel,并把它设为当前 confirmChannel(onConfirm/onCancel 发往它);
+                // 回退只在登录阶段(Preview 之前)触发,故 Preview 时 confirmChannel 必指向成功那次 attempt。
+                channelFor = { Channel<Boolean>(Channel.RENDEZVOUS).also { confirmChannel = it } },
+                // 成功后用**生效 mode** 持久化(回退到校外时存校外,而非 UI 上的首选 mode)。
+                onModeSucceeded = { winning ->
+                    viewModelScope.launch {
+                        if (st.rememberPwd) credPrefs.save(st.username, st.password, winning)
+                        else credPrefs.clear()
+                    }
+                },
+            ).collect { step -> _uiState.update { reduce(it, step) } }
         }
     }
 
@@ -140,14 +150,13 @@ class ImportViewModel @Inject constructor(
             previewTerm = step.term,
             countToReplace = step.countToReplace,
         )
+        is ImportStep.SwitchingMode -> st.copy(
+            progressSteps = st.progressSteps + if (step.to == NetworkMode.WEBVPN)
+                "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…",
+        )
         is ImportStep.Writing -> st.copy(writing = true)
-        is ImportStep.Done -> {
-            viewModelScope.launch {
-                if (st.rememberPwd) credPrefs.save(st.username, st.password, st.networkMode)
-                else credPrefs.clear()
-            }
-            st.copy(writing = false, done = true)
-        }
+        // 凭据持久化(用生效 mode)已移到 onLogin 的 onModeSucceeded 回调,这里只切状态。
+        is ImportStep.Done -> st.copy(writing = false, done = true)
         // 取消 = 退出向导(复用 done→onClose 回上级)。不要回 Credentials —— 对已登录用户
         // 它渲染成 TerminalSplash,且推进逻辑只在 LaunchedEffect(Unit) 跑一次,会卡死在裸 logo。
         is ImportStep.Cancelled -> st.copy(done = true)

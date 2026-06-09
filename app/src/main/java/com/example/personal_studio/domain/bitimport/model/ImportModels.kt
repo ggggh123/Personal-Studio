@@ -45,6 +45,8 @@ sealed class ImportStep {
     data class Done(val result: ImportResult) : ImportStep()
     object Cancelled : ImportStep()
     data class Failed(val err: ImportError) : ImportStep()
+    /** Auto 回退:首选网络不可达,正改用 [to] 重试。 */
+    data class SwitchingMode(val to: NetworkMode) : ImportStep()
 }
 
 /** All user-facing failure modes. UI maps these to error banners. */
