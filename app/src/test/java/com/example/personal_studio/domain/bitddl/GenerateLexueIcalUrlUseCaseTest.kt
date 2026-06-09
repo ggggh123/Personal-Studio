@@ -10,6 +10,8 @@ import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.domain.bitddl.model.LexueUrlResult
 import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
@@ -67,6 +69,23 @@ class GenerateLexueIcalUrlUseCaseTest {
         val r = GenerateLexueIcalUrlUseCase(api, sso).invoke(req())
         assertTrue(r is LexueUrlResult.Ok)
         assertEquals("https://lexue.bit.edu.cn/calendar/export_execute.php?authtoken=T", (r as LexueUrlResult.Ok).url)
+    }
+
+    @Test fun `activates lexue service through casLoginEndpoint (webvpn-aware, not direct sso)`() = runTest {
+        val cas = mockk<BitCasService>(relaxed = true)
+        val lexue = mockk<BitLexueService> {
+            coEvery { getIndexHtml() } returns ok("""x"sesskey":"K"x""")
+            coEvery { exportCalendar(any(), any(), any(), any(), any()) } returns
+                ok("""<div class="calendarurl">https://lexue.bit.edu.cn/calendar/export_execute.php?authtoken=T</div>""")
+        }
+        val api = mockk<BitApiClient>(relaxed = true) {
+            coEvery { this@mockk.cas } returns cas
+            coEvery { this@mockk.lexue } returns lexue
+            every { casLoginEndpoint() } returns "https://webvpn.example/https/enc/cas/login"
+        }
+        GenerateLexueIcalUrlUseCase(api, ssoReturning(CasLoginDto.Success)).invoke(req())
+        // 激活走的是当前 mode 的 CAS 端点(可穿 webvpn),service 仍是裸乐学。
+        coVerify { cas.activateServiceAt("https://webvpn.example/https/enc/cas/login", GenerateLexueIcalUrlUseCase.LEXUE_SERVICE) }
     }
 
     @Test fun `missing sesskey returns Failed ParseFail`() = runTest {

@@ -21,7 +21,9 @@ class GenerateLexueIcalUrlUseCase @Inject constructor(
         val login = ssoLogin.invoke(apiClient, req.username, req.password)
         login.toDdlError()?.let { return LexueUrlResult.Failed(it) }
         return try {
-            apiClient.cas.activateService(LEXUE_SERVICE)
+            // CAS 激活须穿当前 mode 的 CAS 端点(校外走 webvpn 网关,否则 webvpn 域的 TGC 带不上)。
+            // 乐学 host 本身公网可直连,故 service 仍是裸乐学(不给乐学配网关前缀)。
+            apiClient.cas.activateServiceAt(apiClient.casLoginEndpoint(), LEXUE_SERVICE)
             val indexHtml = (apiClient.lexue.getIndexHtml().let { it.body() ?: it.errorBody() })?.string().orEmpty()
             val sesskey = extractSesskey(indexHtml)
                 ?: return LexueUrlResult.Failed(DdlSyncError.ParseFail("no sesskey"))
