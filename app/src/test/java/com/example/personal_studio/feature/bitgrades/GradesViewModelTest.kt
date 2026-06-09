@@ -84,7 +84,7 @@ class GradesViewModelTest {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
         val sync = mockk<SyncGradesUseCase> {
-            every { sync(any()) } returns flowOf(SyncGradesStep.LoggingIn, SyncGradesStep.Done(1, 3))
+            every { syncAuto(any(), any()) } returns flowOf(SyncGradesStep.LoggingIn, SyncGradesStep.Done(1, 3))
         }
         val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds)
         val job = launch { vm.uiState.collect {} }

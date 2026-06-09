@@ -68,8 +68,8 @@ fun GradesScreen(
         st.syncSteps.forEach {
             Text("> $it", color = Phosphor, style = MaterialTheme.typography.labelMedium)
         }
-        if (st.syncError != null) {
-            Text("⚠ 同步失败", color = Carmine, style = MaterialTheme.typography.labelMedium)
+        st.syncError?.let { err ->
+            Text("⚠ ${err.userMessage()}", color = Carmine, style = MaterialTheme.typography.labelMedium)
         }
 
         if (st.book.isEmpty) {

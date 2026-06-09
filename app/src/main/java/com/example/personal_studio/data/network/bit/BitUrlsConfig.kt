@@ -57,4 +57,26 @@ object BitUrlsConfig {
         NetworkMode.LOCAL  -> LOCAL
         NetworkMode.WEBVPN -> WEBVPN
     }
+
+    /**
+     * CAS-login endpoint (no query string) to use for **service-ticket
+     * activation** of a webvpn-proxied target (currently only jwms / 正方教务).
+     *
+     * - LOCAL: direct `sso.bit.edu.cn` — identical to the historical behaviour.
+     * - WEBVPN: the sso host **wrapped by the webvpn gateway**. This is the fix
+     *   for off-campus 成绩查询: after a webvpn login the CAS TGC cookie lives on
+     *   `webvpn.bit.edu.cn`, and the jwms ticket bounce must stay inside the
+     *   gateway so the jsxsd session cookie also lands there (where
+     *   [Hosts.jwms] fetches from). Hitting direct sso instead can't carry the
+     *   webvpn-scoped TGC and bounces to the unreachable raw jwms host.
+     *
+     * The encoded sso prefix decodes to `sso.bit.edu.cn` (AES-128-CFB,
+     * key=iv="wrdvpnisthebest!") and is verified against BIT101-GO
+     * pkg/webvpn/score.go `pre_url`.
+     */
+    fun casLoginEndpoint(mode: NetworkMode): String = when (mode) {
+        NetworkMode.LOCAL  -> "https://sso.bit.edu.cn/cas/login"
+        NetworkMode.WEBVPN -> "https://webvpn.bit.edu.cn/https/" +
+            "77726476706e69737468656265737421e3e44ed225397c1e7b0c9ce29b5b/cas/login"
+    }
 }

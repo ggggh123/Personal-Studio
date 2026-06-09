@@ -84,12 +84,13 @@ class SyncGradesUseCaseTest {
 
     @Test fun `cjfx detail fetched concurrently and merged into persisted entry`() = runTest {
         val cas = mockk<BitCasService>(relaxed = true)
+        val detailArg = slot<String>()
         val jwms = mockk<BitJwmsService> {
             coEvery { getScoreListHtml() } returns scoreHtml(
                 """<tr><td>2024-2025-2</td><td>高数</td><td>5.0</td><td>92</td>
                    <td><a onclick="JsMod('/jsxsd/kscj/cjfx?kch=100028016&cjfs=C')">成绩分析</a></td></tr>""",
             )
-            coEvery { getCourseDetailHtml(any()) } returns html(
+            coEvery { getCourseDetailHtml(capture(detailArg)) } returns html(
                 """<table><tr><td>平均分：88</td><td>本人成绩在班级中占：前10%</td></tr></table>""",
             )
         }
@@ -111,6 +112,10 @@ class SyncGradesUseCaseTest {
             awaitComplete()
         }
         coVerify(exactly = 1) { jwms.getCourseDetailHtml(any()) }
+        // 详情路径必须以相对形式传入(不带前导 '/'),否则 @Url 解析会丢掉 WEBVPN base
+        // 的 /http/<编码>/ 前缀 → 校外详情拉不到 → "无详情"。
+        assertTrue(detailArg.captured, !detailArg.captured.startsWith("/"))
+        assertEquals("jsxsd/kscj/cjfx?kch=100028016&cjfs=C", detailArg.captured)
         val entry = captured.captured.single()
         assertEquals(88.0, entry.courseAvg!!, 0.001)
         assertEquals("前10%", entry.classRankText)

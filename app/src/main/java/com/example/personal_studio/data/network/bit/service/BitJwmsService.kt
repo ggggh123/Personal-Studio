@@ -23,8 +23,10 @@ interface BitJwmsService {
     @GET("jsxsd/kscj/cjcx_list")
     suspend fun getScoreListHtml(): Response<ResponseBody>
 
-    /** 成绩分析(cjfx)详情页 HTML。url 为 cjcx_list 行里抽出的相对路径
-     *  (/jsxsd/kscj/cjfx?...)，相对 jwms host 解析。 */
+    /** 成绩分析(cjfx)详情页 HTML。[url] 必须是相对 jwms **base** 的路径(**不带**前导 '/',
+     *  如 `jsxsd/kscj/cjfx?...`)：@Url 传以 '/' 开头的绝对路径会被解析成替换整段 path,从而
+     *  丢掉 WEBVPN base 的 /http/<编码>/ 前缀(校外详情拉不到)。cjcx_list 抽出的路径带前导
+     *  '/',调用方须先 removePrefix("/")。 */
     @GET
     suspend fun getCourseDetailHtml(@Url url: String): Response<ResponseBody>
 }

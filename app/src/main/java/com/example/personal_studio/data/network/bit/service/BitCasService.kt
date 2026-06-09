@@ -59,4 +59,28 @@ interface BitCasService {
      */
     @GET("cas/login")
     suspend fun activateService(@Query("service") service: String): Response<ResponseBody>
+
+    /**
+     * Same service-ticket exchange as [activateService], but with the CAS-login
+     * endpoint supplied as a full [Url] instead of resolved against the cas
+     * base host.
+     *
+     * Needed for **webvpn-proxied** targets (jwms off-campus): the CAS endpoint
+     * itself must be reached THROUGH the webvpn gateway, so the gateway can
+     * intercept CAS's internal `302 → http://jwms.bit.edu.cn/?ticket=…` bounce,
+     * follow it inside the proxy, and scope the resulting jsxsd session cookie to
+     * `webvpn.bit.edu.cn` — which is where the subsequent score fetch goes. If we
+     * hit the direct `sso.bit.edu.cn` host instead (as [activateService] does),
+     * the bounce escapes the gateway: off campus the raw host is unreachable, and
+     * on campus the cookie lands on the wrong host so the webvpn fetch is
+     * unauthenticated. (Mirrors BIT101-GO pkg/webvpn/score.go `pre_url`.)
+     *
+     * [service] stays the raw target root (e.g. `http://jwms.bit.edu.cn/`) and is
+     * query-encoded by Retrofit.
+     */
+    @GET
+    suspend fun activateServiceAt(
+        @Url casLoginUrl: String,
+        @Query("service") service: String,
+    ): Response<ResponseBody>
 }

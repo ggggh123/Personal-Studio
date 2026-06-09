@@ -113,7 +113,9 @@ class GradePollWorker @AssistedInject constructor(
     private suspend fun enrichOne(e: GradeEntryEntity): GradeEntryEntity {
         val path = e.detailPath ?: return e
         val info = runCatching {
-            val r = apiClient.jwms.getCourseDetailHtml(path)
+            // 去掉前导 '/' → 相对路径,保住 WEBVPN base 的 /http/<编码>/ 前缀
+            // (同 SyncGradesUseCase.enrich;@Url 传绝对路径会丢前缀)。
+            val r = apiClient.jwms.getCourseDetailHtml(path.removePrefix("/"))
             if (r.isSuccessful) detailParser.parse((r.body() ?: r.errorBody())?.string().orEmpty())
             else null
         }.getOrNull() ?: return e
