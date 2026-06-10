@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.personal_studio.data.local.datastore.PollResult
 import com.example.personal_studio.feature.settings.vm.GradesPollSettingsViewModel
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Foam
@@ -76,11 +77,20 @@ fun GradesPollSettingsScreen(onBack: () -> Unit, vm: GradesPollSettingsViewModel
         }
         Spacer(Modifier.height(20.dp))
 
-        // 上次同步
+        // 上次同步(详细状态:成功/失败 + 拉到几条 + 新增几条 + 多久前)
+        val r = st.lastResult
         Text(
-            "上次同步: " + (st.lastSyncAt?.let { fmt(it) } ?: "—"),
+            "上次同步: " + (r?.let { fmt(it.at) } ?: "—"),
             color = FoamMute, style = MaterialTheme.typography.labelMedium,
         )
+        if (r != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                (if (r.ok) "✅ " else "⚠ ") + pollDetail(r),
+                color = if (r.ok) Phosphor else Amber,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
         Spacer(Modifier.height(20.dp))
 
         // 警告 / 说明
@@ -91,6 +101,14 @@ fun GradesPollSettingsScreen(onBack: () -> Unit, vm: GradesPollSettingsViewModel
             color = Amber, style = MaterialTheme.typography.labelMedium,
         )
     }
+}
+
+/** 上次结果详情文案:失败给原因;成功给「拉到 N 条 · 新增 M 条 / 暂无新增」;首次给「已建立基线」。 */
+private fun pollDetail(r: PollResult): String = when {
+    !r.ok -> "失败：${r.message}"
+    r.message.isNotEmpty() -> "${r.message}（${r.total} 条）"
+    r.newCount > 0 -> "拉到 ${r.total} 条 · 新增 ${r.newCount} 条"
+    else -> "拉到 ${r.total} 条 · 暂无新增"
 }
 
 private fun fmt(t: Long): String {

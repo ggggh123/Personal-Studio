@@ -20,6 +20,7 @@ data class DdlSyncState(
     val lastSyncAt: Long?,
     val lastSeenUids: Set<String>,
     val icalUrl: String?,
+    val lastResult: PollResult? = null,
 )
 
 @Singleton
@@ -31,6 +32,11 @@ class DdlSyncPrefs @Inject constructor(
     private val keyLastSyncAt = longPreferencesKey("ddl_last_sync_at")
     private val keyLastUids = stringPreferencesKey("ddl_last_seen_uids")
     private val keyIcalUrl = stringPreferencesKey("ddl_ical_url")
+    private val keyResultAt = longPreferencesKey("ddl_poll_result_at")
+    private val keyResultOk = booleanPreferencesKey("ddl_poll_result_ok")
+    private val keyResultTotal = intPreferencesKey("ddl_poll_result_total")
+    private val keyResultNew = intPreferencesKey("ddl_poll_result_new")
+    private val keyResultMsg = stringPreferencesKey("ddl_poll_result_msg")
 
     val observe: Flow<DdlSyncState> = dataStore.data.map { p ->
         DdlSyncState(
@@ -39,6 +45,15 @@ class DdlSyncPrefs @Inject constructor(
             lastSyncAt = p[keyLastSyncAt],
             lastSeenUids = p[keyLastUids]?.split('\n')?.filter { it.isNotBlank() }?.toSet() ?: emptySet(),
             icalUrl = p[keyIcalUrl],
+            lastResult = p[keyResultAt]?.let { at ->
+                PollResult(
+                    at = at,
+                    ok = p[keyResultOk] ?: false,
+                    total = p[keyResultTotal] ?: 0,
+                    newCount = p[keyResultNew] ?: 0,
+                    message = p[keyResultMsg] ?: "",
+                )
+            },
         )
     }
 
@@ -52,4 +67,11 @@ class DdlSyncPrefs @Inject constructor(
     }
     suspend fun setIcalUrl(url: String) = dataStore.edit { it[keyIcalUrl] = url }
     suspend fun clearIcalUrl() = dataStore.edit { it.remove(keyIcalUrl) }
+    suspend fun setLastResult(r: PollResult) = dataStore.edit {
+        it[keyResultAt] = r.at
+        it[keyResultOk] = r.ok
+        it[keyResultTotal] = r.total
+        it[keyResultNew] = r.newCount
+        it[keyResultMsg] = r.message
+    }
 }

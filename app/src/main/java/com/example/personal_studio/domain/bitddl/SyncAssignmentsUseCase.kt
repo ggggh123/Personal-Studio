@@ -64,7 +64,7 @@ class SyncAssignmentsUseCase @Inject constructor(
         var url = prefs.snapshot().icalUrl
         if (url == null) {
             when (val r = generateUrl.invoke(req)) {
-                is LexueUrlResult.Failed -> return BackgroundDdlResult.Stop(r.error)
+                is LexueUrlResult.Failed -> return r.toBackgroundFail()
                 is LexueUrlResult.Ok -> { url = r.url; prefs.setIcalUrl(url) }
             }
         }
@@ -74,7 +74,7 @@ class SyncAssignmentsUseCase @Inject constructor(
                 BackgroundDdlResult.Ok(parser.parse(body))
             } else {
                 when (val r = generateUrl.invoke(req)) {
-                    is LexueUrlResult.Failed -> BackgroundDdlResult.Stop(r.error)
+                    is LexueUrlResult.Failed -> r.toBackgroundFail()
                     is LexueUrlResult.Ok -> {
                         prefs.setIcalUrl(r.url)
                         val body2 = fetchIcs(r.url)
@@ -96,4 +96,9 @@ class SyncAssignmentsUseCase @Inject constructor(
     }
 
     private fun looksLikeCalendar(body: String): Boolean = body.contains("BEGIN:VCALENDAR")
+
+    /** 派生 URL(含登录)失败:连接级(NetworkFail)归为 Transient(可换网络/重试),其余(密码错/评教等)Stop。 */
+    private fun LexueUrlResult.Failed.toBackgroundFail(): BackgroundDdlResult =
+        if (error is DdlSyncError.NetworkFail) BackgroundDdlResult.Transient
+        else BackgroundDdlResult.Stop(error)
 }

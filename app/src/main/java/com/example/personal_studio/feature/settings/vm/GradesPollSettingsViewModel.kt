@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.GradesSyncPrefs
 import com.example.personal_studio.data.local.datastore.GradesSyncState
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
+import com.example.personal_studio.data.local.datastore.PollResult
 import com.example.personal_studio.feature.bitgrades.GradesPollScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +20,7 @@ data class GradesPollUiState(
     val enabled: Boolean = false,
     val intervalHours: Int = 6,
     val lastSyncAt: Long? = null,
+    val lastResult: PollResult? = null,
 )
 
 @HiltViewModel
@@ -35,6 +37,7 @@ class GradesPollSettingsViewModel @Inject constructor(
         enabled = poll.enabled,
         intervalHours = poll.intervalHours,
         lastSyncAt = poll.lastSyncAt,
+        lastResult = poll.lastResult,
     ) }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesPollUiState())
 
     fun onEnableToggle(on: Boolean) = viewModelScope.launch {

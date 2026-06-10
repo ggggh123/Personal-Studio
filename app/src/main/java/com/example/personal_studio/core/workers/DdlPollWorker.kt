@@ -7,9 +7,13 @@ import androidx.work.WorkerParameters
 import com.example.personal_studio.core.notification.DdlNotifier
 import com.example.personal_studio.data.local.datastore.DdlSyncPrefs
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
+import com.example.personal_studio.data.local.datastore.PollResult
+import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.otherMode
 import com.example.personal_studio.domain.bitddl.DetectNewDdlUseCase
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitddl.ReplaceImportedDdlUseCase
 import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
 import com.example.personal_studio.domain.bitddl.model.BackgroundDdlResult
@@ -39,6 +43,7 @@ class DdlPollWorker @AssistedInject constructor(
     private val apiClient: BitApiClient,
     private val notifier: DdlNotifier,
     private val scheduler: DdlPollScheduler,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -46,40 +51,77 @@ class DdlPollWorker @AssistedInject constructor(
         val creds = credPrefs.observeAll().value ?: run {
             pollPrefs.setEnabled(false); return Result.success()
         }
+        val first = resolveNetworkMode(creds.lastMode)
+        var result: BackgroundDdlResult = BackgroundDdlResult.Transient
+        var usedMode = first
         return try {
-            apiClient.open(NetworkMode.LOCAL)
-            val result = sync.syncForBackground(
-                DdlSyncRequest(creds.username, creds.password, NetworkMode.LOCAL, rememberPwd = true),
-            )
-            handle(result)
-        } catch (e: Throwable) {
-            Result.retry()
+            for (mode in listOf(first, otherMode(first))) {
+                apiClient.open(mode)
+                result = try {
+                    sync.syncForBackground(DdlSyncRequest(creds.username, creds.password, mode, true))
+                } catch (e: Throwable) {
+                    BackgroundDdlResult.Transient
+                }
+                usedMode = mode
+                if (result !is BackgroundDdlResult.Transient) break
+                apiClient.close()
+            }
+            handle(result, creds, usedMode)
         } finally {
             apiClient.close()
         }
     }
 
-    private suspend fun handle(result: BackgroundDdlResult): Result = when (result) {
-        is BackgroundDdlResult.Stop -> {
-            if (result.reason is DdlSyncError.WrongCredentials
-                || result.reason is DdlSyncError.AccountLocked) {
-                credPrefs.clear()
+    private suspend fun handle(result: BackgroundDdlResult, creds: SavedCredentials, mode: NetworkMode): Result {
+        val now = System.currentTimeMillis()
+        return when (result) {
+            is BackgroundDdlResult.Stop -> {
+                when (val reason = result.reason) {
+                    DdlSyncError.WrongCredentials, DdlSyncError.AccountLocked -> {
+                        credPrefs.clear(); pollPrefs.setEnabled(false); scheduler.cancel()
+                        notifier.notifyStop(appContext, reason)
+                        pollPrefs.setLastResult(PollResult(now, false, 0, 0, reasonText(reason)))
+                    }
+                    DdlSyncError.NeedReview -> {
+                        pollPrefs.setLastResult(PollResult(now, false, 0, 0, "需先在乐学完成评教"))
+                    }
+                    else -> {
+                        pollPrefs.setEnabled(false); scheduler.cancel()
+                        notifier.notifyStop(appContext, reason)
+                        pollPrefs.setLastResult(PollResult(now, false, 0, 0, reasonText(reason)))
+                    }
+                }
+                Result.success()
             }
-            pollPrefs.setEnabled(false)
-            scheduler.cancel()
-            notifier.notifyStop(appContext, result.reason)
-            Result.success()
-        }
-        is BackgroundDdlResult.Transient -> Result.retry()
-        is BackgroundDdlResult.Ok -> {
-            val diff = detector.invoke(result.events)
-            replacer.invoke(result.events)
-            if (!diff.isFirstRun && diff.newEvents.isNotEmpty()) {
-                notifier.notifyNewDdls(appContext, diff.newEvents)
+            is BackgroundDdlResult.Transient -> {
+                pollPrefs.setLastResult(PollResult(now, false, 0, 0, "网络不可达,稍后自动重试"))
+                Result.retry()
             }
-            pollPrefs.setLastSeenUids(diff.fullUids)
-            pollPrefs.setLastSyncAt(System.currentTimeMillis())
-            Result.success()
+            is BackgroundDdlResult.Ok -> {
+                val diff = detector.invoke(result.events)
+                replacer.invoke(result.events)
+                val newCount = if (diff.isFirstRun) 0 else diff.newEvents.size
+                if (!diff.isFirstRun && diff.newEvents.isNotEmpty()) {
+                    notifier.notifyNewDdls(appContext, diff.newEvents)
+                }
+                pollPrefs.setLastSeenUids(diff.fullUids)
+                pollPrefs.setLastSyncAt(now)
+                if (mode != creds.lastMode) credPrefs.save(creds.username, creds.password, mode)
+                pollPrefs.setLastResult(
+                    PollResult(now, true, result.events.size, newCount, if (diff.isFirstRun) "已建立基线" else ""),
+                )
+                Result.success()
+            }
         }
+    }
+
+    private fun reasonText(e: DdlSyncError): String = when (e) {
+        DdlSyncError.WrongCredentials -> "密码错误,已停轮"
+        DdlSyncError.AccountLocked -> "账号锁定,已停轮"
+        DdlSyncError.CaptchaRequired -> "需验证码,已停轮"
+        DdlSyncError.NeedReview -> "需先完成评教"
+        is DdlSyncError.ParseFail -> "乐学返回异常,已停轮"
+        is DdlSyncError.NetworkFail -> "网络不可达"
+        is DdlSyncError.Unexpected -> "未知错误,已停轮"
     }
 }
