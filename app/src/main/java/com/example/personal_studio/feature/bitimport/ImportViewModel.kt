@@ -7,6 +7,7 @@ import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.TermDto
 import com.example.personal_studio.domain.bitimport.ImportCoursesUseCase
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitimport.model.ImportCredentials
 import com.example.personal_studio.domain.bitimport.model.ImportError
 import com.example.personal_studio.domain.bitimport.model.ImportRequest
@@ -45,6 +46,7 @@ data class ImportUiState(
 class ImportViewModel @Inject constructor(
     private val importUseCase: ImportCoursesUseCase,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ImportUiState())
@@ -93,14 +95,15 @@ class ImportViewModel @Inject constructor(
 
     fun onLogin() {
         val st = _uiState.value
-        val firstMode = st.networkMode
-        val req = ImportRequest(
-            credentials = ImportCredentials(st.username, st.password),
-            networkMode = firstMode,
-            rememberPwd = st.rememberPwd,
-            termCodeOverride = st.selectedTerm?.code,
-        )
         viewModelScope.launch {
+            // 校内优先:lastMode=WEBVPN(种进 st.networkMode)时先探一次校内,在校园网下自动脱离"粘校外"。
+            val firstMode = resolveNetworkMode(st.networkMode)
+            val req = ImportRequest(
+                credentials = ImportCredentials(st.username, st.password),
+                networkMode = firstMode,
+                rememberPwd = st.rememberPwd,
+                termCodeOverride = st.selectedTerm?.code,
+            )
             importUseCase.importAuto(
                 req = req,
                 // 每次 attempt 取一个新 channel,并把它设为当前 confirmChannel(onConfirm/onCancel 发往它);

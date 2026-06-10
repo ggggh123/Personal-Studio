@@ -5,6 +5,7 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitimport.ImportCoursesUseCase
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -31,13 +32,20 @@ class ImportViewModelTest {
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
 
+    /** resolve mock:回显 LOCAL(测试都用 LOCAL),不触发探测。 */
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     @Test fun `initial state defaults to Credentials screen, empty form, LOCAL mode`() = runTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             coEvery { observeAll() } returns MutableStateFlow(null)
         }
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true)
 
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.uiState.test {
             val first = awaitItem()
             assertEquals(ImportScreen.Credentials, first.currentScreen)
@@ -54,7 +62,7 @@ class ImportViewModelTest {
             every { observeAll() } returns
                 MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, creds)
+        val vm = ImportViewModel(importUseCase, creds, resolveEcho())
         vm.startWithSavedCreds()
         advanceUntilIdle()
         verify { importUseCase.importAuto(any(), any(), any()) }
@@ -70,7 +78,7 @@ class ImportViewModelTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.onLogin()
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.done)
@@ -84,7 +92,7 @@ class ImportViewModelTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.onRetry()
         advanceUntilIdle()
         verify { importUseCase.importAuto(any(), any(), any()) }
@@ -105,7 +113,7 @@ class ImportViewModelTest {
         val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, creds)
+        val vm = ImportViewModel(importUseCase, creds, resolveEcho())
         vm.onLogin()
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.done)
@@ -125,7 +133,7 @@ class ImportViewModelTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.onLogin()
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.error != null)
