@@ -51,8 +51,10 @@ class BitLoginViewModel @Inject constructor(
     val events: SharedFlow<BitLoginEvent> = _events.asSharedFlow()
 
     init {
+        // 加载持久化的手动覆盖(null = 自动);跨会话保留用户的网络选择,使其全程生效而非只在登录那一下。
+        _uiState.update { it.copy(modeOverride = credPrefs.modeOverride()) }
         credPrefs.observeAll().value?.let { saved ->
-            // 默认走自动(modeOverride=null);lastMode 只作 Auto 的首选 mode,在 onLogin 时按需读取。
+            // lastMode 只作 Auto 的首选 mode,在 onLogin 时按需读取。
             _uiState.update {
                 it.copy(username = saved.username, password = saved.password, rememberPwd = true)
             }
@@ -63,8 +65,11 @@ class BitLoginViewModel @Inject constructor(
     fun onPasswordChange(v: String) = _uiState.update { it.copy(password = v) }
     fun onShowPasswordToggle() = _uiState.update { it.copy(showPassword = !it.showPassword) }
     fun onRememberToggle(v: Boolean) = _uiState.update { it.copy(rememberPwd = v) }
-    /** null = 自动;LOCAL/WEBVPN = 手动覆盖。 */
-    fun onNetworkModeChange(m: NetworkMode?) = _uiState.update { it.copy(modeOverride = m) }
+    /** null = 自动;LOCAL/WEBVPN = 手动覆盖。**持久化**,使其全程(各功能同步,不止登录)生效、跳过探测。 */
+    fun onNetworkModeChange(m: NetworkMode?) {
+        credPrefs.setModeOverride(m)
+        _uiState.update { it.copy(modeOverride = m) }
+    }
     fun onDismissError() = _uiState.update { it.copy(error = null) }
 
     fun onLogin() {
