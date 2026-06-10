@@ -8,12 +8,10 @@ import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitimport.ValidateCredentialsUseCase
 import com.example.personal_studio.domain.bitimport.model.AutoLoginResult
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
-import com.example.personal_studio.domain.bitimport.model.LoginRequest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -33,7 +31,6 @@ class BitLoginViewModelTest {
 
     private fun creds(): ImportCredentialPrefs = mockk(relaxed = true) {
         every { observeAll() } returns MutableStateFlow(null)
-        every { modeOverride() } returns null   // 默认自动(不强制覆盖)
     }
 
     /** resolve mock:回显 lastMode(?: LOCAL),不触发探测。 */
@@ -73,29 +70,6 @@ class BitLoginViewModelTest {
         val sut = vm(validate, credPrefs)
         sut.onUsernameChange("u"); sut.onPasswordChange("p")
         sut.onLogin(); advanceUntilIdle()
-        coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
-    }
-
-    @Test fun `manual network choice is persisted as a forced override`() = runTest {
-        val validate = mockk<ValidateCredentialsUseCase>(relaxed = true)
-        val credPrefs = creds()
-        val sut = vm(validate, credPrefs)
-        sut.onNetworkModeChange(NetworkMode.WEBVPN)
-        // 持久化为 override → resolveNetworkMode 会全程强制校外、跳过探测。
-        verify { credPrefs.setModeOverride(NetworkMode.WEBVPN) }
-        sut.onNetworkModeChange(null)
-        verify { credPrefs.setModeOverride(null) }
-    }
-
-    @Test fun `manual override uses single mode without auto-fallback`() = runTest {
-        val validate = mockk<ValidateCredentialsUseCase> { coEvery { this@mockk.invoke(any()) } returns LoginOutcome.Success }
-        val credPrefs = creds()
-        val sut = vm(validate, credPrefs)
-        sut.onUsernameChange("u"); sut.onPasswordChange("p")
-        sut.onNetworkModeChange(NetworkMode.WEBVPN)   // 手动指定校外
-        sut.onLogin(); advanceUntilIdle()
-        coVerify { validate.invoke(LoginRequest("u", "p", NetworkMode.WEBVPN)) }
-        coVerify(exactly = 0) { validate.validateAuto(any()) }
         coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
     }
 

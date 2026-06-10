@@ -50,17 +50,6 @@ class ImportCredentialPrefs @Inject constructor(
         _state.value = null
     }
 
-    /** 用户在登录页手动指定的网络模式(强制);null = 自动(按需探测/回退)。独立于 [SavedCredentials.lastMode]
-     *  ——lastMode 是「上次成功的 mode」(自动的记忆),这个是「用户强制要求」,优先级更高。 */
-    fun modeOverride(): NetworkMode? =
-        prefs.getString(KEY_MODE_OVERRIDE, null)?.let { runCatching { NetworkMode.valueOf(it) }.getOrNull() }
-
-    fun setModeOverride(mode: NetworkMode?) {
-        prefs.edit().apply {
-            if (mode == null) remove(KEY_MODE_OVERRIDE) else putString(KEY_MODE_OVERRIDE, mode.name)
-        }.apply()
-    }
-
     private fun load(): SavedCredentials? {
         val u = prefs.getString(KEY_USERNAME, null) ?: return null
         val p = prefs.getString(KEY_PASSWORD, null) ?: return null
@@ -75,6 +64,5 @@ class ImportCredentialPrefs @Inject constructor(
         private const val KEY_USERNAME = "username"
         private const val KEY_PASSWORD = "password"
         private const val KEY_LAST_MODE = "last_mode"
-        private const val KEY_MODE_OVERRIDE = "mode_override"
     }
 }
