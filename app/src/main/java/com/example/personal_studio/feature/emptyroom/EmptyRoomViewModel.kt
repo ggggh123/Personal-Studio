@@ -6,6 +6,7 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.withSessionAutoFallback
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.emptyroom.EmptyRoomRepository
 import com.example.personal_studio.domain.emptyroom.EmptyRoomResult
 import com.example.personal_studio.domain.emptyroom.model.Building
@@ -49,6 +50,7 @@ sealed interface EmptyRoomEvent { object NeedLogin : EmptyRoomEvent }
 class EmptyRoomViewModel @Inject constructor(
     private val repo: EmptyRoomRepository,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -196,7 +198,8 @@ class EmptyRoomViewModel @Inject constructor(
         onNetworkError: () -> Unit,
         block: suspend (term: String) -> Unit,
     ) {
-        val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+        // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
+        val firstMode = resolveNetworkMode(creds.lastMode)
         var loginErr: EmptyRoomError? = null
         try {
             withSessionAutoFallback(

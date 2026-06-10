@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.LoginPrefs
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitimport.ValidateCredentialsUseCase
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
 import com.example.personal_studio.domain.bitimport.model.LoginRequest
@@ -40,6 +41,7 @@ class BitLoginViewModel @Inject constructor(
     private val validate: ValidateCredentialsUseCase,
     private val credPrefs: ImportCredentialPrefs,
     private val loginPrefs: LoginPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BitLoginUiState())
@@ -75,8 +77,8 @@ class BitLoginViewModel @Inject constructor(
                 // 手动覆盖:单次该 mode,不回退。
                 validate.invoke(LoginRequest(st.username, st.password, override)) to override
             } else {
-                // 自动:从上次生效 mode 起 try-fallback(校内↔校外)。
-                val first = credPrefs.observeAll().value?.lastMode ?: NetworkMode.LOCAL
+                // 自动:校内优先(lastMode=WEBVPN 时先探一次校内),再从该 mode 起 try-fallback。
+                val first = resolveNetworkMode(credPrefs.observeAll().value?.lastMode)
                 val r = validate.validateAuto(LoginRequest(st.username, st.password, first))
                 r.outcome to r.mode
             }

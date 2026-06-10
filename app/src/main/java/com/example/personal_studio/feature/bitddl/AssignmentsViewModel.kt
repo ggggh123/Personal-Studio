@@ -11,6 +11,7 @@ import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.domain.bitddl.model.DdlSyncStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
@@ -58,6 +59,7 @@ class AssignmentsViewModel @Inject constructor(
     private val repo: TimelineRepository,
     private val sync: SyncAssignmentsUseCase,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -93,13 +95,14 @@ class AssignmentsViewModel @Inject constructor(
             viewModelScope.launch { _events.emit(AssignmentsEvent.NeedLogin) }
             return
         }
-        val firstMode = creds.lastMode ?: NetworkMode.LOCAL
         transient.value = transient.value.copy(syncing = true, error = null, syncSteps = emptyList())
-        sync.syncAuto(
-            DdlSyncRequest(creds.username, creds.password, firstMode, true),
-            onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
-        )
-            .onEach { step ->
+        viewModelScope.launch {
+            // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
+            val firstMode = resolveNetworkMode(creds.lastMode)
+            sync.syncAuto(
+                DdlSyncRequest(creds.username, creds.password, firstMode, true),
+                onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
+            ).collect { step ->
                 val cur = transient.value
                 transient.value = when (step) {
                     DdlSyncStep.FetchingCalendar -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "登录并拉取乐学日历…")
@@ -108,7 +111,7 @@ class AssignmentsViewModel @Inject constructor(
                     is DdlSyncStep.Failed -> cur.copy(syncing = false, error = step.error.toMessage())
                 }
             }
-            .launchIn(viewModelScope)
+        }
     }
 
     private fun switchMsg(to: NetworkMode): String =

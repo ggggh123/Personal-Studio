@@ -7,9 +7,11 @@ import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
 import com.example.personal_studio.domain.bitddl.model.DdlSyncStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
 import app.cash.turbine.test
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -32,6 +34,12 @@ class AssignmentsViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
 
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private val now = 1_000_000_000_000L
     private fun row(id: Long, due: Long, done: Boolean) = TimelineItemEntity(
         id = id, type = TimelineType.TASK, title = "T$id", description = "",
@@ -47,7 +55,7 @@ class AssignmentsViewModelTest {
         repo = mockk(relaxed = true),
         sync = mockk(relaxed = true),
         credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
-        nowProvider = { now },
+        resolveNetworkMode = resolveEcho(), nowProvider = { now },
     )
 
     @Test fun `splits upcoming incomplete ascending vs done-or-overdue`() = runTest {
@@ -76,7 +84,7 @@ class AssignmentsViewModelTest {
             scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
             sync = mockk(relaxed = true),
             credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
-            nowProvider = { now },
+            resolveNetworkMode = resolveEcho(), nowProvider = { now },
         )
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
@@ -101,7 +109,7 @@ class AssignmentsViewModelTest {
         val vm = AssignmentsViewModel(
             dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
             scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
-            sync = sync, credPrefs = creds, nowProvider = { now },
+            sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now },
         )
         val job = launch { vm.uiState.collect {} }
         vm.onRefresh()
@@ -122,7 +130,7 @@ class AssignmentsViewModelTest {
         val vm = AssignmentsViewModel(
             dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
             scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
-            sync = sync, credPrefs = creds, nowProvider = { now },
+            sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now },
         )
         val job = launch { vm.uiState.collect {} }
         vm.onRefresh(); advanceUntilIdle()
@@ -137,7 +145,7 @@ class AssignmentsViewModelTest {
             scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
             sync = mockk(relaxed = true),
             credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
-            nowProvider = { 0L },
+            resolveNetworkMode = resolveEcho(), nowProvider = { 0L },
         )
         vm.events.test {
             vm.onRefresh()

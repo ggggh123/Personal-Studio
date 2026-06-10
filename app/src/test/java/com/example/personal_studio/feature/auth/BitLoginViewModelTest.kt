@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.LoginPrefs
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitimport.ValidateCredentialsUseCase
 import com.example.personal_studio.domain.bitimport.model.AutoLoginResult
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
@@ -33,11 +34,18 @@ class BitLoginViewModelTest {
         every { observeAll() } returns MutableStateFlow(null)
     }
 
+    /** resolve mock:回显 lastMode(?: LOCAL),不触发探测。 */
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private fun vm(
         validate: ValidateCredentialsUseCase,
         credPrefs: ImportCredentialPrefs = creds(),
         loginPrefs: LoginPrefs = mockk(relaxed = true),
-    ) = BitLoginViewModel(validate, credPrefs, loginPrefs)
+    ) = BitLoginViewModel(validate, credPrefs, loginPrefs, resolveEcho())
 
     @Test fun `successful login saves creds + sets flag + emits Succeeded`() = runTest {
         val validate = mockk<ValidateCredentialsUseCase>()

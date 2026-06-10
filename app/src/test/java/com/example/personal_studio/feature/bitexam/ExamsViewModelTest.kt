@@ -8,8 +8,10 @@ import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitexam.SyncExamsUseCase
 import com.example.personal_studio.domain.bitexam.model.ExamSyncStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -40,9 +42,16 @@ class ExamsViewModelTest {
         isDone = done, location = "r", instructor = instructor, notes = notes,
         sourceType = TimelineSource.IMPORTED_EXAM, sourceExternalId = "u$id", createdAt = 1L, updatedAt = 1L,
     )
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private fun vm(dao: TimelineDao) = ExamsViewModel(
         dao = dao, sync = mockk(relaxed = true),
         credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
+        resolveNetworkMode = resolveEcho(),
         nowProvider = { now },
     )
 
@@ -119,7 +128,7 @@ class ExamsViewModelTest {
                 flowOf(ExamSyncStep.SwitchingMode(NetworkMode.WEBVPN), ExamSyncStep.Done(0))
             }
         }
-        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, nowProvider = { now })
+        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now })
         val job = launch { vm.uiState.collect {} }
         vm.onRefresh()
         advanceUntilIdle()
@@ -138,7 +147,7 @@ class ExamsViewModelTest {
                 ExamSyncStep.LoggingIn, ExamSyncStep.FetchingExams, ExamSyncStep.Done(3),
             )
         }
-        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, nowProvider = { now })
+        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now })
         val job = launch { vm.uiState.collect {} }
         vm.onRefresh(); advanceUntilIdle()
         assertEquals(listOf("登录中…", "拉取考试安排…", "完成 · 3 场考试"), vm.uiState.value.syncSteps)

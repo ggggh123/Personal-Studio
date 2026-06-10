@@ -3,6 +3,7 @@ package com.example.personal_studio.feature.emptyroom
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.emptyroom.EmptyRoomRepository
 import com.example.personal_studio.domain.emptyroom.EmptyRoomResult
 import com.example.personal_studio.domain.emptyroom.model.Building
@@ -61,6 +62,12 @@ class EmptyRoomViewModelTest {
         block()
     }
 
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private fun vm(
         repo: EmptyRoomRepository,
         creds: SavedCredentials? = SavedCredentials("u", "p", NetworkMode.LOCAL),
@@ -68,7 +75,7 @@ class EmptyRoomViewModelTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(creds)
         }
-        return EmptyRoomViewModel(repo, credPrefs, nowProvider = { 0L })
+        return EmptyRoomViewModel(repo, credPrefs, resolveEcho(), nowProvider = { 0L })
     }
 
     @Test fun `query without creds emits NeedLogin`() = runTest {
@@ -277,7 +284,7 @@ class EmptyRoomViewModelTest {
             coEvery { buildings("01") } returns listOf(b1)
             coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("A", true))
         }
-        val vm = EmptyRoomViewModel(repo, credPrefs, nowProvider = { 0L })
+        val vm = EmptyRoomViewModel(repo, credPrefs, resolveEcho(), nowProvider = { 0L })
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
         vm.onToggleCampus(liangxiang); advanceUntilIdle()

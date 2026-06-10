@@ -9,6 +9,8 @@ import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
 import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
 import com.example.personal_studio.domain.bitgrades.model.SyncGradesStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +31,13 @@ class GradesViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
 
+    /** resolve mock:回显 lastMode(?: LOCAL),保持旧的「firstMode = lastMode」语义,不触发探测。 */
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     @Test fun `book reflects dao grades`() = runTest {
         val dao = mockk<GradesDao> {
             every { observeAll() } returns flowOf(listOf(
@@ -40,7 +49,7 @@ class GradesViewModelTest {
             every { observeAll() } returns MutableStateFlow(null)
         }
         val sync = mockk<SyncGradesUseCase>(relaxed = true)
-        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds)
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds, resolveEcho())
         // uiState is a stateIn(WhileSubscribed) — actively collect so combine runs.
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
@@ -62,7 +71,7 @@ class GradesViewModelTest {
             every { observeAll() } returns MutableStateFlow(null)
         }
         val sync = mockk<SyncGradesUseCase>(relaxed = true)
-        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds)
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds, resolveEcho())
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
         assertEquals(2, vm.uiState.value.selectedCount)
@@ -86,7 +95,7 @@ class GradesViewModelTest {
         val sync = mockk<SyncGradesUseCase> {
             every { syncAuto(any(), any()) } returns flowOf(SyncGradesStep.LoggingIn, SyncGradesStep.Done(1, 3))
         }
-        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds)
+        val vm = GradesViewModel(dao, ComputeGpaUseCase(), mockk(relaxed = true), mockk(relaxed = true), cache, sync, creds, resolveEcho())
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.loggedIn)
