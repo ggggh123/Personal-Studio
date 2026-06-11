@@ -34,8 +34,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.domain.model.ScanDocument
+import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.ScanPage
+import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.theme.Amber
@@ -88,8 +89,8 @@ fun ScanLibraryPickerScreen(
 
 @Composable
 private fun DocList(
-    docs: List<ScanDocument>,
-    onTapDoc: (ScanDocument) -> Unit,
+    docs: List<ScanDocumentSummary>,
+    onTapDoc: (ScanDocumentSummary) -> Unit,
     onCancel: () -> Unit,
 ) {
     Column(
@@ -100,10 +101,10 @@ private fun DocList(
     ) {
         TerminalTopBar(
             route = "scans/pick",
-            subtitle = "# pick a doc, then a page",
+            subtitle = "# 选一个文档，再选一页",
             trailing = {
                 Text(
-                    "[x cancel]",
+                    "[x 取消]",
                     color = Carmine,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
@@ -128,7 +129,7 @@ private fun DocList(
 }
 
 @Composable
-private fun PickerDocRow(doc: ScanDocument, onClick: () -> Unit) {
+private fun PickerDocRow(doc: ScanDocumentSummary, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -136,21 +137,21 @@ private fun PickerDocRow(doc: ScanDocument, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ScanThumbnail(path = null)
+        ScanThumbnail(path = doc.coverPath)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = FoamDim)) { append("drwx── ") }
                     if (doc.isPending) {
-                        withStyle(SpanStyle(color = Amber)) { append("[incomplete] ") }
+                        withStyle(SpanStyle(color = Amber)) { append("[未完成] ") }
                     }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = "${doc.pageCount} page${if (doc.pageCount == 1) "" else "s"}",
+                text = "${doc.pageCount} 页",
                 style = MaterialTheme.typography.bodySmall,
                 color = FoamDim,
             )
@@ -178,10 +179,10 @@ private fun PageGrid(
     ) {
         TerminalTopBar(
             route = "scans/pick/$docId",
-            subtitle = "# tap a page to attach",
+            subtitle = "# 点一页以附加",
             trailing = {
                 Text(
-                    "[< back]",
+                    "[< 返回]",
                     color = FoamMute,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
@@ -209,7 +210,7 @@ private fun PageGrid(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "p.${page.ordinal + 1} · ${page.filter.name.lowercase()}",
+                        "p.${page.ordinal + 1} · ${scanFilterLabel(page.filter)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = FoamMute,
                     )
