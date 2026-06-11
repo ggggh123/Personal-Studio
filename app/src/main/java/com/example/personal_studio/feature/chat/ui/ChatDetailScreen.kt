@@ -21,11 +21,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,6 +64,7 @@ import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import java.io.File
 
@@ -162,7 +158,7 @@ fun ChatDetailScreen(
             trailing = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "[+ archive session]",
+                        "[+ 归档会话]",
                         color = Phosphor,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier
@@ -173,9 +169,12 @@ fun ChatDetailScreen(
                             }
                             .padding(8.dp),
                     )
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-                    }
+                    Text(
+                        "←",
+                        color = FoamMute,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickableNoRipple(onBack).padding(8.dp),
+                    )
                 }
             }
         )
@@ -221,7 +220,7 @@ fun ChatDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                "[+ archive]",
+                                "[+ 归档]",
                                 color = Phosphor,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier
@@ -265,10 +264,10 @@ fun ChatDetailScreen(
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = Carmine)) { append("[err] ") }
+                        withStyle(SpanStyle(color = Carmine)) { append("[错误] ") }
                         withStyle(SpanStyle(color = Foam)) { append(state.errorBanner ?: "") }
                         append("  ")
-                        withStyle(SpanStyle(color = Cyan)) { append("[dismiss]") }
+                        withStyle(SpanStyle(color = Cyan)) { append("[关闭]") }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.clickableNoRipple { vm.onDismissError() }
@@ -288,7 +287,7 @@ fun ChatDetailScreen(
                 ChatImageThumbnailSmall(path = attachedPath)
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "[img] ${File(attachedPath).name}",
+                    text = "[图片] ${File(attachedPath).name}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Cyan,
                     modifier = Modifier.weight(1f),
@@ -331,7 +330,7 @@ fun ChatDetailScreen(
                     // field so it disappears as soon as the user types.
                     if (state.input.isEmpty()) {
                         Text(
-                            text = "type something here...",
+                            text = "在这里输入…",
                             style = MaterialTheme.typography.bodyMedium,
                             color = FoamDim,
                         )
@@ -344,15 +343,18 @@ fun ChatDetailScreen(
             }
             Spacer(Modifier.width(12.dp))
             Text(
-                text = "↵ send",
+                text = "↵ 发送",
                 style = MaterialTheme.typography.labelSmall,
                 color = Amber,
                 modifier = Modifier.clickableNoRipple { vm.onSend() }
             )
             Spacer(Modifier.width(8.dp))
-            IconButton(onClick = { showAttachmentSheet = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "attach", tint = Cyan)
-            }
+            Text(
+                "[+]",
+                color = Cyan,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clickableNoRipple { showAttachmentSheet = true },
+            )
         }
 
         SavePreviewModal(
@@ -419,10 +421,10 @@ fun ChatDetailScreen(
 }
 
 private fun buildSubtitle(title: String?, model: String): String {
-    val sessionLabel = title?.takeIf { it.isNotBlank() } ?: "(untitled)"
+    val sessionLabel = title?.takeIf { it.isNotBlank() } ?: "(未命名)"
     // Two comment-style lines — keeps the session title readable when long and
     // gives the active model its own row so it doesn't wrap awkwardly.
-    return "# session: $sessionLabel\n# model: $model"
+    return "# 会话: $sessionLabel\n# 模型: $model"
 }
 
 /**
@@ -432,10 +434,10 @@ private fun buildSubtitle(title: String?, model: String): String {
 private fun formatDoneLine(message: ChatMessage): String {
     val duration = message.generationMs
     val tokens = message.tokenCount
-    if (duration == null || tokens == null) return "── done ──"
+    if (duration == null || tokens == null) return "── 完成 ──"
     val secs = duration / 1000.0
     val formatted = if (secs < 10) "%.1fs".format(secs) else "%.0fs".format(secs)
-    return "── done · $formatted · $tokens tokens ──"
+    return "── 完成 · $formatted · $tokens tokens ──"
 }
 
 @Composable
