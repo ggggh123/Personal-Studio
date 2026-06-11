@@ -1,5 +1,7 @@
 package com.example.personal_studio.domain.bitgrades.model
 
+import com.example.personal_studio.core.util.RankPercentileEstimate
+
 /** 单门课（领域层，UI 直接消费）。 */
 data class GradeItem(
     val courseName: String,
@@ -51,6 +53,7 @@ data class GradeBook(
     val overallPeerAvgScore: Double? = null,
     val overallPeerAvgGpa: Double? = null,
     val overallRank: TermRank?,
+    val overallMajorRankEst: RankPercentileEstimate? = null,
 ) {
     val isEmpty: Boolean get() = terms.isEmpty()
 }

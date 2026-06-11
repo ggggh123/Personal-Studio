@@ -1,6 +1,7 @@
 package com.example.personal_studio.domain.bitgrades
 
 import com.example.personal_studio.core.util.GpaCalculator
+import com.example.personal_studio.core.util.RankPercentileEstimator
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.data.local.db.entity.TermRankEntity
 import com.example.personal_studio.domain.bitgrades.model.GradeBook
@@ -31,6 +32,10 @@ class ComputeGpaUseCase @Inject constructor() {
         val overallGpa = GpaCalculator.weightedGpa(entries.map { it.credit to it.gradePoint })
         val totalCredits = entries.filter { it.gradePoint != null }.sumOf { it.credit }
         val (peerScore, peerGpa) = peerStats(entries)
+        val rankCourses = entries.mapNotNull { e ->
+            parseMajorPercent(e.majorRankText)?.let { p -> Triple(e.credit, p, e.majorSize) }
+        }
+        val majorRankEst = RankPercentileEstimator.estimate(rankCourses)
         return GradeBook(
             terms = terms,
             overallGpa = overallGpa,
@@ -39,6 +44,7 @@ class ComputeGpaUseCase @Inject constructor() {
             overallPeerAvgScore = peerScore,
             overallPeerAvgGpa = peerGpa,
             overallRank = rankByTerm["OVERALL"]?.toTermRank(),
+            overallMajorRankEst = majorRankEst,
         )
     }
 
@@ -76,4 +82,11 @@ class ComputeGpaUseCase @Inject constructor() {
         classSize = classSize, majorSize = majorSize, schoolRankText = schoolRankText,
     )
     private fun TermRankEntity.toTermRank() = TermRank(classRank, classTotal, majorRank, majorTotal)
+
+    /** 「63%」/「前20%」→ 63.0/20.0;无数字或越界返回 null。 */
+    private fun parseMajorPercent(text: String?): Double? {
+        if (text == null) return null
+        val v = Regex("""\d+(\.\d+)?""").find(text)?.value?.toDoubleOrNull() ?: return null
+        return v.takeIf { it in 0.0..100.0 }
+    }
 }

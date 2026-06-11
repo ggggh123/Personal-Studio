@@ -3,6 +3,9 @@ package com.example.personal_studio.domain.bitgrades
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.data.local.db.entity.TermRankEntity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ComputeGpaUseCaseTest {
@@ -51,5 +54,24 @@ class ComputeGpaUseCaseTest {
         val book = useCase.invoke(listOf(g("t", "A", 3.0, 3.0)), emptyList())
         assertEquals(null, book.overallAvgScore)
         assertEquals(null, book.terms[0].avgScore)
+    }
+
+    private fun rankEntry(major: String?, credit: Double = 3.0) = GradeEntryEntity(
+        termCode = "2024", termName = "2024", courseName = "c", courseCode = "c$major$credit",
+        credit = credit, score = "85", gradePoint = 3.0, gradeLetter = null, category = null,
+        attemptType = "正常", isPass = true, fetchedAt = 0L, majorRankText = major, majorSize = 30,
+    )
+
+    @Test fun `book carries major rank estimate when percentiles present`() {
+        val entries = listOf(rankEntry("10%"), rankEntry("12%"), rankEntry("15%"))
+        val book = useCase.invoke(entries, emptyList())
+        assertNotNull(book.overallMajorRankEst)
+        assertTrue(book.overallMajorRankEst!!.pointPercent in 1.0..99.0)
+    }
+
+    @Test fun `no major rank estimate when percentiles absent`() {
+        val entries = listOf(rankEntry(null), rankEntry(null))
+        val book = useCase.invoke(entries, emptyList())
+        assertNull(book.overallMajorRankEst)
     }
 }
