@@ -3,7 +3,7 @@ package com.example.personal_studio.feature.scanner.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.repository.ScanRepository
-import com.example.personal_studio.domain.model.ScanDocument
+import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.SortMode
 import com.example.personal_studio.domain.scanner.DeleteScanDocumentUseCase
 import com.example.personal_studio.domain.scanner.RenameScanDocumentUseCase
@@ -19,7 +19,7 @@ import javax.inject.Inject
 
 data class ScanLibraryUiState(
     val sort: SortMode = SortMode.TIME_DESC,
-    val docs: List<ScanDocument> = emptyList(),
+    val docs: List<ScanDocumentSummary> = emptyList(),
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -34,7 +34,7 @@ class ScanLibraryViewModel @Inject constructor(
 
     val uiState = sort
         .flatMapLatest { s ->
-            repo.observeDocuments(s).map { docs -> ScanLibraryUiState(s, docs) }
+            repo.observeDocumentSummaries(s).map { docs -> ScanLibraryUiState(s, docs) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanLibraryUiState())
 
