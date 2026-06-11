@@ -40,4 +40,12 @@ class GradeDetailLinesTest {
         )
         assertEquals(listOf("班级 50%"), gradeDetailLines(c))
     }
+
+    @Test fun `non-integer max score keeps one decimal`() {
+        val c = GradeItem(
+            "x", "C5", 3.0, "88", null, null, null, "正常", true,
+            courseMaxScore = 99.5,
+        )
+        assertEquals(listOf("最高 99.5"), gradeDetailLines(c))
+    }
 }
