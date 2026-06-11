@@ -111,6 +111,9 @@ class SyncGradesUseCase @Inject constructor(
             courseStudyCount = info.courseStudyCount,
             classRankText = info.classRankText,
             majorRankText = info.majorRankText,
+            classSize = info.classSize,
+            majorSize = info.majorSize,
+            schoolRankText = info.schoolRankText,
         )
     }
 
