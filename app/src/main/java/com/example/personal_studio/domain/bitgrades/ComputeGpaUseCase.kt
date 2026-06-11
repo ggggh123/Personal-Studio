@@ -73,6 +73,7 @@ class ComputeGpaUseCase @Inject constructor() {
         courseAvg = courseAvg, classRankText = classRankText, majorRankText = majorRankText,
         id = id,
         courseMaxScore = courseMaxScore, courseStudyCount = courseStudyCount,
+        classSize = classSize, majorSize = majorSize, schoolRankText = schoolRankText,
     )
     private fun TermRankEntity.toTermRank() = TermRank(classRank, classTotal, majorRank, majorTotal)
 }

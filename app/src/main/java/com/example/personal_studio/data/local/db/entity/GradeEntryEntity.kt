@@ -39,4 +39,7 @@ data class GradeEntryEntity(
     val majorRankText: String? = null, // 本人成绩在专业中占(≈年级排名)
     val courseMaxScore: Double? = null,   // cjfx 最高分
     val courseStudyCount: Int? = null,    // cjfx 学习人数(用来按顺序统计估 σ)
+    val classSize: Int? = null,           // cjfx 班级人数
+    val majorSize: Int? = null,           // cjfx 专业人数
+    val schoolRankText: String? = null,   // 本人成绩在所有学生中占(全校百分位)
 )
