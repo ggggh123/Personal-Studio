@@ -22,7 +22,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.domain.model.ChatSession
+import com.example.personal_studio.domain.model.ChatSessionSummary
 import com.example.personal_studio.feature.chat.vm.ChatListViewModel
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Cyan
@@ -87,7 +87,7 @@ fun ChatListScreen(
 }
 
 @Composable
-private fun SessionRow(session: ChatSession, onClick: () -> Unit) {
+private fun SessionRow(session: ChatSessionSummary, onClick: () -> Unit) {
     val fmt = remember { SimpleDateFormat("MM-dd HH:mm", Locale.US) }
     Row(
         modifier = Modifier

@@ -20,18 +20,34 @@ class ChatListViewModelTest {
     @Before fun setUp() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
     @After fun tearDown() { Dispatchers.resetMain() }
 
-    @Test fun `sessions flow maps to ui state`() = runTest {
+    @Test fun `sessions flow maps summaries to ui state`() = runTest {
         val repo = FakeChatRepository()
         val s1 = repo.createSession("alpha")
         val vm = ChatListViewModel(repo)
-
         vm.uiState.test {
             val state = awaitItem()
             assertEquals(1, state.sessions.size)
             assertEquals(s1, state.sessions[0].id)
             assertEquals("alpha", state.sessions[0].title)
+            assertEquals(0, state.sessions[0].msgCount)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test fun `onRename updates title`() = runTest {
+        val repo = FakeChatRepository()
+        val id = repo.createSession("old")
+        val vm = ChatListViewModel(repo)
+        vm.onRename(id, "新名字")
+        assertEquals("新名字", repo.getSession(id)?.title)
+    }
+
+    @Test fun `onDelete removes session`() = runTest {
+        val repo = FakeChatRepository()
+        val id = repo.createSession("x")
+        val vm = ChatListViewModel(repo)
+        vm.onDelete(id)
+        assertEquals(0, repo.countSessions())
     }
 
     @Test fun `createNewSession yields new id via callback and persists`() = runTest {

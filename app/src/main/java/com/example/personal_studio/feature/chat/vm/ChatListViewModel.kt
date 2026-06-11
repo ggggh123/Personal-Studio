@@ -3,7 +3,7 @@ package com.example.personal_studio.feature.chat.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.repository.ChatRepository
-import com.example.personal_studio.domain.model.ChatSession
+import com.example.personal_studio.domain.model.ChatSessionSummary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ChatListUiState(
-    val sessions: List<ChatSession> = emptyList(),
+    val sessions: List<ChatSessionSummary> = emptyList(),
 )
 
 @HiltViewModel
@@ -21,13 +21,9 @@ class ChatListViewModel @Inject constructor(
     private val repo: ChatRepository,
 ) : ViewModel() {
 
-    val uiState: StateFlow<ChatListUiState> = repo.observeSessions()
+    val uiState: StateFlow<ChatListUiState> = repo.observeSessionSummaries()
         .map { ChatListUiState(sessions = it) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = ChatListUiState(),
-        )
+        .stateIn(viewModelScope, SharingStarted.Eagerly, ChatListUiState())
 
     fun createNewSession(onCreated: (Long) -> Unit) {
         viewModelScope.launch {
@@ -36,4 +32,12 @@ class ChatListViewModel @Inject constructor(
             onCreated(id)
         }
     }
+
+    fun onRename(id: Long, title: String) {
+        val t = title.trim()
+        if (t.isEmpty()) return
+        viewModelScope.launch { repo.renameSession(id, t) }
+    }
+
+    fun onDelete(id: Long) = viewModelScope.launch { repo.deleteSession(id) }
 }
