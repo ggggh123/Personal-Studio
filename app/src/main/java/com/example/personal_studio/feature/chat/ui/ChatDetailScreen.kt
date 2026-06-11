@@ -133,7 +133,10 @@ fun ChatDetailScreen(
     val lastMessageHeight = lastMessageId?.let { aiMessageHeights[it] }
 
     LaunchedEffect(state.messages.size, state.streamingText?.length, lastMessageHeight) {
-        if (!autoFollow) return@LaunchedEffect
+        // 仅在用户停在底部且**没在手动滑动**时才钉底。否则手滑浏览时,末条 AI 消息的
+        // WebView 重新进入视口、异步回报高度会改变上面的 lastMessageHeight key,触发本
+        // effect,把列表瞬跳到绝对底部——这正是"滚动突然跳到底"的根因。
+        if (!shouldAutoScroll(autoFollow, listState.isScrollInProgress)) return@LaunchedEffect
         val lastIndex = state.messages.size + (if (state.streamingText != null) 1 else 0)
         if (lastIndex > 0) {
             // Non-animated scroll: the streaming path re-launches this effect on
@@ -421,6 +424,11 @@ fun ChatDetailScreen(
         )
     }
 }
+
+/** 仅当用户停在底部(atBottom)且**没在手动滑动**(userScrolling=false)时才自动钉底。
+ *  手滑时不抢滚动,避免末条 AI 消息 WebView 重挂载回报高度把列表瞬跳到底。 */
+internal fun shouldAutoScroll(atBottom: Boolean, userScrolling: Boolean): Boolean =
+    atBottom && !userScrolling
 
 private fun buildSubtitle(title: String?, model: String): String {
     val sessionLabel = title?.takeIf { it.isNotBlank() } ?: "(未命名)"
