@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanPage
+import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.theme.Amber
@@ -85,7 +86,7 @@ fun ScanDocumentDetailScreen(
                 putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(intent, "Share PDF"))
+            context.startActivity(Intent.createChooser(intent, "分享 PDF"))
             vm.clearShareIntent()
         }
     }
@@ -102,11 +103,11 @@ fun ScanDocumentDetailScreen(
     ) {
         TerminalTopBar(
             route = "scans/$title",
-            subtitle = "# session: $title\n# $pageCount page${if (pageCount == 1) "" else "s"}" +
+            subtitle = "# 会话: $title\n# $pageCount 页" +
                 (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
             trailing = {
                 Text(
-                    "[< back]",
+                    "[< 返回]",
                     color = FoamMute,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onBack),
@@ -210,7 +211,7 @@ private fun ReorderablePageGrid(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "p.${ordinal + 1} · ${page.filter.name.lowercase()}",
+                        "p.${ordinal + 1} · ${scanFilterLabel(page.filter)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (isDragging) Phosphor else FoamMute,
                     )
@@ -239,7 +240,7 @@ private fun ReadActionBar(
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val label = if (isExporting) "[... exporting pdf]" else "[📄 export pdf]"
+        val label = if (isExporting) "[... 导出 PDF 中]" else "[📄 导出 PDF]"
         val color = when {
             isExporting -> Amber
             canExport -> Phosphor

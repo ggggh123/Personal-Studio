@@ -146,7 +146,7 @@ private fun StripView(
             route = "scans/new",
             trailing = {
                 Text(
-                    "[x cancel]",
+                    "[x 取消]",
                     color = Carmine,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
@@ -159,7 +159,7 @@ private fun StripView(
         // Status line under top bar
         Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
             Text(
-                "$pageCount page${if (pageCount == 1) "" else "s"} in this doc",
+                "本文档共 $pageCount 页",
                 style = MaterialTheme.typography.bodyMedium,
                 color = FoamMute,
             )
@@ -175,7 +175,7 @@ private fun StripView(
         ) {
             if (pages.isEmpty()) {
                 Text(
-                    "# no pages yet — tap capture below",
+                    "# 还没有页面 —— 点下方拍摄",
                     style = MaterialTheme.typography.bodySmall,
                     color = FoamDim,
                 )
@@ -196,13 +196,13 @@ private fun StripView(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "[+ add next page]",
+                "[+ 添加下一页]",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Phosphor,
                 modifier = Modifier.clickable(onClick = onAddNext),
             )
             Text(
-                "[↵ finish]",
+                "[↵ 完成]",
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (pageCount > 0) Phosphor else FoamDim,
                 modifier = Modifier.clickable(enabled = pageCount > 0, onClick = onFinish),
