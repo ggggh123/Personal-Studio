@@ -6,16 +6,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,12 +17,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.theme.Amber
+import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.theme.Cyan
-import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Void
 import java.io.File
 import java.io.FileOutputStream
 
@@ -47,7 +39,6 @@ private fun Context.copyUriToFile(uri: Uri): String? {
     } catch (t: Throwable) { null }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttachmentSheet(
     onDismiss: () -> Unit,
@@ -67,47 +58,12 @@ fun AttachmentSheet(
         onDismiss()
     }
 
-    val state = rememberModalBottomSheetState()
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = state,
-        containerColor = Void,
-    ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp)) {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Amber)) { append("user@study") }
-                    withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
-                    withStyle(SpanStyle(color = Foam)) { append("attach --source") }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(Modifier.height(18.dp))
-
-            Option(
-                line = "--from-gallery     open photo picker",
-                onClick = {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-            )
-            Option(
-                line = "--from-camera      take a new photo (scanned)",
-                onClick = {
-                    onRequestQuickCapture()
-                    onDismiss()
-                },
-            )
-            Option(
-                line = "--from-scans       pick from scan library",
-                onClick = {
-                    onRequestPickFromScans()
-                    onDismiss()
-                },
-            )
-            Spacer(Modifier.height(8.dp))
-        }
+    TerminalBottomSheet(onDismiss = onDismiss, header = "attach") {
+        Option(line = "--from-gallery     从相册选取", onClick = {
+            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        })
+        Option(line = "--from-camera      拍一张新照片(扫描)", onClick = { onRequestQuickCapture(); onDismiss() })
+        Option(line = "--from-scans       从扫描库选取", onClick = { onRequestPickFromScans(); onDismiss() })
     }
 }
 
