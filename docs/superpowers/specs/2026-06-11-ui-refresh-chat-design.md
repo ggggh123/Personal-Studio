@@ -60,7 +60,7 @@ ChatList 富行需要「消息数 + 末条预览」，加一个轻量聚合：
 - `TerminalConfirmDialog(title, message, confirmLabel, confirmColor=Carmine, onConfirm, onDismiss)`：基于 TerminalDialog，底部 `[取消] [confirmLabel]` 文字按钮。
 - `TerminalInputDialog(title, initial, label, onConfirm, onDismiss)`：TerminalDialog + 终端风 `BasicTextField`（Phosphor 光标、`> ` 前缀、占位 FoamDim），底部 `[取消] [确认]`。替代残留 `OutlinedTextField`。
 - `TerminalBottomSheet(onDismiss, header, content)`：包 `ModalBottomSheet`（containerColor=Void、shape 0dp、`dragHandle={}`、顶部 `── header ──`）。AttachmentSheet/CategoryPickerSheet 复用。
-- `relativeTime(ts, now): String` util（刚刚/N分钟前/N小时前/昨天/N天前/yyyy-MM-dd）+ `RelativeTimeTest`——并把教务屏里重复的本地 `fmt` 收敛到此（仅顺手 DRY，不强求改全部）。
+- 相对时间:**实现落地为** `feature/chat/ui/ChatListGrouping.kt` 的 `rowTime(ts, now)`（今天→HH:mm/昨天/N天前/MM-dd）+ 日期分组 `group(...)`,纯函数已单测。**注(给 P2/P3)**:未抽成 `core/util` 的通用 `relativeTime`(YAGNI,本期仅 chat 需要);scanner/kb 若需相对时间,届时再决定是复用 `ChatListGrouping.rowTime` 还是上提共享 util,**不要假设已有共享 util**。
 
 ### D. ChatDetailScreen（最小改：已是参考实现）
 - 汉化（见下「字符串映射」）。
