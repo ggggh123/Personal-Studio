@@ -100,6 +100,13 @@ fun TerminalInputDialog(
                 onValueChange = { text = it },
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
                 cursorBrush = SolidColor(Phosphor),
+                singleLine = true,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onDone = { onConfirm(text) },
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
         }

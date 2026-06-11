@@ -25,7 +25,7 @@ interface ChatSessionDao {
     @Query(
         "SELECT s.id AS id, s.title AS title, s.updatedAt AS updatedAt, " +
         "(SELECT COUNT(*) FROM chat_messages WHERE sessionId = s.id) AS msgCount, " +
-        "(SELECT contentMarkdown FROM chat_messages WHERE sessionId = s.id ORDER BY createdAt DESC LIMIT 1) AS lastSnippet " +
+        "(SELECT contentMarkdown FROM chat_messages WHERE sessionId = s.id ORDER BY createdAt DESC, id DESC LIMIT 1) AS lastSnippet " +
         "FROM chat_sessions s ORDER BY s.updatedAt DESC"
     )
     fun observeSessionSummaries(): Flow<List<ChatSessionSummaryRow>>

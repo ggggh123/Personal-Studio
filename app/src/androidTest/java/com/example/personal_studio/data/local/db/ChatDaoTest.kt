@@ -6,10 +6,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.personal_studio.data.local.db.entity.ChatMessageEntity
 import com.example.personal_studio.data.local.db.entity.ChatSessionEntity
 import com.example.personal_studio.data.local.db.entity.MessageRole
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,5 +63,27 @@ class ChatDaoTest {
 
         val list = db.chatMessageDao().listBySession(s)
         assertEquals(listOf("first", "second"), list.map { it.contentMarkdown })
+    }
+
+    @Test fun `session summaries aggregate msgCount and latest snippet`() = runTest {
+        // 会话 A 有 2 条消息,会话 B 空 → 验证聚合 SQL 的 COUNT 与末条子查询
+        val a = db.chatSessionDao().insert(
+            ChatSessionEntity(title = "A", createdAt = 1, updatedAt = 1)
+        )
+        val b = db.chatSessionDao().insert(
+            ChatSessionEntity(title = "B", createdAt = 2, updatedAt = 2)
+        )
+        db.chatMessageDao().insert(ChatMessageEntity(sessionId = a, role = MessageRole.USER,
+            contentMarkdown = "older", createdAt = 10))
+        db.chatMessageDao().insert(ChatMessageEntity(sessionId = a, role = MessageRole.AI,
+            contentMarkdown = "newest", createdAt = 20))
+
+        val rows = db.chatSessionDao().observeSessionSummaries().first()
+        val rowA = rows.first { it.id == a }
+        val rowB = rows.first { it.id == b }
+        assertEquals(2, rowA.msgCount)
+        assertEquals("newest", rowA.lastSnippet)
+        assertEquals(0, rowB.msgCount)
+        assertNull(rowB.lastSnippet)
     }
 }
