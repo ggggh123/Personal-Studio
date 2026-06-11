@@ -25,11 +25,19 @@ class ChatListViewModel @Inject constructor(
         .map { ChatListUiState(sessions = it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, ChatListUiState())
 
+    private var creating = false
+
     fun createNewSession(onCreated: (Long) -> Unit) {
+        if (creating) return
+        creating = true
         viewModelScope.launch {
-            val nextNumber = (repo.countSessions() + 1).toString().padStart(3, '0')
-            val id = repo.createSession(initialTitle = "session #$nextNumber")
-            onCreated(id)
+            try {
+                val nextNumber = (repo.countSessions() + 1).toString().padStart(3, '0')
+                val id = repo.createSession(initialTitle = "session #$nextNumber")
+                onCreated(id)
+            } finally {
+                creating = false
+            }
         }
     }
 

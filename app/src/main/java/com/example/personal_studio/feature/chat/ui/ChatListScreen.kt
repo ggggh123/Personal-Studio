@@ -49,7 +49,11 @@ fun ChatListScreen(
     vm: ChatListViewModel = hiltViewModel(),
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
-    val now = remember(state.sessions) { System.currentTimeMillis() }
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        now = System.currentTimeMillis()
+        onPauseOrDispose { }
+    }
 
     var menuFor by remember { mutableStateOf<ChatSessionSummary?>(null) }
     var renameFor by remember { mutableStateOf<ChatSessionSummary?>(null) }
@@ -120,15 +124,22 @@ fun ChatListScreen(
 }
 
 @Composable private fun GroupHeader(label: String) {
-    Text(
-        text = buildAnnotatedString {
-            withStyle(SpanStyle(color = FoamDim)) { append("── ") }
-            withStyle(SpanStyle(color = FoamMute)) { append(label) }
-            withStyle(SpanStyle(color = FoamDim)) { append(" ───────────────") }
-        },
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-    )
+    Row(
+        Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = FoamDim)) { append("── ") }
+                withStyle(SpanStyle(color = FoamMute)) { append(label) }
+                withStyle(SpanStyle(color = FoamDim)) { append(" ") }
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
+        androidx.compose.material3.HorizontalDivider(
+            Modifier.weight(1f), color = com.example.personal_studio.ui.theme.FoamDim,
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
