@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.personal_studio.ui.theme.Foam
+import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
 
@@ -67,7 +69,7 @@ fun ImageCropOverlay(
             val bitmap = remember(imagePath) { BitmapFactory.decodeFile(imagePath) }
             if (bitmap == null) {
                 Text(
-                    "could not decode image", color = Foam,
+                    "无法解码图片", color = Foam,
                     modifier = Modifier.align(Alignment.Center),
                 )
                 return@Dialog
@@ -192,41 +194,47 @@ fun ImageCropOverlay(
             }
 
             // Bottom action bar
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Void)
-                    .padding(horizontal = 24.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Void),
             ) {
                 Text(
-                    text = "[cancel]",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Foam,
-                    modifier = Modifier.clickable { onDismiss() },
+                    "# 拖动四角裁剪",
+                    color = FoamDim,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 24.dp, top = 8.dp),
                 )
-                Spacer(Modifier)
-                Text(
-                    text = "[confirm ↵]",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Phosphor,
-                    modifier = Modifier.clickable {
-                        val rect = cropRect ?: return@clickable
-                        if (imageSize == Size.Zero) return@clickable
-                        // `imageSize` is the Image's displayed size — ALREADY the
-                        // actual image area (no letterbox). Scale is uniform.
-                        val scale = bitmap.width.toFloat() / imageSize.width
-                        val imageRect = Rect(
-                            (rect.left * scale).toInt(),
-                            (rect.top * scale).toInt(),
-                            (rect.right * scale).toInt(),
-                            (rect.bottom * scale).toInt(),
-                        )
-                        onConfirm(cropImageToFile(imagePath, imageRect))
-                    },
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = "[取消]",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Foam,
+                        modifier = Modifier.clickable { onDismiss() },
+                    )
+                    Spacer(Modifier)
+                    Text(
+                        text = "[确认 ↵]",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Phosphor,
+                        modifier = Modifier.clickable {
+                            val rect = cropRect ?: return@clickable
+                            if (imageSize == Size.Zero) return@clickable
+                            // `imageSize` is the Image's displayed size — ALREADY the
+                            // actual image area (no letterbox). Scale is uniform.
+                            val scale = bitmap.width.toFloat() / imageSize.width
+                            val imageRect = Rect(
+                                (rect.left * scale).toInt(),
+                                (rect.top * scale).toInt(),
+                                (rect.right * scale).toInt(),
+                                (rect.bottom * scale).toInt(),
+                            )
+                            onConfirm(cropImageToFile(imagePath, imageRect))
+                        },
+                    )
+                }
             }
         }
     }
