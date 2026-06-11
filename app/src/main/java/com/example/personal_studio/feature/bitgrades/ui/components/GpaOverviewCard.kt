@@ -16,10 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.core.util.CreditFormat
+import com.example.personal_studio.core.util.RankPercentileEstimate
+import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * 概览卡。调用方决定显示总体值还是选中子集的值（同一布局，复用样式）。
@@ -32,6 +35,7 @@ fun GpaOverviewCard(
     credits: Double,
     peerGpa: Double? = null,
     peerAvgScore: Double? = null,
+    rankEst: RankPercentileEstimate? = null,
     filtering: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -62,6 +66,15 @@ fun GpaOverviewCard(
                     peerAvgScore?.let { append("均分 ").append(String.format(Locale.US, "%.1f", animPeerAvg)) }
                 },
                 color = FoamMute,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        if (rankEst != null && !filtering) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "专业排名  约前 ${rankEst.pointPercent.roundToInt()}%" +
+                    "（${rankEst.loPercent.roundToInt()}%–${rankEst.hiPercent.roundToInt()}%）",
+                color = Amber,
                 style = MaterialTheme.typography.labelMedium,
             )
         }
