@@ -37,7 +37,6 @@ import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalInputDialog
-import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.placeholder.ScannerPlaceholder
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
@@ -68,18 +67,20 @@ fun ScanLibraryScreen(
     var deleteTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
 
     Column(Modifier.fillMaxSize().background(Void)) {
-        TerminalTopBar(
-            route = "scans",
-            subtitle = buildSortSubtitle(state.sort),
-            trailing = {
-                Text(
-                    "[+ 新建扫描]",
-                    color = Phosphor,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onNewDoc),
-                )
-            },
-        )
+        // 壳层(MainShell)已为 tab 路由渲染 studio:~/scanner $ 顶栏 + 设置齿轮;此屏**不再**
+        // 自带 TerminalTopBar(否则与壳层顶栏重叠成两行)。新建动作放进正文右上,排序状态由
+        // 下方 SortToolbar 自身呈现。
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Text(
+                "[+ 新建扫描]",
+                color = Phosphor,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clickable(onClick = onNewDoc),
+            )
+        }
         SortToolbar(current = state.sort, onSelect = vm::setSort)
         if (state.docs.isEmpty()) {
             ScannerPlaceholder()
@@ -226,17 +227,6 @@ private fun ActionLine(label: String, color: Color, onClick: () -> Unit) {
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
     )
-}
-
-private fun buildSortSubtitle(current: SortMode): String = buildString {
-    append("# sort: ")
-    listOf(
-        SortMode.TIME_DESC to "时间",
-        SortMode.ALPHA_ASC to "名称",
-        SortMode.RECENT_UPDATED to "最近",
-    ).forEach { (m, label) ->
-        if (m == current) append("[$label] ") else append("$label ")
-    }
 }
 
 private fun formatTs(ts: Long): String =
