@@ -12,14 +12,17 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -304,12 +307,13 @@ fun ChatDetailScreen(
         // Phosphor dashed rule above the input — matching the top bar's divider style.
         DashedPhosphorRule()
 
-        // Input line. `navigationBarsPadding` keeps it above the system gesture bar.
+        // Input line. ime∪navigationBars insets keep it above the keyboard (when shown)
+        // or the system gesture bar (when hidden) — 否则键盘会盖住输入框。
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -322,8 +326,9 @@ fun ChatDetailScreen(
                 onValueChange = vm::onInputChanged,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
                 cursorBrush = SolidColor(Phosphor),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { vm.onSend() }),
+                // 回车插入换行(支持多行);发送只走右侧「↵ 发送」。
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                maxLines = 5,
                 modifier = Modifier.weight(1f),
                 decorationBox = { innerTextField ->
                     // Terminal-style placeholder: rendered underneath the inner text
