@@ -47,6 +47,9 @@ fun GpaOverviewCard(
     val animCredits by animateFloatAsState(credits.toFloat(), animationSpec = spec, label = "credits")
     val animPeerGpa by animateFloatAsState((peerGpa ?: 0.0).toFloat(), animationSpec = spec, label = "peerGpa")
     val animPeerAvg by animateFloatAsState((peerAvgScore ?: 0.0).toFloat(), animationSpec = spec, label = "peerAvg")
+    val animRankPoint by animateFloatAsState((rankEst?.pointPercent ?: 0.0).toFloat(), animationSpec = spec, label = "rankPoint")
+    val animRankLo by animateFloatAsState((rankEst?.loPercent ?: 0.0).toFloat(), animationSpec = spec, label = "rankLo")
+    val animRankHi by animateFloatAsState((rankEst?.hiPercent ?: 0.0).toFloat(), animationSpec = spec, label = "rankHi")
     Column(modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Stat(if (filtering) "选中 GPA" else "总 GPA",
@@ -69,11 +72,11 @@ fun GpaOverviewCard(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
-        if (rankEst != null && !filtering) {
+        if (rankEst != null) {
             Spacer(Modifier.height(4.dp))
             Text(
-                "专业排名  约前 ${rankEst.pointPercent.roundToInt()}%" +
-                    "（${rankEst.loPercent.roundToInt()}%–${rankEst.hiPercent.roundToInt()}%）",
+                (if (filtering) "选中专业排名  约前 " else "专业排名  约前 ") +
+                    "${animRankPoint.roundToInt()}%（${animRankLo.roundToInt()}%–${animRankHi.roundToInt()}%）",
                 color = Amber,
                 style = MaterialTheme.typography.labelMedium,
             )

@@ -2,6 +2,7 @@ package com.example.personal_studio.domain.bitgrades
 
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.data.local.db.entity.TermRankEntity
+import com.example.personal_studio.domain.bitgrades.model.GradeItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -73,5 +74,15 @@ class ComputeGpaUseCaseTest {
         val entries = listOf(rankEntry(null), rankEntry(null))
         val book = useCase.invoke(entries, emptyList())
         assertNull(book.overallMajorRankEst)
+    }
+
+    private fun item(major: String?, credit: Double = 3.0) = GradeItem(
+        "c", "c$major$credit", credit, "85", 3.0, null, null, "正常", true,
+        majorRankText = major, majorSize = 30,
+    )
+
+    @Test fun `majorRankEstimate over items returns estimate or null`() {
+        assertNotNull(useCase.majorRankEstimate(listOf(item("10%"), item("12%"), item("15%"))))
+        assertNull(useCase.majorRankEstimate(listOf(item(null), item(null))))
     }
 }

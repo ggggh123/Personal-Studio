@@ -1,6 +1,7 @@
 package com.example.personal_studio.domain.bitgrades
 
 import com.example.personal_studio.core.util.GpaCalculator
+import com.example.personal_studio.core.util.RankPercentileEstimate
 import com.example.personal_studio.core.util.RankPercentileEstimator
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.data.local.db.entity.TermRankEntity
@@ -32,10 +33,7 @@ class ComputeGpaUseCase @Inject constructor() {
         val overallGpa = GpaCalculator.weightedGpa(entries.map { it.credit to it.gradePoint })
         val totalCredits = entries.filter { it.gradePoint != null }.sumOf { it.credit }
         val (peerScore, peerGpa) = peerStats(entries)
-        val rankCourses = entries.mapNotNull { e ->
-            parseMajorPercent(e.majorRankText)?.let { p -> Triple(e.credit, p, e.majorSize) }
-        }
-        val majorRankEst = RankPercentileEstimator.estimate(rankCourses)
+        val majorRankEst = majorRankEstimate(terms.flatMap { it.courses })
         return GradeBook(
             terms = terms,
             overallGpa = overallGpa,
@@ -82,6 +80,14 @@ class ComputeGpaUseCase @Inject constructor() {
         classSize = classSize, majorSize = majorSize, schoolRankText = schoolRankText,
     )
     private fun TermRankEntity.toTermRank() = TermRank(classRank, classTotal, majorRank, majorTotal)
+
+    /** 用一组课的「专业中占」位次估计整体专业百分位。供 ViewModel 对选中子集即时重算复用。 */
+    fun majorRankEstimate(items: List<GradeItem>): RankPercentileEstimate? {
+        val triples = items.mapNotNull { c ->
+            parseMajorPercent(c.majorRankText)?.let { p -> Triple(c.credit, p, c.majorSize) }
+        }
+        return RankPercentileEstimator.estimate(triples)
+    }
 
     /** 「63%」/「前20%」→ 63.0/20.0;无数字或越界返回 null。 */
     private fun parseMajorPercent(text: String?): Double? {

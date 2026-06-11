@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.GradesAnalysisCache
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.db.dao.GradesDao
+import com.example.personal_studio.core.util.RankPercentileEstimate
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitgrades.AnalyzeGradesUseCase
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
@@ -42,6 +43,7 @@ data class GradesUiState(
     val filtering: Boolean = false,   // true when excludedIds non-empty
     val selectedPeerAvgScore: Double? = null,
     val selectedPeerAvgGpa: Double? = null,
+    val selectedMajorRankEst: RankPercentileEstimate? = null,
     val loggedIn: Boolean = false,
     val syncing: Boolean = false,
     val syncSteps: List<String> = emptyList(),
@@ -114,6 +116,7 @@ class GradesViewModel @Inject constructor(
             filtering = local.excludedIds.isNotEmpty(),
             selectedPeerAvgScore = selPeerScore,
             selectedPeerAvgGpa = selPeerGpa,
+            selectedMajorRankEst = computeGpa.majorRankEstimate(included),
             loggedIn = creds != null,
             syncing = sync.syncing,
             syncSteps = sync.steps,
