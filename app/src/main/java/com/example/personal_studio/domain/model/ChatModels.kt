@@ -28,3 +28,12 @@ data class ChatMessage(
      */
     val modelUsed: String? = null,
 )
+
+/** 会话概览富行:会话本体 + 消息数 + 末条预览。 */
+data class ChatSessionSummary(
+    val id: Long,
+    val title: String,
+    val updatedAt: Long,
+    val msgCount: Int,
+    val lastSnippet: String?,
+)

@@ -2,9 +2,11 @@ package com.example.personal_studio.data.repository
 
 import com.example.personal_studio.domain.model.ChatMessage
 import com.example.personal_studio.domain.model.ChatSession
+import com.example.personal_studio.domain.model.ChatSessionSummary
 import com.example.personal_studio.domain.model.MessageRole
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.atomic.AtomicLong
 
@@ -15,6 +17,17 @@ class FakeChatRepository : ChatRepository {
     private val seq = AtomicLong(0)
 
     override fun observeSessions(): Flow<List<ChatSession>> = sessions
+
+    override fun observeSessionSummaries(): Flow<List<ChatSessionSummary>> =
+        combine(sessions, messagesBySession) { ss, msgs ->
+            ss.sortedByDescending { it.updatedAt }.map { s ->
+                val m = msgs[s.id].orEmpty()
+                ChatSessionSummary(
+                    id = s.id, title = s.title, updatedAt = s.updatedAt,
+                    msgCount = m.size, lastSnippet = m.lastOrNull()?.contentMarkdown,
+                )
+            }
+        }
 
     override suspend fun getSession(id: Long): ChatSession? =
         sessions.value.firstOrNull { it.id == id }

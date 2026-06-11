@@ -6,6 +6,7 @@ import com.example.personal_studio.data.local.db.entity.ChatMessageEntity
 import com.example.personal_studio.data.local.db.entity.ChatSessionEntity
 import com.example.personal_studio.domain.model.ChatMessage
 import com.example.personal_studio.domain.model.ChatSession
+import com.example.personal_studio.domain.model.ChatSessionSummary
 import com.example.personal_studio.domain.model.MessageRole
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -14,6 +15,7 @@ import javax.inject.Singleton
 
 interface ChatRepository {
     fun observeSessions(): Flow<List<ChatSession>>
+    fun observeSessionSummaries(): Flow<List<ChatSessionSummary>>
     suspend fun getSession(id: Long): ChatSession?
     suspend fun createSession(initialTitle: String): Long
     suspend fun renameSession(id: Long, title: String)
@@ -41,6 +43,9 @@ class ChatRepositoryImpl @Inject constructor(
 
     override fun observeSessions(): Flow<List<ChatSession>> =
         sessionDao.observeAll().map { rows -> rows.map { it.toDomain() } }
+
+    override fun observeSessionSummaries(): Flow<List<ChatSessionSummary>> =
+        sessionDao.observeSessionSummaries().map { rows -> rows.map { it.toDomain() } }
 
     override suspend fun getSession(id: Long): ChatSession? =
         sessionDao.getById(id)?.toDomain()
@@ -99,6 +104,12 @@ private fun ChatSessionEntity.toDomain() = ChatSession(
     id = id, title = title, iconHint = iconHint,
     createdAt = createdAt, updatedAt = updatedAt,
 )
+
+private fun com.example.personal_studio.data.local.db.dao.ChatSessionSummaryRow.toDomain() =
+    ChatSessionSummary(
+        id = id, title = title, updatedAt = updatedAt,
+        msgCount = msgCount, lastSnippet = lastSnippet,
+    )
 
 private fun ChatMessageEntity.toDomain() = ChatMessage(
     id = id, sessionId = sessionId, role = role.toDomain(),

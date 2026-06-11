@@ -8,11 +8,27 @@ import androidx.room.Update
 import com.example.personal_studio.data.local.db.entity.ChatSessionEntity
 import kotlinx.coroutines.flow.Flow
 
+data class ChatSessionSummaryRow(
+    val id: Long,
+    val title: String,
+    val updatedAt: Long,
+    val msgCount: Int,
+    val lastSnippet: String?,
+)
+
 @Dao
 interface ChatSessionDao {
 
     @Query("SELECT * FROM chat_sessions ORDER BY updatedAt DESC")
     fun observeAll(): Flow<List<ChatSessionEntity>>
+
+    @Query(
+        "SELECT s.id AS id, s.title AS title, s.updatedAt AS updatedAt, " +
+        "(SELECT COUNT(*) FROM chat_messages WHERE sessionId = s.id) AS msgCount, " +
+        "(SELECT contentMarkdown FROM chat_messages WHERE sessionId = s.id ORDER BY createdAt DESC LIMIT 1) AS lastSnippet " +
+        "FROM chat_sessions s ORDER BY s.updatedAt DESC"
+    )
+    fun observeSessionSummaries(): Flow<List<ChatSessionSummaryRow>>
 
     @Query("SELECT * FROM chat_sessions WHERE id = :id")
     suspend fun getById(id: Long): ChatSessionEntity?
