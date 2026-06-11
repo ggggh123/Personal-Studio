@@ -17,6 +17,9 @@ data class GradeItem(
     val id: Long = 0,                     // 来源记录主键（会话内稳定，用于选择参与计算）
     val courseMaxScore: Double? = null,   // cjfx 最高分
     val courseStudyCount: Int? = null,    // cjfx 学习人数(用于 Jensen 修正估 σ)
+    val classSize: Int? = null,           // cjfx 班级人数
+    val majorSize: Int? = null,           // cjfx 专业人数
+    val schoolRankText: String? = null,   // 全校百分位
 )
 
 /** 排名（班级/专业），任一可缺。 */

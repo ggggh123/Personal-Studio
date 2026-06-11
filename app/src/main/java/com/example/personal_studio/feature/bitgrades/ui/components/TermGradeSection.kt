@@ -102,17 +102,22 @@ fun TermGradeSection(
                             }
                         }
                         AnimatedVisibility(courseExpanded) {
-                            val parts = buildList {
-                                c.courseAvg?.let { add("平均分 " + String.format(Locale.US, "%.1f", it)) }
-                                c.classRankText?.let { add("班级 $it") }
-                                c.majorRankText?.let { add("专业 $it") }
+                            val lines = gradeDetailLines(c)
+                            Column(Modifier.padding(start = 28.dp, top = 1.dp, bottom = 3.dp)) {
+                                if (lines.isEmpty()) {
+                                    Text(
+                                        "无详情", color = FoamDim,
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                } else {
+                                    lines.forEach { line ->
+                                        Text(
+                                            line, color = Cyan,
+                                            style = MaterialTheme.typography.labelMedium,
+                                        )
+                                    }
+                                }
                             }
-                            Text(
-                                if (parts.isEmpty()) "无详情" else parts.joinToString("  ·  "),
-                                color = if (parts.isEmpty()) FoamDim else Cyan,
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(start = 28.dp, top = 1.dp, bottom = 3.dp),
-                            )
                         }
                     }
                 }

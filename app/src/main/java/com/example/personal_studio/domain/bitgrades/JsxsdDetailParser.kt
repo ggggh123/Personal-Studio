@@ -12,6 +12,9 @@ class JsxsdDetailParser @Inject constructor() {
         val courseStudyCount: Int?,
         val classRankText: String?,
         val majorRankText: String?,
+        val classSize: Int?,
+        val majorSize: Int?,
+        val schoolRankText: String?,
     )
 
     fun parse(html: String): DetailInfo {
@@ -28,12 +31,17 @@ class JsxsdDetailParser @Inject constructor() {
             map.entries.firstOrNull { e -> keys.any { it in e.key } }?.value?.takeIf { it.isNotBlank() }
         val maxScore = find("最高分")?.toDoubleOrNull()
         val studyCount = find("学习人数")?.let { v -> Regex("""\d+""").find(v)?.value?.toIntOrNull() }
+        val classSize = find("班级人数")?.let { v -> Regex("""\d+""").find(v)?.value?.toIntOrNull() }
+        val majorSize = find("专业人数")?.let { v -> Regex("""\d+""").find(v)?.value?.toIntOrNull() }
         return DetailInfo(
             courseAvg = find("平均分")?.toDoubleOrNull(),
             courseMaxScore = maxScore,
             courseStudyCount = studyCount,
             classRankText = find("班级中占", "班级排名"),
             majorRankText = find("专业中占", "专业排名", "年级"),
+            classSize = classSize,
+            majorSize = majorSize,
+            schoolRankText = find("所有学生中占", "全校中占", "全校"),
         )
     }
 
