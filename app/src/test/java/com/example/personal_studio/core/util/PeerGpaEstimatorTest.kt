@@ -35,4 +35,18 @@ class PeerGpaEstimatorTest {
         // sigma=0 → no correction (degrades to B/A semantics)
         assertEquals(BitGpaConverter.toGradePoint(78.0), PeerGpaEstimator.correctedGradePoint(78.0, 0.0), 1e-9)
     }
+
+    @Test fun `normalCdf matches known values`() {
+        assertEquals(0.5, PeerGpaEstimator.normalCdf(0.0), 1e-6)
+        assertEquals(0.975, PeerGpaEstimator.normalCdf(1.96), 2e-3)
+        assertEquals(0.8413, PeerGpaEstimator.normalCdf(1.0), 2e-3)
+    }
+
+    @Test fun `normalCdf is symmetric`() {
+        assertEquals(1.0 - PeerGpaEstimator.normalCdf(1.3), PeerGpaEstimator.normalCdf(-1.3), 1e-9)
+    }
+
+    @Test fun `normalCdf inverts invNormalCdf`() {
+        assertEquals(0.8, PeerGpaEstimator.normalCdf(PeerGpaEstimator.invNormalCdf(0.8)), 2e-3)
+    }
 }

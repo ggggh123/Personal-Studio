@@ -1,5 +1,7 @@
 package com.example.personal_studio.core.util
 
+import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.sqrt
 
@@ -23,6 +25,16 @@ object PeerGpaEstimator {
         val den = 1.0 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t
         val z = t - num / den
         return if (p < 0.5) -z else z
+    }
+
+    /** 标准正态 CDF Φ(z)(Abramowitz-Stegun 26.2.17 有理逼近,精度 ~7.5e-8)。 */
+    fun normalCdf(z: Double): Double {
+        val t = 1.0 / (1.0 + 0.2316419 * abs(z))
+        val phi = 0.3989422804014327 * exp(-z * z / 2.0)   // φ(z) = 1/√(2π)·e^(−z²/2)
+        val poly = t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 +
+            t * (-1.821255978 + t * 1.330274429))))
+        val tail = phi * poly
+        return if (z >= 0.0) 1.0 - tail else tail
     }
 
     /** 样本量 n 时,标准正态的最大值期望 ≈ Φ⁻¹(1 − 1/n)(对 n=2 用 1-1/(2n) 兜底)。 */
