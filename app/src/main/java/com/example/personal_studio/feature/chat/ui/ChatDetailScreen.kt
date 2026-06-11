@@ -12,12 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -307,13 +303,14 @@ fun ChatDetailScreen(
         // Phosphor dashed rule above the input — matching the top bar's divider style.
         DashedPhosphorRule()
 
-        // Input line. ime∪navigationBars insets keep it above the keyboard (when shown)
-        // or the system gesture bar (when hidden) — 否则键盘会盖住输入框。
+        // Input line. MIUI 等在 edge-to-edge 下仍会因 IME 自动缩窗(已把内容抬到键盘上方),
+        // 此处**不再叠加 imePadding**——叠了会翻倍,把输入框顶到屏幕中部。只用 navigationBarsPadding
+        // 兜键盘隐藏时的手势条,外加固定底部留白,避免缩窗后输入框被键盘顶边压住。
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .navigationBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
