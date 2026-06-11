@@ -10,6 +10,7 @@ import com.example.personal_studio.domain.bitexam.SyncExamsUseCase
 import com.example.personal_studio.domain.bitexam.model.ExamSyncError
 import com.example.personal_studio.domain.bitexam.model.ExamSyncRequest
 import com.example.personal_studio.domain.bitexam.model.ExamSyncStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,7 @@ data class ExamsUiState(
     val upcoming: List<ExamRow> = emptyList(),
     val past: List<ExamRow> = emptyList(),
     val syncing: Boolean = false,
+    val syncSteps: List<String> = emptyList(),  // 刷新时逐步累积的状态文案(同成绩页)
     val error: String? = null,
     val credsSaved: Boolean = false,
 )
@@ -44,6 +46,7 @@ class ExamsViewModel @Inject constructor(
     private val dao: TimelineDao,
     private val sync: SyncExamsUseCase,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -70,16 +73,28 @@ class ExamsViewModel @Inject constructor(
             viewModelScope.launch { _events.emit(ExamsEvent.NeedLogin) }
             return
         }
-        sync.sync(ExamSyncRequest(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true))
-            .onEach { step ->
+        transient.value = transient.value.copy(syncing = true, error = null, syncSteps = emptyList())
+        viewModelScope.launch {
+            // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
+            val firstMode = resolveNetworkMode(creds.lastMode)
+            sync.syncAuto(
+                ExamSyncRequest(creds.username, creds.password, firstMode, true),
+                onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
+            ).collect { step ->
+                val cur = transient.value
                 transient.value = when (step) {
-                    ExamSyncStep.LoggingIn, ExamSyncStep.FetchingExams -> transient.value.copy(syncing = true, error = null)
-                    is ExamSyncStep.Done -> transient.value.copy(syncing = false, error = null)
-                    is ExamSyncStep.Failed -> transient.value.copy(syncing = false, error = step.error.toMessage())
+                    ExamSyncStep.LoggingIn -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "登录中…")
+                    ExamSyncStep.FetchingExams -> cur.copy(syncSteps = cur.syncSteps + "拉取考试安排…")
+                    is ExamSyncStep.SwitchingMode -> cur.copy(syncSteps = cur.syncSteps + switchMsg(step.to))
+                    is ExamSyncStep.Done -> cur.copy(syncing = false, syncSteps = cur.syncSteps + "完成 · ${step.total} 场考试")
+                    is ExamSyncStep.Failed -> cur.copy(syncing = false, error = step.error.toMessage())
                 }
             }
-            .launchIn(viewModelScope)
+        }
     }
+
+    private fun switchMsg(to: NetworkMode): String =
+        if (to == NetworkMode.WEBVPN) "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…"
 
     private fun TimelineItemEntity.toRow() = ExamRow(
         id, title, startAt, endAt, location,

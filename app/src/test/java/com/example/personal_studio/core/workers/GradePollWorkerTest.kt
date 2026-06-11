@@ -18,6 +18,7 @@ import com.example.personal_studio.domain.bitgrades.JsxsdDetailParser
 import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
 import com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.feature.bitgrades.GradesPollScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -49,6 +50,13 @@ class GradePollWorkerTest {
         username = "u", password = "p", lastMode = NetworkMode.LOCAL,
     )
 
+    /** resolver 默认回显 LOCAL(creds.lastMode=LOCAL),不实际探测。 */
+    private fun resolveLocal(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private fun newWorker(
         pollPrefs: GradesSyncPrefs,
         credPrefs: ImportCredentialPrefs,
@@ -58,6 +66,7 @@ class GradePollWorkerTest {
         dao: GradesDao = mockk(relaxed = true),
         notifier: GradesNotifier = mockk(relaxed = true),
         scheduler: GradesPollScheduler = mockk(relaxed = true),
+        resolveNetworkMode: ResolveNetworkModeUseCase = resolveLocal(),
     ): GradePollWorker = GradePollWorker(
         appContext = mockk<Context>(relaxed = true),
         params = mockk<WorkerParameters>(relaxed = true),
@@ -70,6 +79,7 @@ class GradePollWorkerTest {
         gradesDao = dao,
         notifier = notifier,
         scheduler = scheduler,
+        resolveNetworkMode = resolveNetworkMode,
     )
 
     @Test
@@ -193,5 +203,38 @@ class GradePollWorkerTest {
         assertEquals(ListenableWorker.Result.success(), r)
         coVerify { dao.upsertAll(listOf(newOne)) }
         coVerify { notifier.notifyNewGrades(any(), listOf(newOne)) }
+    }
+
+    @Test
+    fun `NeedReview keeps polling, does not disable, records status`() = runTest {
+        val pollPrefs = mockk<GradesSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns stateEnabled() }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(savedCreds()) }
+        val sync = mockk<SyncGradesUseCase> {
+            coEvery { syncForBackground(any()) } returns BackgroundSyncResult.Stop(GradesSyncError.NeedReview)
+        }
+        val scheduler = mockk<GradesPollScheduler>(relaxed = true)
+        val notifier = mockk<GradesNotifier>(relaxed = true)
+        val r = newWorker(pollPrefs, creds, sync, notifier = notifier, scheduler = scheduler).doWork()
+        assertEquals(ListenableWorker.Result.success(), r)
+        coVerify(exactly = 0) { pollPrefs.setEnabled(false) }   // 评教是临时状态 → 不停轮
+        coVerify(exactly = 0) { scheduler.cancel() }
+        coVerify(exactly = 0) { notifier.notifyStop(any(), any()) }
+        coVerify { pollPrefs.setLastResult(any()) }
+    }
+
+    @Test
+    fun `transient on first mode falls back to other mode and remembers winning mode`() = runTest {
+        val pollPrefs = mockk<GradesSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns stateEnabled() }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(savedCreds()) }
+        val entries = listOf(entry("A", "90"))
+        val sync = mockk<SyncGradesUseCase> {
+            coEvery { syncForBackground(match { it.networkMode == NetworkMode.LOCAL }) } returns BackgroundSyncResult.Transient
+            coEvery { syncForBackground(match { it.networkMode == NetworkMode.WEBVPN }) } returns BackgroundSyncResult.Ok(entries)
+        }
+        val detector = mockk<DetectNewGradesUseCase>()
+        coEvery { detector.invoke(any()) } returns DiffResult(emptyList(), setOf("t|A|正常|90"), isFirstRun = false)
+        val r = newWorker(pollPrefs, creds, sync, detector).doWork()
+        assertEquals(ListenableWorker.Result.success(), r)
+        coVerify { creds.save("u", "p", NetworkMode.WEBVPN) }   // 校内不可达 → 回退校外成功 → 记住生效 mode
     }
 }

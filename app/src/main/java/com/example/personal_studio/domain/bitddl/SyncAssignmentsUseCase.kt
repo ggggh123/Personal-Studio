@@ -2,6 +2,8 @@ package com.example.personal_studio.domain.bitddl
 
 import com.example.personal_studio.data.local.datastore.DdlSyncPrefs
 import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.domain.bitddl.model.BackgroundDdlResult
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
@@ -44,6 +46,17 @@ class SyncAssignmentsUseCase @Inject constructor(
         }
     }
 
+    /** Auto 模式:先按 [req].networkMode 试,连接级失败(NetworkFail)自动换另一网络模式重试一次,
+     *  成功后回告生效模式。其余失败不回退。 */
+    fun syncAuto(req: DdlSyncRequest, onModeSucceeded: (NetworkMode) -> Unit): Flow<DdlSyncStep> =
+        autoNetworkFallback(
+            first = req.networkMode,
+            isConnFail = { it is DdlSyncStep.Failed && it.error is DdlSyncError.NetworkFail },
+            isDone = { it is DdlSyncStep.Done },
+            switchingStep = { DdlSyncStep.SwitchingMode(it) },
+            onModeSucceeded = onModeSucceeded,
+        ) { mode -> sync(req.copy(networkMode = mode)) }
+
     /** 后台:假设 apiClient 已 open。 */
     suspend fun syncForBackground(req: DdlSyncRequest): BackgroundDdlResult = fetchEvents(req)
 
@@ -51,7 +64,7 @@ class SyncAssignmentsUseCase @Inject constructor(
         var url = prefs.snapshot().icalUrl
         if (url == null) {
             when (val r = generateUrl.invoke(req)) {
-                is LexueUrlResult.Failed -> return BackgroundDdlResult.Stop(r.error)
+                is LexueUrlResult.Failed -> return r.toBackgroundFail()
                 is LexueUrlResult.Ok -> { url = r.url; prefs.setIcalUrl(url) }
             }
         }
@@ -61,7 +74,7 @@ class SyncAssignmentsUseCase @Inject constructor(
                 BackgroundDdlResult.Ok(parser.parse(body))
             } else {
                 when (val r = generateUrl.invoke(req)) {
-                    is LexueUrlResult.Failed -> BackgroundDdlResult.Stop(r.error)
+                    is LexueUrlResult.Failed -> r.toBackgroundFail()
                     is LexueUrlResult.Ok -> {
                         prefs.setIcalUrl(r.url)
                         val body2 = fetchIcs(r.url)
@@ -83,4 +96,9 @@ class SyncAssignmentsUseCase @Inject constructor(
     }
 
     private fun looksLikeCalendar(body: String): Boolean = body.contains("BEGIN:VCALENDAR")
+
+    /** 派生 URL(含登录)失败:连接级(NetworkFail)归为 Transient(可换网络/重试),其余(密码错/评教等)Stop。 */
+    private fun LexueUrlResult.Failed.toBackgroundFail(): BackgroundDdlResult =
+        if (error is DdlSyncError.NetworkFail) BackgroundDdlResult.Transient
+        else BackgroundDdlResult.Stop(error)
 }

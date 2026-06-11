@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,7 +47,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
 import com.example.personal_studio.feature.auth.BitLoginEvent
 import com.example.personal_studio.feature.auth.BitLoginViewModel
@@ -209,16 +207,11 @@ fun BitLoginScreen(
                         )
                         Text("记住密码（Keystore 加密）", color = FoamMute, style = MaterialTheme.typography.labelMedium)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = st.networkMode == NetworkMode.LOCAL,
-                            onClick = { vm.onNetworkModeChange(NetworkMode.LOCAL) }, label = { Text("校内") },
-                        )
-                        FilterChip(
-                            selected = st.networkMode == NetworkMode.WEBVPN,
-                            onClick = { vm.onNetworkModeChange(NetworkMode.WEBVPN) }, label = { Text("校外") },
-                        )
-                    }
+                    // 网络全自动:校内优先探测 + 校内↔校外按需回退,无需手动选择。
+                    Text(
+                        "› 网络 · 自动（校内↔校外按需切换）",
+                        color = FoamMute, style = MaterialTheme.typography.labelSmall,
+                    )
                 }
 
                 Spacer(Modifier.height(20.dp))

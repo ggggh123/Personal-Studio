@@ -2,6 +2,8 @@ package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.domain.bitimport.model.ImportError
 import com.example.personal_studio.domain.bitimport.model.ImportRequest
@@ -111,6 +113,21 @@ class ImportCoursesUseCase @Inject constructor(
             apiClient.close()
         }
     }
+
+    /** Auto 模式:先按 [req].networkMode 试,连接级失败(NetworkFail,登录阶段、Preview 之前)自动换
+     *  另一网络模式重试一次。每次 attempt 用 [channelFor] 取一个**新** confirmChannel(避免跨 attempt
+     *  复用已消费的 channel);成功后回告生效模式。其余失败/Cancelled 不回退。 */
+    fun importAuto(
+        req: ImportRequest,
+        channelFor: (NetworkMode) -> Channel<Boolean>,
+        onModeSucceeded: (NetworkMode) -> Unit,
+    ): Flow<ImportStep> = autoNetworkFallback(
+        first = req.networkMode,
+        isConnFail = { it is ImportStep.Failed && it.err is ImportError.NetworkFail },
+        isDone = { it is ImportStep.Done },
+        switchingStep = { ImportStep.SwitchingMode(it) },
+        onModeSucceeded = onModeSucceeded,
+    ) { mode -> import(req.copy(networkMode = mode), channelFor(mode)) }
 
     private fun CasLoginDto.toImportError(): ImportError? = when (this) {
         CasLoginDto.Success -> null

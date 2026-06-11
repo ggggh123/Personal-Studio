@@ -5,6 +5,7 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitimport.ImportCoursesUseCase
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -31,13 +32,20 @@ class ImportViewModelTest {
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() { Dispatchers.resetMain() }
 
+    /** resolve mock:回显 LOCAL(测试都用 LOCAL),不触发探测。 */
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     @Test fun `initial state defaults to Credentials screen, empty form, LOCAL mode`() = runTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             coEvery { observeAll() } returns MutableStateFlow(null)
         }
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true)
 
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.uiState.test {
             val first = awaitItem()
             assertEquals(ImportScreen.Credentials, first.currentScreen)
@@ -48,29 +56,29 @@ class ImportViewModelTest {
 
     @Test fun `startWithSavedCreds triggers import when creds saved`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns flowOf()
+            every { importAuto(any(), any(), any()) } returns flowOf()
         }
         val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns
                 MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, creds)
+        val vm = ImportViewModel(importUseCase, creds, resolveEcho())
         vm.startWithSavedCreds()
         advanceUntilIdle()
-        verify { importUseCase.import(any(), any()) }
+        verify { importUseCase.importAuto(any(), any(), any()) }
     }
 
     /** 取消导入必须「退出向导」(done=true 触发 onClose 回上级),而不是把已登录用户
      *  送回 Credentials 屏 —— 那对已登录用户渲染成 TerminalSplash,会卡死在裸 logo。 */
     @Test fun `cancel exits wizard via done flag, not back to Credentials splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns
+            every { importAuto(any(), any(), any()) } returns
                 flowOf(com.example.personal_studio.domain.bitimport.model.ImportStep.Cancelled)
         }
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.onLogin()
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.done)
@@ -79,21 +87,43 @@ class ImportViewModelTest {
     /** 重试必须重新跑导入(回 Progress),而不是把已登录用户送回 Credentials splash。 */
     @Test fun `retry re-runs import instead of returning to splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns flowOf()
+            every { importAuto(any(), any(), any()) } returns flowOf()
         }
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.onRetry()
         advanceUntilIdle()
-        verify { importUseCase.import(any(), any()) }
+        verify { importUseCase.importAuto(any(), any(), any()) }
+    }
+
+    /** 回退到校外成功后,持久化的是**生效 mode**(WEBVPN),而非 UI 首选的 LOCAL。 */
+    @Test fun `auto-fallback persists the winning mode on done`() = runTest {
+        val importUseCase = mockk<ImportCoursesUseCase> {
+            every { importAuto(any(), any(), any()) } answers {
+                thirdArg<(NetworkMode) -> Unit>().invoke(NetworkMode.WEBVPN)
+                flowOf(
+                    com.example.personal_studio.domain.bitimport.model.ImportStep.Done(
+                        com.example.personal_studio.domain.bitimport.model.ImportResult(1, 1, "T"),
+                    ),
+                )
+            }
+        }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val vm = ImportViewModel(importUseCase, creds, resolveEcho())
+        vm.onLogin()
+        advanceUntilIdle()
+        assertEquals(true, vm.uiState.value.done)
+        verify { creds.save("u", "p", NetworkMode.WEBVPN) }
     }
 
     /** 导入失败时保留 error 且不把 currentScreen 设回 Credentials(splash);error 由 ImportEntryRoute 渲染。 */
     @Test fun `failed keeps error and stays off Credentials splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
-            every { import(any(), any()) } returns flowOf(
+            every { importAuto(any(), any(), any()) } returns flowOf(
                 com.example.personal_studio.domain.bitimport.model.ImportStep.LoggingIn,
                 com.example.personal_studio.domain.bitimport.model.ImportStep.Failed(
                     com.example.personal_studio.domain.bitimport.model.ImportError.ParseFail("x"),
@@ -103,7 +133,7 @@ class ImportViewModelTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
-        val vm = ImportViewModel(importUseCase, credPrefs)
+        val vm = ImportViewModel(importUseCase, credPrefs, resolveEcho())
         vm.onLogin()
         advanceUntilIdle()
         assertEquals(true, vm.uiState.value.error != null)

@@ -11,6 +11,7 @@ import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.domain.bitddl.model.DdlSyncStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import com.example.personal_studio.domain.timeline.ToggleDoneUseCase
@@ -44,6 +45,7 @@ data class AssignmentsUiState(
     val upcoming: List<DdlRow> = emptyList(),
     val doneOrOverdue: List<DdlRow> = emptyList(),
     val syncing: Boolean = false,
+    val syncSteps: List<String> = emptyList(),  // 刷新时逐步累积的状态文案(同成绩页)
     val error: String? = null,
     val credsSaved: Boolean = false,
 )
@@ -57,6 +59,7 @@ class AssignmentsViewModel @Inject constructor(
     private val repo: TimelineRepository,
     private val sync: SyncAssignmentsUseCase,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -92,16 +95,27 @@ class AssignmentsViewModel @Inject constructor(
             viewModelScope.launch { _events.emit(AssignmentsEvent.NeedLogin) }
             return
         }
-        sync.sync(DdlSyncRequest(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL, true))
-            .onEach { step ->
+        transient.value = transient.value.copy(syncing = true, error = null, syncSteps = emptyList())
+        viewModelScope.launch {
+            // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
+            val firstMode = resolveNetworkMode(creds.lastMode)
+            sync.syncAuto(
+                DdlSyncRequest(creds.username, creds.password, firstMode, true),
+                onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
+            ).collect { step ->
+                val cur = transient.value
                 transient.value = when (step) {
-                    DdlSyncStep.FetchingCalendar -> transient.value.copy(syncing = true, error = null)
-                    is DdlSyncStep.Done -> transient.value.copy(syncing = false, error = null)
-                    is DdlSyncStep.Failed -> transient.value.copy(syncing = false, error = step.error.toMessage())
+                    DdlSyncStep.FetchingCalendar -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "登录并拉取乐学日历…")
+                    is DdlSyncStep.SwitchingMode -> cur.copy(syncSteps = cur.syncSteps + switchMsg(step.to))
+                    is DdlSyncStep.Done -> cur.copy(syncing = false, syncSteps = cur.syncSteps + "完成 · ${step.total} 项作业")
+                    is DdlSyncStep.Failed -> cur.copy(syncing = false, error = step.error.toMessage())
                 }
             }
-            .launchIn(viewModelScope)
+        }
     }
+
+    private fun switchMsg(to: NetworkMode): String =
+        if (to == NetworkMode.WEBVPN) "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…"
 
     private fun TimelineItemEntity.toRow() = DdlRow(id, title, courseName, startAt, isDone)
 

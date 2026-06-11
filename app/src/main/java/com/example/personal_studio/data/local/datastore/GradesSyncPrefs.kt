@@ -19,6 +19,7 @@ data class GradesSyncState(
     val intervalHours: Int,
     val lastSyncAt: Long?,
     val lastSeenSignature: Set<String>,
+    val lastResult: PollResult? = null,
 )
 
 @Singleton
@@ -29,6 +30,11 @@ class GradesSyncPrefs @Inject constructor(
     private val keyInterval = intPreferencesKey("grades_poll_interval_hours")
     private val keyLastSyncAt = longPreferencesKey("grades_last_sync_at")
     private val keyLastSig = stringPreferencesKey("grades_last_seen_signature")
+    private val keyResultAt = longPreferencesKey("grades_poll_result_at")
+    private val keyResultOk = booleanPreferencesKey("grades_poll_result_ok")
+    private val keyResultTotal = intPreferencesKey("grades_poll_result_total")
+    private val keyResultNew = intPreferencesKey("grades_poll_result_new")
+    private val keyResultMsg = stringPreferencesKey("grades_poll_result_msg")
 
     val observe: Flow<GradesSyncState> = dataStore.data.map { p ->
         GradesSyncState(
@@ -36,6 +42,15 @@ class GradesSyncPrefs @Inject constructor(
             intervalHours = p[keyInterval] ?: 6,
             lastSyncAt = p[keyLastSyncAt],
             lastSeenSignature = p[keyLastSig]?.split('\n')?.filter { it.isNotBlank() }?.toSet() ?: emptySet(),
+            lastResult = p[keyResultAt]?.let { at ->
+                PollResult(
+                    at = at,
+                    ok = p[keyResultOk] ?: false,
+                    total = p[keyResultTotal] ?: 0,
+                    newCount = p[keyResultNew] ?: 0,
+                    message = p[keyResultMsg] ?: "",
+                )
+            },
         )
     }
 
@@ -47,5 +62,12 @@ class GradesSyncPrefs @Inject constructor(
     suspend fun setLastSyncAt(v: Long) = dataStore.edit { it[keyLastSyncAt] = v }
     suspend fun setLastSeenSignature(sigs: Set<String>) = dataStore.edit {
         it[keyLastSig] = sigs.joinToString("\n")
+    }
+    suspend fun setLastResult(r: PollResult) = dataStore.edit {
+        it[keyResultAt] = r.at
+        it[keyResultOk] = r.ok
+        it[keyResultTotal] = r.total
+        it[keyResultNew] = r.newCount
+        it[keyResultMsg] = r.message
     }
 }

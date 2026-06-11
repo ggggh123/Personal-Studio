@@ -2,12 +2,19 @@ package com.example.personal_studio.feature.bitexam
 
 import app.cash.turbine.test
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
+import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
+import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.domain.bitexam.SyncExamsUseCase
+import com.example.personal_studio.domain.bitexam.model.ExamSyncStep
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -35,9 +42,16 @@ class ExamsViewModelTest {
         isDone = done, location = "r", instructor = instructor, notes = notes,
         sourceType = TimelineSource.IMPORTED_EXAM, sourceExternalId = "u$id", createdAt = 1L, updatedAt = 1L,
     )
+    private fun resolveEcho(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private fun vm(dao: TimelineDao) = ExamsViewModel(
         dao = dao, sync = mockk(relaxed = true),
         credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
+        resolveNetworkMode = resolveEcho(),
         nowProvider = { now },
     )
 
@@ -100,5 +114,43 @@ class ExamsViewModelTest {
         val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
         val vm = vm(dao)
         vm.events.test { vm.onRefresh(); advanceUntilIdle(); assertEquals(ExamsEvent.NeedLogin, awaitItem()) }
+    }
+
+    @Test fun `refresh auto-fallback persists the winning mode and clears syncing`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val sync = mockk<SyncExamsUseCase> {
+            every { syncAuto(any(), any()) } answers {
+                // 模拟首选 LOCAL 不可达、回退到 WEBVPN 成功:回告生效模式。
+                secondArg<(NetworkMode) -> Unit>().invoke(NetworkMode.WEBVPN)
+                flowOf(ExamSyncStep.SwitchingMode(NetworkMode.WEBVPN), ExamSyncStep.Done(0))
+            }
+        }
+        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now })
+        val job = launch { vm.uiState.collect {} }
+        vm.onRefresh()
+        advanceUntilIdle()
+        assertEquals(false, vm.uiState.value.syncing)
+        verify { creds.save("u", "p", NetworkMode.WEBVPN) }
+        job.cancel()
+    }
+
+    @Test fun `refresh accumulates progress steps for the UI`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedExams() } returns flowOf(emptyList()) }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val sync = mockk<SyncExamsUseCase> {
+            every { syncAuto(any(), any()) } returns flowOf(
+                ExamSyncStep.LoggingIn, ExamSyncStep.FetchingExams, ExamSyncStep.Done(3),
+            )
+        }
+        val vm = ExamsViewModel(dao = dao, sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now })
+        val job = launch { vm.uiState.collect {} }
+        vm.onRefresh(); advanceUntilIdle()
+        assertEquals(listOf("登录中…", "拉取考试安排…", "完成 · 3 场考试"), vm.uiState.value.syncSteps)
+        job.cancel()
     }
 }

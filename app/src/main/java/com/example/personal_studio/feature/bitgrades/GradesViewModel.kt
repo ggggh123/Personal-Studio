@@ -10,6 +10,7 @@ import com.example.personal_studio.domain.bitgrades.AnalyzeGradesUseCase
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
 import com.example.personal_studio.domain.bitgrades.StartGradeChatUseCase
 import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitgrades.model.GradeBook
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
@@ -56,6 +57,7 @@ class GradesViewModel @Inject constructor(
     private val analysisCache: GradesAnalysisCache,
     private val syncGrades: SyncGradesUseCase,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
 ) : ViewModel() {
 
     private val _local = MutableStateFlow(GradesUiState())
@@ -177,7 +179,8 @@ class GradesViewModel @Inject constructor(
         if (syncLocal.value.syncing) return
         syncLocal.value = SyncLocalState(syncing = true)
         viewModelScope.launch {
-            val firstMode = creds.lastMode ?: NetworkMode.LOCAL
+            // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
+            val firstMode = resolveNetworkMode(creds.lastMode)
             val req = GradesSyncRequest(creds.username, creds.password, firstMode, true)
             syncGrades.syncAuto(req, onModeSucceeded = { winning ->
                 // 回退成功后把生效的网络模式记下来,下次直接走对的(只在失败时再翻)。

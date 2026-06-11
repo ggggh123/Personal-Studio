@@ -17,6 +17,7 @@ import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
 import com.example.personal_studio.domain.bitddl.model.BackgroundDdlResult
 import com.example.personal_studio.domain.bitddl.model.DdlEvent
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -33,6 +34,12 @@ class DdlPollWorkerTest {
     private fun disabled() = DdlSyncState(false, 12, null, emptySet(), null)
     private fun creds() = SavedCredentials("u", "p", NetworkMode.LOCAL)
 
+    private fun resolveLocal(): ResolveNetworkModeUseCase {
+        val m = mockk<ResolveNetworkModeUseCase>()
+        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
+        return m
+    }
+
     private fun worker(
         pollPrefs: DdlSyncPrefs,
         credPrefs: ImportCredentialPrefs,
@@ -42,11 +49,13 @@ class DdlPollWorkerTest {
         api: BitApiClient = mockk(relaxed = true),
         notifier: DdlNotifier = mockk(relaxed = true),
         scheduler: DdlPollScheduler = mockk(relaxed = true),
+        resolveNetworkMode: ResolveNetworkModeUseCase = resolveLocal(),
     ) = DdlPollWorker(
         appContext = mockk<Context>(relaxed = true),
         params = mockk<WorkerParameters>(relaxed = true),
         pollPrefs = pollPrefs, credPrefs = credPrefs, sync = sync, detector = detector,
         replacer = replacer, apiClient = api, notifier = notifier, scheduler = scheduler,
+        resolveNetworkMode = resolveNetworkMode,
     )
 
     @Test fun `disabled returns success and does not sync`() = runTest {
@@ -130,5 +139,34 @@ class DdlPollWorkerTest {
         assertEquals(ListenableWorker.Result.success(), r)
         coVerify { replacer.invoke(events, any()) }
         coVerify { notifier.notifyNewDdls(any(), listOf(newOne)) }
+    }
+
+    @Test fun `NeedReview keeps polling, does not disable, records status`() = runTest {
+        val pollPrefs = mockk<DdlSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns enabled() }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds()) }
+        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns BackgroundDdlResult.Stop(DdlSyncError.NeedReview) }
+        val scheduler = mockk<DdlPollScheduler>(relaxed = true)
+        val notifier = mockk<DdlNotifier>(relaxed = true)
+        val r = worker(pollPrefs, credPrefs, sync, notifier = notifier, scheduler = scheduler).doWork()
+        assertEquals(ListenableWorker.Result.success(), r)
+        coVerify(exactly = 0) { pollPrefs.setEnabled(false) }
+        coVerify(exactly = 0) { scheduler.cancel() }
+        coVerify { pollPrefs.setLastResult(any()) }
+    }
+
+    @Test fun `transient on first mode falls back and remembers winning mode`() = runTest {
+        val pollPrefs = mockk<DdlSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns enabled() }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds()) }
+        val events = listOf(ev("a"))
+        val sync = mockk<SyncAssignmentsUseCase> {
+            coEvery { syncForBackground(match { it.networkMode == NetworkMode.LOCAL }) } returns BackgroundDdlResult.Transient
+            coEvery { syncForBackground(match { it.networkMode == NetworkMode.WEBVPN }) } returns BackgroundDdlResult.Ok(events)
+        }
+        val detector = mockk<DetectNewDdlUseCase>()
+        coEvery { detector.invoke(any()) } returns DdlDiffResult(emptyList(), setOf("a"), isFirstRun = false)
+        val replacer = mockk<ReplaceImportedDdlUseCase>(relaxed = true)
+        val r = worker(pollPrefs, credPrefs, sync, detector, replacer).doWork()
+        assertEquals(ListenableWorker.Result.success(), r)
+        coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
     }
 }

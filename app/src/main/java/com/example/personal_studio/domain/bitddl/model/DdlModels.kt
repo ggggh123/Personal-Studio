@@ -22,6 +22,8 @@ sealed interface DdlSyncStep {
     object FetchingCalendar : DdlSyncStep
     data class Done(val total: Int, val newCount: Int) : DdlSyncStep
     data class Failed(val error: DdlSyncError) : DdlSyncStep
+    /** Auto 回退:首选网络不可达,正改用 [to] 重试。 */
+    data class SwitchingMode(val to: NetworkMode) : DdlSyncStep
 }
 
 sealed interface DdlSyncError {

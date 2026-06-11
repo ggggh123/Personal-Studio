@@ -7,11 +7,15 @@ import androidx.work.WorkerParameters
 import com.example.personal_studio.core.notification.GradesNotifier
 import com.example.personal_studio.data.local.datastore.GradesSyncPrefs
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
+import com.example.personal_studio.data.local.datastore.PollResult
+import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.local.db.dao.GradesDao
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.otherMode
 import com.example.personal_studio.domain.bitgrades.DetectNewGradesUseCase
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitgrades.JsxsdDetailParser
 import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
 import com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult
@@ -54,6 +58,7 @@ class GradePollWorker @AssistedInject constructor(
     private val gradesDao: GradesDao,
     private val notifier: GradesNotifier,
     private val scheduler: GradesPollScheduler,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -61,47 +66,83 @@ class GradePollWorker @AssistedInject constructor(
         val creds = credPrefs.observeAll().value ?: run {
             pollPrefs.setEnabled(false); return Result.success()
         }
+        // 校内优先 + 校外回退:先试解析出的 mode,连接级失败(Transient)换另一个;成功记住生效 mode。
+        val first = resolveNetworkMode(creds.lastMode)
+        var result: BackgroundSyncResult = BackgroundSyncResult.Transient
+        var usedMode = first
         return try {
-            apiClient.open(NetworkMode.LOCAL)
-            val result = sync.syncForBackground(
-                GradesSyncRequest(
-                    username = creds.username,
-                    password = creds.password,
-                    networkMode = NetworkMode.LOCAL,
-                    rememberPwd = true,
-                ),
-            )
-            handle(result)
-        } catch (e: Throwable) {
-            Result.retry()
+            for (mode in listOf(first, otherMode(first))) {
+                apiClient.open(mode)
+                result = try {
+                    sync.syncForBackground(GradesSyncRequest(creds.username, creds.password, mode, true))
+                } catch (e: Throwable) {
+                    // 登录阶段 IOException 不被 syncForBackground 内部 try 捕获,在此归为 Transient。
+                    BackgroundSyncResult.Transient
+                }
+                usedMode = mode
+                if (result !is BackgroundSyncResult.Transient) break  // 非连接级 → 停(会话留给 handle 增量拉详情)
+                apiClient.close()                                     // 该 mode 连接级失败,关掉再试下一个
+            }
+            handle(result, creds, usedMode)
         } finally {
             apiClient.close()
         }
     }
 
-    private suspend fun handle(result: BackgroundSyncResult): Result = when (result) {
-        is BackgroundSyncResult.Stop -> {
-            if (result.reason is GradesSyncError.WrongCredentials
-                || result.reason is GradesSyncError.AccountLocked) {
-                credPrefs.clear()
+    private suspend fun handle(result: BackgroundSyncResult, creds: SavedCredentials, mode: NetworkMode): Result {
+        val now = System.currentTimeMillis()
+        return when (result) {
+            is BackgroundSyncResult.Stop -> {
+                when (val reason = result.reason) {
+                    GradesSyncError.WrongCredentials, GradesSyncError.AccountLocked -> {
+                        credPrefs.clear(); pollPrefs.setEnabled(false); scheduler.cancel()
+                        notifier.notifyStop(appContext, reason)
+                        pollPrefs.setLastResult(PollResult(now, false, 0, 0, reasonText(reason)))
+                    }
+                    GradesSyncError.NeedReview -> {
+                        // 评教未完成是临时状态(评完即出分)→ 不停轮、不通知,只记状态。
+                        pollPrefs.setLastResult(PollResult(now, false, 0, 0, "需先在教务完成评教"))
+                    }
+                    else -> {  // Captcha / ParseFail / 其他 → 停轮 + 通知(需手动处理)
+                        pollPrefs.setEnabled(false); scheduler.cancel()
+                        notifier.notifyStop(appContext, reason)
+                        pollPrefs.setLastResult(PollResult(now, false, 0, 0, reasonText(reason)))
+                    }
+                }
+                Result.success()
             }
-            pollPrefs.setEnabled(false)
-            scheduler.cancel()
-            notifier.notifyStop(appContext, result.reason)
-            Result.success()
-        }
-        is BackgroundSyncResult.Transient -> Result.retry()
-        is BackgroundSyncResult.Ok -> {
-            val diff = detector.invoke(result.entries)
-            if (!diff.isFirstRun && diff.newEntries.isNotEmpty()) {
-                val enriched = enrichDetails(diff.newEntries)
-                gradesDao.upsertAll(enriched)
-                notifier.notifyNewGrades(appContext, enriched)
+            is BackgroundSyncResult.Transient -> {
+                pollPrefs.setLastResult(PollResult(now, false, 0, 0, "网络不可达,稍后自动重试"))
+                Result.retry()
             }
-            pollPrefs.setLastSeenSignature(diff.fullSignature)
-            pollPrefs.setLastSyncAt(System.currentTimeMillis())
-            Result.success()
+            is BackgroundSyncResult.Ok -> {
+                val diff = detector.invoke(result.entries)
+                val newCount = if (diff.isFirstRun) 0 else diff.newEntries.size
+                if (!diff.isFirstRun && diff.newEntries.isNotEmpty()) {
+                    val enriched = enrichDetails(diff.newEntries)
+                    gradesDao.upsertAll(enriched)
+                    notifier.notifyNewGrades(appContext, enriched)
+                }
+                pollPrefs.setLastSeenSignature(diff.fullSignature)
+                pollPrefs.setLastSyncAt(now)
+                if (mode != creds.lastMode) credPrefs.save(creds.username, creds.password, mode)
+                pollPrefs.setLastResult(
+                    PollResult(now, true, result.entries.size, newCount, if (diff.isFirstRun) "已建立基线" else ""),
+                )
+                Result.success()
+            }
         }
+    }
+
+    private fun reasonText(e: GradesSyncError): String = when (e) {
+        GradesSyncError.WrongCredentials -> "密码错误,已停轮"
+        GradesSyncError.AccountLocked -> "账号锁定,已停轮"
+        GradesSyncError.CaptchaRequired -> "需验证码,已停轮"
+        GradesSyncError.NeedReview -> "需先完成评教"
+        GradesSyncError.EmptyGrades -> "未查到成绩"
+        is GradesSyncError.ParseFail -> "教务返回异常,已停轮"
+        is GradesSyncError.NetworkFail -> "网络不可达"
+        is GradesSyncError.Unexpected -> "未知错误,已停轮"
     }
 
     /** 仅对本次新增的条目并发拉 cjfx 详情(智能增量)。失败保留原条目不阻断。 */

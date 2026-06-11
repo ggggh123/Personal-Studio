@@ -76,6 +76,7 @@ fun AssignmentsScreen(
                     Text(if (st.syncing) "同步中…" else "↻ 刷新", color = if (st.syncing) FoamDim else Phosphor)
                 }
             }
+            st.syncSteps.forEach { Text("> $it", color = Phosphor, style = MaterialTheme.typography.labelMedium) }
             st.error?.let { Text("⚠ $it", color = Amber, style = MaterialTheme.typography.labelMedium) }
             Spacer(Modifier.height(10.dp))
 

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
 import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.network.bit.withSessionAutoFallback
+import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.emptyroom.EmptyRoomRepository
 import com.example.personal_studio.domain.emptyroom.EmptyRoomResult
 import com.example.personal_studio.domain.emptyroom.model.Building
@@ -48,6 +50,7 @@ sealed interface EmptyRoomEvent { object NeedLogin : EmptyRoomEvent }
 class EmptyRoomViewModel @Inject constructor(
     private val repo: EmptyRoomRepository,
     private val credPrefs: ImportCredentialPrefs,
+    private val resolveNetworkMode: ResolveNetworkModeUseCase,
     private val nowProvider: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -73,12 +76,8 @@ class EmptyRoomViewModel @Inject constructor(
         val creds = credPrefs.observeAll().value ?: return
         viewModelScope.launch {
             sessionMutex.withLock {
-                try {
-                    ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL) ?: return@withLock
+                runSession(creds, onNetworkError = { /* 进屏自动拉,失败静默,等用户操作再提示 */ }) {
                     _ui.update { it.copy(campuses = repo.campuses()) }
-                } catch (_: Throwable) {
-                } finally {
-                    repo.close()
                 }
             }
         }
@@ -124,9 +123,7 @@ class EmptyRoomViewModel @Inject constructor(
         viewModelScope.launch {
             sessionMutex.withLock {
                 _ui.update { it.copy(loading = true, error = null) }
-                try {
-                    val term = ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL)
-                        ?: return@withLock
+                runSession(creds, onNetworkError = { _ui.update { it.copy(loading = false, error = "网络错误,请重试") } }) { term ->
                     val st = _ui.value
                     val targets = if (st.selectedBuildingCodes.isEmpty()) st.buildings
                         else st.buildings.filter { it.code in st.selectedBuildingCodes }
@@ -135,10 +132,6 @@ class EmptyRoomViewModel @Inject constructor(
                     val req = st.requiredFreePeriods
                     val filtered = if (req.isEmpty()) raw else raw.filter { room -> req.none { it in room.busyPeriods } }
                     _ui.update { it.copy(loading = false, rooms = sortRooms(filtered), queried = true) }
-                } catch (e: Throwable) {
-                    _ui.update { it.copy(loading = false, error = "网络错误,请重试") }
-                } finally {
-                    repo.close()
                 }
             }
         }
@@ -153,8 +146,7 @@ class EmptyRoomViewModel @Inject constructor(
         }
         viewModelScope.launch {
             sessionMutex.withLock {
-                try {
-                    ensureSession(creds.username, creds.password, creds.lastMode ?: NetworkMode.LOCAL) ?: return@withLock
+                runSession(creds, onNetworkError = { /* 切校区拉楼,失败静默 */ }) {
                     val merged = selected.flatMap { repo.buildings(it.code) }.distinctBy { it.code }
                     _ui.update { st ->
                         st.copy(
@@ -163,9 +155,6 @@ class EmptyRoomViewModel @Inject constructor(
                             selectedBuildingCodes = st.selectedBuildingCodes.filter { code -> merged.any { it.code == code } }.toSet(),
                         )
                     }
-                } catch (_: Throwable) {
-                } finally {
-                    repo.close()
                 }
             }
         }
@@ -201,17 +190,45 @@ class EmptyRoomViewModel @Inject constructor(
                 .thenBy { it.roomName },
         )
 
-    private suspend fun ensureSession(u: String, p: String, mode: NetworkMode): String? {
-        return when (val r = repo.openAndLogin(u, p, mode)) {
-            is EmptyRoomResult.Ok -> r.value
-            is EmptyRoomResult.Err -> {
-                if (r.error is EmptyRoomError.NeedLogin || r.error is EmptyRoomError.WrongCredentials) {
-                    _events.emit(EmptyRoomEvent.NeedLogin)
+    /** 在 withLock 调用方内跑一段会话:open→login→[block]。连接级失败(IOException)自动换 mode 重试
+     *  一次并回写生效 mode;登录类失败 → [handleLoginErr](不重试);两 mode 都连接级失败 → [onNetworkError]。
+     *  每次 attempt 自带 open/close(共享单例会话,故回退重试必须在同一 withLock 内,见调用点)。 */
+    private suspend fun runSession(
+        creds: SavedCredentials,
+        onNetworkError: () -> Unit,
+        block: suspend (term: String) -> Unit,
+    ) {
+        // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
+        val firstMode = resolveNetworkMode(creds.lastMode)
+        var loginErr: EmptyRoomError? = null
+        try {
+            withSessionAutoFallback(
+                first = firstMode,
+                onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
+            ) { mode ->
+                try {
+                    when (val r = repo.openAndLogin(creds.username, creds.password, mode)) {
+                        is EmptyRoomResult.Ok -> block(r.value)
+                        is EmptyRoomResult.Err -> loginErr = r.error
+                    }
+                } finally {
+                    repo.close()
                 }
-                _ui.update { it.copy(loading = false, error = errMsg(r.error)) }
-                null
             }
+        } catch (e: Throwable) {
+            // 连接级失败两 mode 都失败,或非连接级异常(withSessionAutoFallback 对非 IOException 不重试,
+            // 直接抛出)——统一当"网络/未知错误"处理(与重构前 catch(Throwable) 行为一致)。
+            onNetworkError()
+            return
         }
+        loginErr?.let { handleLoginErr(it) }
+    }
+
+    private suspend fun handleLoginErr(error: EmptyRoomError) {
+        if (error is EmptyRoomError.NeedLogin || error is EmptyRoomError.WrongCredentials) {
+            _events.emit(EmptyRoomEvent.NeedLogin)
+        }
+        _ui.update { it.copy(loading = false, error = errMsg(error)) }
     }
 
     private fun errMsg(e: EmptyRoomError): String = when (e) {
