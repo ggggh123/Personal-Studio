@@ -21,5 +21,8 @@ class JsxsdDetailParserTest {
         assertEquals(1178, d.courseStudyCount)
         assertEquals("67%", d.classRankText)
         assertEquals("63%", d.majorRankText)
+        assertEquals(18, d.classSize)
+        assertEquals(32, d.majorSize)
+        assertEquals("46%", d.schoolRankText)
     }
 }
