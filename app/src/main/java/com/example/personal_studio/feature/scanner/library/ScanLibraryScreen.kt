@@ -38,7 +38,6 @@ import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalInputDialog
 import com.example.personal_studio.ui.placeholder.ScannerPlaceholder
-import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
@@ -179,9 +178,6 @@ private fun DocRow(
             Text(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = FoamDim)) { append("drwx── ") }
-                    if (doc.isPending) {
-                        withStyle(SpanStyle(color = Amber)) { append("[未完成] ") }
-                    }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,

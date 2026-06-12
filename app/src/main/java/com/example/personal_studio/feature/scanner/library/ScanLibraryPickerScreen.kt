@@ -39,7 +39,6 @@ import com.example.personal_studio.domain.model.ScanPage
 import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalTopBar
-import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
@@ -143,9 +142,6 @@ private fun PickerDocRow(doc: ScanDocumentSummary, onClick: () -> Unit) {
             Text(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = FoamDim)) { append("drwx── ") }
-                    if (doc.isPending) {
-                        withStyle(SpanStyle(color = Amber)) { append("[未完成] ") }
-                    }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,

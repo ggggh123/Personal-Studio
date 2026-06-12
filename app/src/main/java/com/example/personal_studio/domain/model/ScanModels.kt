@@ -11,9 +11,7 @@ data class ScanDocument(
     val updatedAt: Long,
     val pageCount: Int,
     val coverPageId: Long?,
-) {
-    val isPending: Boolean get() = coverPageId == null
-}
+)
 
 data class ScanPage(
     val id: Long,
@@ -35,6 +33,4 @@ data class ScanDocumentSummary(
     val pageCount: Int,
     val coverPageId: Long?,
     val coverPath: String?,
-) {
-    val isPending: Boolean get() = coverPageId == null
-}
+)
