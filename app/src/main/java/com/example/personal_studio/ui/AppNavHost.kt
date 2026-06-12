@@ -17,7 +17,6 @@ import com.example.personal_studio.feature.bitimport.ImportEntryRoute
 import com.example.personal_studio.feature.chat.ui.ChatDetailScreen
 import com.example.personal_studio.feature.chat.ui.ChatListScreen
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
-import com.example.personal_studio.feature.scanner.doc.DocumentBuilderScreen
 import com.example.personal_studio.feature.scanner.doc.PageEditScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
@@ -55,11 +54,8 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
 
         composable(NavRoutes.SCANNER) {
             ScanLibraryScreen(
-                onNewDoc = { navController.navigate(NavRoutes.scannerNewDoc()) },
+                onNewDoc = { navController.navigate(NavRoutes.scannerDetail(0L)) },
                 onOpenDoc = { docId -> navController.navigate(NavRoutes.scannerDetail(docId)) },
-                onResumeDoc = { docId ->
-                    navController.navigate(NavRoutes.scannerNewDoc(docId))
-                },
             )
         }
         composable(
@@ -83,19 +79,6 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 pageId = pageId,
                 onBack = { navController.popBackStack() },
                 onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
-            )
-        }
-        composable(
-            route = NavRoutes.SCANNER_NEW_DOC,
-            arguments = listOf(
-                navArgument("resumeDocId") { type = NavType.StringType; defaultValue = "" },
-            ),
-        ) { backStack ->
-            val raw = backStack.arguments?.getString("resumeDocId").orEmpty()
-            val resumeId = raw.toLongOrNull()
-            DocumentBuilderScreen(
-                resumeDocId = resumeId,
-                onExit = { navController.popBackStack() },
             )
         }
         composable(NavRoutes.KNOWLEDGE) {

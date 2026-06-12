@@ -56,7 +56,6 @@ import java.util.Locale
 @Composable
 fun ScanLibraryScreen(
     onOpenDoc: (docId: Long) -> Unit,
-    onResumeDoc: (docId: Long) -> Unit,
     onNewDoc: () -> Unit,
 ) {
     val vm: ScanLibraryViewModel = hiltViewModel()
@@ -113,8 +112,6 @@ fun ScanLibraryScreen(
         DocActionsDialog(
             doc = doc,
             onDismiss = { actionTarget = null },
-            onResume = { actionTarget = null; onResumeDoc(doc.id) },
-            onDiscard = { actionTarget = null; vm.onDelete(doc.id) },
             onRename = { actionTarget = null; renameTarget = doc },
             onDelete = { actionTarget = null; deleteTarget = doc },
         )
@@ -202,20 +199,12 @@ private fun DocRow(
 private fun DocActionsDialog(
     doc: ScanDocumentSummary,
     onDismiss: () -> Unit,
-    onResume: () -> Unit,
-    onDiscard: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val header = if (doc.isPending) "「${doc.title}」· 未完成" else "「${doc.title}」"
-    TerminalBottomSheet(onDismiss = onDismiss, header = header) {
-        if (doc.isPending) {
-            ActionLine("▸ 恢复", Phosphor, onResume)
-            ActionLine("▸ 丢弃", Amber, onDiscard)
-        } else {
-            ActionLine("▸ 重命名", Foam, onRename)
-            ActionLine("▸ 删除", Carmine, onDelete)
-        }
+    TerminalBottomSheet(onDismiss = onDismiss, header = "「${doc.title}」") {
+        ActionLine("▸ 重命名", Foam, onRename)
+        ActionLine("▸ 删除", Carmine, onDelete)
     }
 }
 
