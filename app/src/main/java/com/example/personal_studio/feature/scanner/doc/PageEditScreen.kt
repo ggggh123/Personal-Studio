@@ -39,13 +39,11 @@ import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.scanner.scanFilterLabel
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
 import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
@@ -86,7 +84,6 @@ fun PageEditScreen(
     val context = LocalContext.current
     val tmpDir = remember { File(context.filesDir, "scans/tmp").apply { mkdirs() } }
     var step by remember { mutableStateOf<EditStep>(EditStep.Review) }
-    var showDelete by remember { mutableStateOf(false) }
 
     // KB archive flow — same pattern as ChatDetailScreen (Task 21).
     val saveVm: SaveToKnowledgeViewModel = hiltViewModel()
@@ -106,7 +103,6 @@ fun PageEditScreen(
             },
             onCancel = onBack,
             onRetake = { step = EditStep.Capturing(System.identityHashCode(step)) },
-            onDelete = { showDelete = true },
             onArchive = {
                 // Only archive once the page has loaded; docId + pageId both
                 // come off the loaded ScanPage so SourceContextLoader has a
@@ -142,17 +138,6 @@ fun PageEditScreen(
         )
     }
 
-    if (showDelete) {
-        DeletePageDialog(
-            onDismiss = { showDelete = false },
-            onConfirm = {
-                showDelete = false
-                vm.deletePage()
-                onBack()
-            },
-        )
-    }
-
     SavePreviewModal(
         state = saveState,
         onCancel = { saveVm.reset() },
@@ -175,7 +160,6 @@ private fun ReviewView(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     onRetake: () -> Unit,
-    onDelete: () -> Unit,
     onArchive: () -> Unit,
 ) {
     val zoom = rememberZoomableBoxState()
@@ -209,12 +193,6 @@ private fun ReviewView(
                         color = Phosphor,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable(onClick = onArchive),
-                    )
-                    Text(
-                        "[x 删除此页]",
-                        color = Carmine,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.clickable(onClick = onDelete),
                     )
                 }
             },
@@ -272,18 +250,4 @@ private fun ReviewView(
             )
         }
     }
-}
-
-@Composable
-private fun DeletePageDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    TerminalConfirmDialog(
-        title = "删除此页",
-        message = "图片文件将被移除，此操作不可撤销。",
-        confirmLabel = "删除",
-        onConfirm = onConfirm,
-        onDismiss = onDismiss,
-    )
 }
