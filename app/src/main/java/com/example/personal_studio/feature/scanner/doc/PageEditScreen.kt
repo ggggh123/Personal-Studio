@@ -192,7 +192,7 @@ private fun ReviewView(
         // filter chips + primary [cancel]/[confirm] pair.
         TerminalTopBar(
             route = "scans/edit",
-            subtitle = state.page?.let { "# 第 ${it.id} 页" },
+            subtitle = state.page?.let { "# 第 ${it.ordinal + 1} 页" },
             trailing = {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),

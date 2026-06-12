@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,7 +87,17 @@ fun ScanDocumentDetailScreen(
     val context = LocalContext.current
     val tmpDir = remember { File(context.filesDir, "scans/tmp").apply { mkdirs() } }
     val isNew = docId <= 0L
-    var step by remember { mutableStateOf<EditorStep>(if (isNew) EditorStep.Capturing(0) else EditorStep.Viewing) }
+    var step by remember { mutableStateOf<EditorStep>(EditorStep.Viewing) }
+    // 仅"新建文档"首次进入自动开相机拍第一页。用 rememberSaveable 记住已自动开过——否则
+    // 从单页编辑(PageEdit)返回时,editor 的 remember(step) 被销毁重建会再次落到 Capturing
+    // 误开相机;导航返回应回到 Viewing(网格)。
+    var autoCaptureStarted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (isNew && !autoCaptureStarted) {
+            autoCaptureStarted = true
+            step = EditorStep.Capturing(0)
+        }
+    }
 
     val exit = {
         vm.onExit()
