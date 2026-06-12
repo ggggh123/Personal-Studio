@@ -1,6 +1,8 @@
 package com.example.personal_studio.feature.scanner.library
 
 import android.content.Intent
+import android.graphics.PointF
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -39,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanPage
+import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
+import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
+import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalTopBar
@@ -50,18 +55,22 @@ import com.example.personal_studio.ui.theme.Rule
 import com.example.personal_studio.ui.theme.Void
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** 编辑器内拍照子流程状态机(同构建器,无嵌套 NavHost)。 */
+private sealed interface EditorStep {
+    object Viewing : EditorStep
+    data class Capturing(val nonce: Int) : EditorStep
+    data class EdgeDetect(val tmp: String, val autoDetect: Boolean, val liveNorm: List<PointF>?) : EditorStep
+    data class Enhance(val tmp: String, val corners: List<PointF>) : EditorStep
+}
+
 /**
- * Detail view of a scan document. Shows a 2-col grid of page thumbnails
- * with drag-reorder and an export action.
- *
- * Rename and delete-doc are intentionally NOT surfaced here — the library
- * row's long-press already owns those ops (via DocActionsDialog). Keeping
- * them out avoids duplicate entry points and leaves room for additional
- * page-level actions later.
+ * 统一文档编辑器:任何文档点进来都能加/删/重排/改页 + 导出。docId<=0 = 新建,
+ * 进来直接开相机拍第一页;若没拍就退出,自动丢弃空文档。返回只退出,绝不删已有文档。
  */
 @Composable
 fun ScanDocumentDetailScreen(
@@ -75,10 +84,22 @@ fun ScanDocumentDetailScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val shareUri by vm.pendingShareUri.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val tmpDir = remember { File(context.filesDir, "scans/tmp").apply { mkdirs() } }
+    val isNew = docId <= 0L
+    var step by remember { mutableStateOf<EditorStep>(if (isNew) EditorStep.Capturing(0) else EditorStep.Viewing) }
 
-    // When the VM emits a share URI, fire the system ACTION_SEND chooser
-    // and immediately clear the URI so the effect doesn't re-fire on
-    // recomposition / config change.
+    val exit = {
+        vm.onExit()
+        onBack()
+    }
+
+    // 系统返回:Viewing→退出(带空文档清理);拍照子流程中→新建且没拍则退出丢弃,否则回 Viewing。
+    BackHandler {
+        if (step == EditorStep.Viewing) exit()
+        else if (isNew && state.pages.isEmpty()) exit()
+        else step = EditorStep.Viewing
+    }
+
     LaunchedEffect(shareUri) {
         shareUri?.let { uri ->
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -91,10 +112,56 @@ fun ScanDocumentDetailScreen(
         }
     }
 
-    val title = state.doc?.title ?: "…"
-    val createdAt = state.doc?.createdAt
-    val pageCount = state.pages.size
+    when (val s = step) {
+        EditorStep.Viewing -> EditorView(
+            title = state.doc?.title ?: "…",
+            createdAt = state.doc?.createdAt,
+            pages = state.pages,
+            isExporting = state.isExporting,
+            onAddPage = { step = EditorStep.Capturing(state.pages.size) },
+            onTapPage = onOpenPage,
+            onReorder = { ids -> vm.reorderPages(ids) },
+            onExport = { vm.exportPdf() },
+            onBack = exit,
+        )
+        is EditorStep.Capturing -> CameraCaptureScreen(
+            outputDir = tmpDir,
+            onCaptured = { file, auto, liveNorm ->
+                step = EditorStep.EdgeDetect(file.absolutePath, auto, liveNorm)
+            },
+            onCancel = { if (isNew && state.pages.isEmpty()) exit() else step = EditorStep.Viewing },
+        )
+        is EditorStep.EdgeDetect -> EdgeDetectAndCropScreen(
+            capturedFilePath = s.tmp,
+            autoDetect = s.autoDetect,
+            preDetectedNormalized = s.liveNorm,
+            onConfirm = { corners -> step = EditorStep.Enhance(s.tmp, corners) },
+            onRetake = { step = EditorStep.Capturing(s.tmp.hashCode()) },
+        )
+        is EditorStep.Enhance -> EnhanceReviewScreen(
+            capturedFilePath = s.tmp,
+            cornersBitmapPx = s.corners,
+            onConfirm = { filter, _ ->
+                vm.confirmPage(File(s.tmp), s.corners, filter)
+                step = EditorStep.Viewing
+            },
+            onCancel = { step = EditorStep.Capturing(s.tmp.hashCode()) },
+        )
+    }
+}
 
+@Composable
+private fun EditorView(
+    title: String,
+    createdAt: Long?,
+    pages: List<ScanPage>,
+    isExporting: Boolean,
+    onAddPage: () -> Unit,
+    onTapPage: (pageId: Long) -> Unit,
+    onReorder: (orderedIds: List<Long>) -> Unit,
+    onExport: () -> Unit,
+    onBack: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -103,7 +170,7 @@ fun ScanDocumentDetailScreen(
     ) {
         TerminalTopBar(
             route = "scans/$title",
-            subtitle = "# 会话: $title\n# $pageCount 页" +
+            subtitle = "# 会话: $title\n# ${pages.size} 页" +
                 (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
             trailing = {
                 Text(
@@ -114,31 +181,67 @@ fun ScanDocumentDetailScreen(
                 )
             },
         )
-
         ReorderablePageGrid(
-            pages = state.pages,
-            onTapPage = onOpenPage,
-            onReorder = { orderedIds -> vm.reorderPages(orderedIds) },
+            pages = pages,
+            onTapPage = onTapPage,
+            onReorder = onReorder,
             modifier = Modifier.weight(1f),
         )
+        EditorActionBar(
+            canExport = pages.isNotEmpty() && !isExporting,
+            isExporting = isExporting,
+            onAddPage = onAddPage,
+            onExport = onExport,
+        )
+    }
+}
 
-        ReadActionBar(
-            canExport = pageCount > 0 && !state.isExporting,
-            isExporting = state.isExporting,
-            onExport = { vm.exportPdf() },
+@Composable
+private fun EditorActionBar(
+    canExport: Boolean,
+    isExporting: Boolean,
+    onAddPage: () -> Unit,
+    onExport: () -> Unit,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Rule),
+    )
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "[+ 添加页面]",
+            color = Phosphor,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.clickable(onClick = onAddPage),
+        )
+        val label = if (isExporting) "[... 导出 PDF 中]" else "[📄 导出 PDF]"
+        val color = when {
+            isExporting -> Amber
+            canExport -> Phosphor
+            else -> FoamDim
+        }
+        Text(
+            label,
+            color = color,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.clickable(enabled = canExport, onClick = onExport),
         )
     }
 }
 
 /**
  * 2-col grid where each cell supports long-press drag reorder.
- *
- * [orderedPages] is the drag-time truth — we mutate it optimistically in
- * onMove so siblings animate instantly, and commit to the repository
- * once on drag release. We re-sync from [pages] only when the id-set
- * changes (page added/removed) or when the underlying page objects
- * change (filter/path edit) while our draft order still matches repo —
- * that preserves an in-progress drag against transient re-emits.
+ * orderedPages 是拖动期的真值:onMove 乐观改、松手提交一次。仅在 id 集变化(增删页)
+ * 或底层页对象变化(滤镜/路径)且草稿顺序仍与 repo 一致时,才从 pages 重新同步——
+ * 以保住进行中的拖动不被瞬时重发打断。
  */
 @Composable
 private fun ReorderablePageGrid(
@@ -152,10 +255,8 @@ private fun ReorderablePageGrid(
         val repoIds = pages.map { it.id }
         val localIds = orderedPages.map { it.id }
         when {
-            repoIds.toSet() != localIds.toSet() -> orderedPages = pages  // add/remove
-            repoIds == localIds -> orderedPages = pages                  // object refresh
-            // else: repo order differs from our optimistic order (mid-drag);
-            // keep the optimistic one until commit round-trip finishes.
+            repoIds.toSet() != localIds.toSet() -> orderedPages = pages
+            repoIds == localIds -> orderedPages = pages
         }
     }
 
@@ -218,40 +319,6 @@ private fun ReorderablePageGrid(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ReadActionBar(
-    canExport: Boolean,
-    isExporting: Boolean,
-    onExport: () -> Unit,
-) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(Rule),
-    )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val label = if (isExporting) "[... 导出 PDF 中]" else "[📄 导出 PDF]"
-        val color = when {
-            isExporting -> Amber
-            canExport -> Phosphor
-            else -> FoamDim
-        }
-        Text(
-            label,
-            color = color,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.clickable(enabled = canExport, onClick = onExport),
-        )
     }
 }
 
