@@ -33,14 +33,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.SortMode
+import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalInputDialog
-import com.example.personal_studio.ui.placeholder.ScannerPlaceholder
 import com.example.personal_studio.ui.theme.Carmine
+import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Rule
 import com.example.personal_studio.ui.theme.Void
@@ -49,7 +51,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * /scans tab。可排序的扫描文档列表 + `[+ 新建扫描]`;空时回退 ScannerPlaceholder。
+ * /scans tab。可排序的扫描文档列表 + `[+ 新建扫描]`;空时显示与 chat 列表一致的空态。
  * 长按行弹终端动作菜单:未完成件 恢复/丢弃;完成件 重命名/删除。行内渲染首页封面缩略图。
  */
 @Composable
@@ -79,10 +81,10 @@ fun ScanLibraryScreen(
                 modifier = Modifier.clickable(onClick = onNewDoc),
             )
         }
-        SortToolbar(current = state.sort, onSelect = vm::setSort)
         if (state.docs.isEmpty()) {
-            ScannerPlaceholder()
+            ScanEmptyState(onNewDoc = onNewDoc)
         } else {
+            SortToolbar(current = state.sort, onSelect = vm::setSort)
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -131,6 +133,28 @@ fun ScanLibraryScreen(
             onConfirm = { deleteTarget = null; vm.onDelete(doc.id) },
             onDismiss = { deleteTarget = null },
         )
+    }
+}
+
+/** 空态:对齐 chat 列表的空态样式(`# 暂无…` + `▓ 点 [新建] 开始第一个…` + 闪烁光标)。 */
+@Composable
+private fun ScanEmptyState(onNewDoc: () -> Unit) {
+    Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
+        Text("# 暂无文档", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Spacer(Modifier.height(20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
+                    withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
+                    withStyle(SpanStyle(color = Cyan)) { append("[新建扫描]") }
+                    withStyle(SpanStyle(color = FoamDim)) { append(" 开始第一个扫描") }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clickable(onClick = onNewDoc),
+            )
+            BlinkingCursor()
+        }
     }
 }
 
