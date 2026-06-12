@@ -9,7 +9,6 @@ import com.example.personal_studio.domain.model.ScanFilter
 import com.example.personal_studio.domain.scanner.AddPageToDocumentUseCase
 import com.example.personal_studio.domain.scanner.CaptureAndEnhancePageUseCase
 import com.example.personal_studio.domain.scanner.CreateScanDocumentUseCase
-import com.example.personal_studio.domain.scanner.FinalizeScanDocumentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,7 +44,6 @@ class QuickCaptureForChatViewModel @Inject constructor(
     private val captureAndEnhance: CaptureAndEnhancePageUseCase,
     private val createDoc: CreateScanDocumentUseCase,
     private val addPage: AddPageToDocumentUseCase,
-    private val finalizeDoc: FinalizeScanDocumentUseCase,
 ) : ViewModel() {
 
     private val _pickedPath = MutableStateFlow<String?>(null)
@@ -80,7 +78,6 @@ class QuickCaptureForChatViewModel @Inject constructor(
                 result.filter,
                 result.cornersJson,
             )
-            finalizeDoc(docId)
         }
 
         val chatDir = File(context.filesDir, "chat-attachments").apply { mkdirs() }
