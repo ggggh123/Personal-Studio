@@ -45,6 +45,9 @@ data class CourseSeriesSummary(
     val occurrenceCount: Int,
     val minWeek: Int,
     val maxWeek: Int,
+    val weekdays: List<Int> = emptyList(),
+    val periodStart: Int? = null,
+    val periodEnd: Int? = null,
 )
 
 /** Pre-save form payload for a course series (used by AddCourseScreen). */
