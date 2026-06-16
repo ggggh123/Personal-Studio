@@ -12,19 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,7 +28,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -49,6 +42,11 @@ import com.example.personal_studio.feature.knowledge.ui.components.RelatedEntrie
 import com.example.personal_studio.feature.knowledge.ui.components.SummaryMarkdownEditor
 import com.example.personal_studio.feature.knowledge.vm.KbEntryDetailUiState
 import com.example.personal_studio.feature.knowledge.vm.KbEntryDetailViewModel
+import com.example.personal_studio.ui.components.BlinkingCursor
+import com.example.personal_studio.ui.components.TerminalConfirmDialog
+import com.example.personal_studio.ui.components.TerminalDropdownItem
+import com.example.personal_studio.ui.components.TerminalDropdownMenu
+import com.example.personal_studio.ui.components.TerminalInputDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Cyan
@@ -81,7 +79,6 @@ fun KbEntryDetailScreen(
     var showCategorySheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showRegenerateConfirm by remember { mutableStateOf(false) }
-    var renameDraft by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -105,30 +102,14 @@ fun KbEntryDetailScreen(
                             IconButton(onClick = { menuExpanded = true }) {
                                 Icon(Icons.Filled.MoreVert, contentDescription = "menu", tint = Foam)
                             }
-                            DropdownMenu(
+                            TerminalDropdownMenu(
                                 expanded = menuExpanded,
                                 onDismissRequest = { menuExpanded = false },
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text("rename") },
-                                    onClick = {
-                                        renameDraft = (state as? KbEntryDetailUiState.Loaded)?.entry?.title.orEmpty()
-                                        showRename = true
-                                        menuExpanded = false
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("change category") },
-                                    onClick = { showCategorySheet = true; menuExpanded = false },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("regenerate") },
-                                    onClick = { showRegenerateConfirm = true; menuExpanded = false },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("delete", color = Carmine) },
-                                    onClick = { showDeleteConfirm = true; menuExpanded = false },
-                                )
+                                TerminalDropdownItem("重命名") { showRename = true; menuExpanded = false }
+                                TerminalDropdownItem("改分类") { showCategorySheet = true; menuExpanded = false }
+                                TerminalDropdownItem("重新生成") { showRegenerateConfirm = true; menuExpanded = false }
+                                TerminalDropdownItem("删除", Carmine) { showDeleteConfirm = true; menuExpanded = false }
                             }
                         }
                         IconButton(onClick = onBack) {
@@ -138,35 +119,20 @@ fun KbEntryDetailScreen(
                 },
             )
             when (val s = state) {
-                is KbEntryDetailUiState.Loading -> Centered { CircularProgressIndicator(color = Phosphor) }
+                is KbEntryDetailUiState.Loading -> Centered { Text("$ 加载中…", color = FoamDim) }
                 is KbEntryDetailUiState.NotFound -> Centered {
-                    Text("! entry not found", color = Carmine)
+                    Text("! 条目未找到", color = Carmine)
                 }
                 is KbEntryDetailUiState.Loaded -> Loaded(s, vm, onOpenSource, onOpenRelated)
             }
         }
 
         if (showRename) {
-            AlertDialog(
-                onDismissRequest = { showRename = false },
-                title = { Text("rename entry") },
-                text = {
-                    BasicTextField(
-                        value = renameDraft,
-                        onValueChange = { renameDraft = it },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                        cursorBrush = SolidColor(Phosphor),
-                        singleLine = true,
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { vm.rename(renameDraft); showRename = false }) {
-                        Text("save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showRename = false }) { Text("cancel") }
-                },
+            TerminalInputDialog(
+                title = "重命名条目",
+                initial = (state as? KbEntryDetailUiState.Loaded)?.entry?.title.orEmpty(),
+                onConfirm = { vm.rename(it); showRename = false },
+                onDismiss = { showRename = false },
             )
         }
         if (showCategorySheet) {
@@ -184,33 +150,21 @@ fun KbEntryDetailScreen(
             )
         }
         if (showDeleteConfirm) {
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirm = false },
-                title = { Text("delete this entry?") },
-                text = { Text("kb_entries 行 + 本地 image + 关联关系会一并删除，无法撤销。") },
-                confirmButton = {
-                    TextButton(onClick = { vm.delete(onBack); showDeleteConfirm = false }) {
-                        Text("delete", color = Carmine)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteConfirm = false }) { Text("cancel") }
-                },
+            TerminalConfirmDialog(
+                title = "删除此条目",
+                message = "将删除 kb_entries 行 + 本地图片 + 关联关系，无法撤销。",
+                confirmLabel = "删除",
+                onConfirm = { vm.delete(onBack); showDeleteConfirm = false },
+                onDismiss = { showDeleteConfirm = false },
             )
         }
         if (showRegenerateConfirm) {
-            AlertDialog(
-                onDismissRequest = { showRegenerateConfirm = false },
-                title = { Text("regenerate summary?") },
-                text = { Text("将重新调 LLM 覆盖 summaryMarkdown + standardizedQuestion；标题 / 分类保留。") },
-                confirmButton = {
-                    TextButton(onClick = { vm.regenerate(); showRegenerateConfirm = false }) {
-                        Text("regenerate")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showRegenerateConfirm = false }) { Text("cancel") }
-                },
+            TerminalConfirmDialog(
+                title = "重新生成摘要",
+                message = "将重新调 LLM 覆盖 摘要 + 标准化题目；标题/分类保留。",
+                confirmLabel = "重新生成",
+                onConfirm = { vm.regenerate(); showRegenerateConfirm = false },
+                onDismiss = { showRegenerateConfirm = false },
             )
         }
 
@@ -225,10 +179,9 @@ fun KbEntryDetailScreen(
                     .clickable(enabled = false, onClick = {}),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Phosphor)
-                    Spacer(Modifier.height(12.dp))
-                    Text("$ working...", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("$ 处理中…", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
+                    BlinkingCursor()
                 }
             }
         }
@@ -260,7 +213,7 @@ private fun Loaded(
         item {
             SummaryMarkdownEditor(
                 initial = e.summaryMarkdown,
-                label = "summary",
+                label = "摘要",
                 onSave = { md -> vm.saveSummary(md) },
                 modifier = Modifier.fillMaxWidth(),
             )
