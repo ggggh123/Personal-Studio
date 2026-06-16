@@ -52,7 +52,7 @@ fun SummaryMarkdownEditor(
             )
             if (!editing) {
                 Text(
-                    "[edit]",
+                    "[编辑]",
                     color = FoamDim,
                     modifier = Modifier
                         .clickable { editing = true; draft = initial }
@@ -60,12 +60,12 @@ fun SummaryMarkdownEditor(
                 )
             } else {
                 Text(
-                    "[cancel]",
+                    "[取消]",
                     color = FoamDim,
                     modifier = Modifier.clickable { editing = false }.padding(8.dp),
                 )
                 Text(
-                    "[save]",
+                    "[保存]",
                     color = Phosphor,
                     modifier = Modifier
                         .clickable { onSave(draft); editing = false }
