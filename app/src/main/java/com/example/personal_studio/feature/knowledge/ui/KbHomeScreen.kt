@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,9 +30,12 @@ import com.example.personal_studio.feature.knowledge.ui.components.KbEntryRow
 import com.example.personal_studio.feature.knowledge.ui.components.KbSearchBar
 import com.example.personal_studio.feature.knowledge.vm.KbHomeFilter
 import com.example.personal_studio.feature.knowledge.vm.KbHomeViewModel
-import com.example.personal_studio.ui.placeholder.KnowledgePlaceholder
+import com.example.personal_studio.ui.components.BlinkingCursor
+import com.example.personal_studio.ui.theme.Amber
+import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
 
@@ -51,6 +55,23 @@ fun KbHomeScreen(
 
     Box(Modifier.fillMaxSize().background(Void)) {
         Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(color = Amber)) { append("user@study") }
+                        withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
+                        withStyle(SpanStyle(color = Foam)) { append("ls kb/") }
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "total ${state.notesCount + state.mistakesCount}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FoamMute,
+                )
+            }
+            Spacer(Modifier.height(10.dp))
             KbSearchBar(query = state.searchQuery, onQueryChange = vm::onSearchChange)
 
             // Top stats row: 3 mutually-exclusive filter chips. ALL is the default
@@ -61,15 +82,15 @@ fun KbHomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val total = state.notesCount + state.mistakesCount
-                StatChip("all", total, selected = state.filter == KbHomeFilter.ALL) {
+                StatChip("全部", total, selected = state.filter == KbHomeFilter.ALL) {
                     vm.setFilter(KbHomeFilter.ALL)
                 }
                 Spacer(Modifier.width(12.dp))
-                StatChip("notes", state.notesCount, selected = state.filter == KbHomeFilter.NOTES_ONLY) {
+                StatChip("笔记", state.notesCount, selected = state.filter == KbHomeFilter.NOTES_ONLY) {
                     vm.setFilter(if (state.filter == KbHomeFilter.NOTES_ONLY) KbHomeFilter.ALL else KbHomeFilter.NOTES_ONLY)
                 }
                 Spacer(Modifier.width(12.dp))
-                StatChip("mistakes", state.mistakesCount, selected = state.filter == KbHomeFilter.MISTAKES_ONLY) {
+                StatChip("错题", state.mistakesCount, selected = state.filter == KbHomeFilter.MISTAKES_ONLY) {
                     vm.setFilter(if (state.filter == KbHomeFilter.MISTAKES_ONLY) KbHomeFilter.ALL else KbHomeFilter.MISTAKES_ONLY)
                 }
             }
@@ -81,14 +102,14 @@ fun KbHomeScreen(
             )
 
             Text(
-                "─────────── ${if (state.isSearching) "matches" else "recent"} ───────────",
+                "─────────── ${if (state.isSearching) "匹配" else "最近"} ───────────",
                 color = FoamDim,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 16.dp),
             )
 
             if (displayedEntries.isEmpty()) {
-                KnowledgePlaceholder()
+                KbEmptyState()
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(displayedEntries, key = { it.id }) { e ->
@@ -96,6 +117,28 @@ fun KbHomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun KbEmptyState() {
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+        Text("# 暂无条目", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Spacer(Modifier.height(20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
+                    withStyle(SpanStyle(color = FoamDim)) { append("从 ") }
+                    withStyle(SpanStyle(color = Cyan)) { append("[聊天]") }
+                    withStyle(SpanStyle(color = FoamDim)) { append(" 或 ") }
+                    withStyle(SpanStyle(color = Cyan)) { append("[扫描]") }
+                    withStyle(SpanStyle(color = FoamDim)) { append(" 归档生成") }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            BlinkingCursor()
         }
     }
 }
