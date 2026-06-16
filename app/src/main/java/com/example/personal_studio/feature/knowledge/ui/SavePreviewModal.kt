@@ -46,6 +46,8 @@ import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
+import com.example.personal_studio.ui.theme.scanLines
+import com.example.personal_studio.ui.theme.vignette
 
 /**
  * Full-screen modal for previewing + editing the AI-generated KB draft before commit.
@@ -75,7 +77,7 @@ fun SavePreviewModal(
             dismissOnClickOutside = false,
         ),
     ) {
-        Box(Modifier.fillMaxSize().background(Void)) {
+        Box(Modifier.fillMaxSize().background(Void).scanLines().vignette()) {
             when (state) {
                 is SaveToKnowledgeUiState.Loading -> Loading(onCancel)
                 is SaveToKnowledgeUiState.Saving -> Saving(onCancel)
@@ -88,10 +90,10 @@ fun SavePreviewModal(
 }
 
 @Composable private fun Loading(onCancel: () -> Unit) =
-    InflightSpinner(label = "$ thinking...", onCancel = onCancel)
+    InflightSpinner(label = "$ 思考中…", onCancel = onCancel)
 
 @Composable private fun Saving(onCancel: () -> Unit) =
-    InflightSpinner(label = "$ writing entry...", onCancel = onCancel)
+    InflightSpinner(label = "$ 写入条目中…", onCancel = onCancel)
 
 @Composable private fun InflightSpinner(label: String, onCancel: () -> Unit) {
     Column(
@@ -106,7 +108,7 @@ fun SavePreviewModal(
         // Visible escape from a slow LLM call. Without this the only way out is the
         // back gesture, which Android 14 predictive-back hides for non-opt-in apps.
         Text(
-            "[cancel]",
+            "[取消]",
             color = FoamDim,
             modifier = Modifier.clickable { onCancel() }.padding(8.dp),
         )
@@ -118,16 +120,16 @@ fun SavePreviewModal(
         Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("! llm error: $message", color = Carmine)
+        Text("! LLM 错误：$message", color = Carmine)
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                "[retry]",
+                "[重试]",
                 color = Phosphor,
                 modifier = Modifier.clickable { onRetry() }.padding(8.dp),
             )
             Text(
-                "[cancel]",
+                "[取消]",
                 color = FoamDim,
                 modifier = Modifier.clickable { onCancel() }.padding(8.dp),
             )
@@ -156,13 +158,13 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                "archive draft",
+                "归档草稿",
                 style = MaterialTheme.typography.titleMedium,
                 color = Foam,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "[save]",
+                "[保存]",
                 color = Phosphor,
                 modifier = Modifier
                     .clickable {
@@ -203,14 +205,14 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
         }
 
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            item { FieldLabel("title"); LineField(title) { title = it } }
-            item { FieldLabel("category"); LineField(category) { category = it } }
+            item { FieldLabel("标题"); LineField(title) { title = it } }
+            item { FieldLabel("分类"); LineField(category) { category = it } }
             if (standardizedQuestion.isNotBlank() || initial.standardizedQuestion != null) {
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FieldLabel("standardized question", Modifier.weight(1f))
+                        FieldLabel("标准化题目", Modifier.weight(1f))
                         Text(
-                            if (editingStandardizedQuestionRaw) "[preview]" else "[edit raw markdown]",
+                            if (editingStandardizedQuestionRaw) "[预览]" else "[编辑源码]",
                             color = FoamDim,
                             modifier = Modifier
                                 .clickable { editingStandardizedQuestionRaw = !editingStandardizedQuestionRaw }
@@ -226,9 +228,9 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
             }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FieldLabel("summary", Modifier.weight(1f))
+                    FieldLabel("摘要", Modifier.weight(1f))
                     Text(
-                        if (editingSummaryRaw) "[preview]" else "[edit raw markdown]",
+                        if (editingSummaryRaw) "[预览]" else "[编辑源码]",
                         color = FoamDim,
                         modifier = Modifier
                             .clickable { editingSummaryRaw = !editingSummaryRaw }
@@ -242,7 +244,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
                 }
             }
             if (related.isNotEmpty()) {
-                item { FieldLabel("related (AI-suggested)") }
+                item { FieldLabel("关联(AI 建议)") }
                 items(related) { relatedTitle ->
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
