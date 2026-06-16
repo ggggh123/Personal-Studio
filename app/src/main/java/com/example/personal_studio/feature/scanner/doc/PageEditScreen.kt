@@ -14,10 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,12 +38,12 @@ import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel
 import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
+import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
 import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
@@ -86,7 +84,6 @@ fun PageEditScreen(
     val context = LocalContext.current
     val tmpDir = remember { File(context.filesDir, "scans/tmp").apply { mkdirs() } }
     var step by remember { mutableStateOf<EditStep>(EditStep.Review) }
-    var showDelete by remember { mutableStateOf(false) }
 
     // KB archive flow — same pattern as ChatDetailScreen (Task 21).
     val saveVm: SaveToKnowledgeViewModel = hiltViewModel()
@@ -106,7 +103,6 @@ fun PageEditScreen(
             },
             onCancel = onBack,
             onRetake = { step = EditStep.Capturing(System.identityHashCode(step)) },
-            onDelete = { showDelete = true },
             onArchive = {
                 // Only archive once the page has loaded; docId + pageId both
                 // come off the loaded ScanPage so SourceContextLoader has a
@@ -142,17 +138,6 @@ fun PageEditScreen(
         )
     }
 
-    if (showDelete) {
-        DeletePageDialog(
-            onDismiss = { showDelete = false },
-            onConfirm = {
-                showDelete = false
-                vm.deletePage()
-                onBack()
-            },
-        )
-    }
-
     SavePreviewModal(
         state = saveState,
         onCancel = { saveVm.reset() },
@@ -175,7 +160,6 @@ private fun ReviewView(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     onRetake: () -> Unit,
-    onDelete: () -> Unit,
     onArchive: () -> Unit,
 ) {
     val zoom = rememberZoomableBoxState()
@@ -192,29 +176,23 @@ private fun ReviewView(
         // filter chips + primary [cancel]/[confirm] pair.
         TerminalTopBar(
             route = "scans/edit",
-            subtitle = state.page?.let { "# page #${it.id}" },
+            subtitle = state.page?.let { "# 第 ${it.ordinal + 1} 页" },
             trailing = {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "[↻ retake]",
+                        "[↻ 重拍]",
                         color = Amber,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable(onClick = onRetake),
                     )
                     Text(
-                        "[+ archive]",
+                        "[+ 归档]",
                         color = Phosphor,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable(onClick = onArchive),
-                    )
-                    Text(
-                        "[x delete page]",
-                        color = Carmine,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.clickable(onClick = onDelete),
                     )
                 }
             },
@@ -245,7 +223,7 @@ private fun ReviewView(
             ScanFilter.entries.forEach { f ->
                 val active = state.currentFilter == f
                 Text(
-                    "[${f.name.lowercase()}]",
+                    "[${scanFilterLabel(f)}]",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (active) Phosphor else FoamDim,
                     modifier = Modifier.clickable { onSelectFilter(f) },
@@ -261,50 +239,15 @@ private fun ReviewView(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "[cancel]",
+                "[取消]",
                 color = FoamDim,
                 modifier = Modifier.clickable(onClick = onCancel),
             )
             Text(
-                "[confirm ↵]",
+                "[确认 ↵]",
                 color = if (state.isLoading) FoamDim else Phosphor,
                 modifier = Modifier.clickable(enabled = !state.isLoading, onClick = onConfirm),
             )
         }
     }
-}
-
-@Composable
-private fun DeletePageDialog(
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        containerColor = Void,
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "delete this page?",
-                color = Amber,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        text = {
-            Text(
-                "the image files will be removed. this cannot be undone.",
-                color = FoamDim,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("[ delete ]", color = Carmine, style = MaterialTheme.typography.bodyMedium)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("[ cancel ]", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
-            }
-        },
-    )
 }

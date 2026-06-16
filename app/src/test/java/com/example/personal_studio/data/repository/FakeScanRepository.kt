@@ -1,6 +1,7 @@
 package com.example.personal_studio.data.repository
 
 import com.example.personal_studio.domain.model.ScanDocument
+import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.ScanFilter
 import com.example.personal_studio.domain.model.ScanPage
 import com.example.personal_studio.domain.model.SortMode
@@ -28,6 +29,17 @@ class FakeScanRepository(
             SortMode.RECENT_UPDATED -> list.sortedByDescending { it.updatedAt }
         }
     }
+
+    override fun observeDocumentSummaries(sort: SortMode): Flow<List<ScanDocumentSummary>> =
+        observeDocuments(sort).map { docs ->
+            docs.map { d ->
+                val cover = pagesByDoc[d.id]?.value?.minByOrNull { it.ordinal }?.enhancedImagePath
+                ScanDocumentSummary(
+                    d.id, d.title, d.createdAt, d.updatedAt,
+                    d.pageCount, d.coverPageId, cover,
+                )
+            }
+        }
 
     override fun observeDocument(docId: Long): Flow<ScanDocument?> =
         docs.map { list -> list.firstOrNull { it.id == docId } }

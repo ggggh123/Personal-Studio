@@ -15,11 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,20 +24,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.domain.model.ScanDocument
+import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.SortMode
+import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.components.ScanThumbnail
-import com.example.personal_studio.ui.components.TerminalTopBar
-import com.example.personal_studio.ui.placeholder.ScannerPlaceholder
+import com.example.personal_studio.ui.components.TerminalBottomSheet
+import com.example.personal_studio.ui.components.TerminalConfirmDialog
+import com.example.personal_studio.ui.components.TerminalInputDialog
 import com.example.personal_studio.ui.theme.Amber
+import com.example.personal_studio.ui.theme.Carmine
+import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Rule
 import com.example.personal_studio.ui.theme.Void
@@ -49,48 +52,54 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * /scans tab content. Displays a sortable list of ScanDocuments streamed
- * from the repository, plus a `[+ new scan]` trailing action that routes
- * to DocumentBuilder. When the library is empty, falls back to the
- * existing ScannerPlaceholder for continuity.
- *
- * Cover thumbnails aren't denormalised onto ScanDocument yet, so rows
- * render an empty ScanThumbnail rectangle. Future work: cache the cover
- * path on ScanDocumentEntity at finalize time (plan §18 note A).
- *
- * Long-press on a row opens an action dialog. Pending docs expose
- * `[resume]` / `[discard]`; completed docs expose `[rename]` / `[delete]`.
+ * /scans tab。可排序的扫描文档列表 + `[+ 新建扫描]`;空时显示与 chat 列表一致的空态。
+ * 长按行弹终端动作菜单:未完成件 恢复/丢弃;完成件 重命名/删除。行内渲染首页封面缩略图。
  */
 @Composable
 fun ScanLibraryScreen(
     onOpenDoc: (docId: Long) -> Unit,
-    onResumeDoc: (docId: Long) -> Unit,
     onNewDoc: () -> Unit,
 ) {
     val vm: ScanLibraryViewModel = hiltViewModel()
     val state by vm.uiState.collectAsStateWithLifecycle()
 
-    var actionTarget by remember { mutableStateOf<ScanDocument?>(null) }
-    var renameTarget by remember { mutableStateOf<ScanDocument?>(null) }
-    var deleteTarget by remember { mutableStateOf<ScanDocument?>(null) }
+    var actionTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
+    var renameTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
+    var deleteTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
 
     Column(Modifier.fillMaxSize().background(Void)) {
-        TerminalTopBar(
-            route = "scans",
-            subtitle = buildSortSubtitle(state.sort),
-            trailing = {
+        // 壳层(MainShell)已渲染 studio:~/scanner $ 顶栏 + 设置齿轮;此屏正文头部对齐 chat
+        // 列表:user@study:~$ ls scans/ + [+ 新建扫描] + total N。
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "[+ new scan]",
-                    color = Phosphor,
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = Amber)) { append("user@study") }
+                        withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
+                        withStyle(SpanStyle(color = Foam)) { append("ls scans/") }
+                    },
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onNewDoc),
+                    modifier = Modifier.weight(1f),
                 )
-            },
-        )
-        SortToolbar(current = state.sort, onSelect = vm::setSort)
+                Text(
+                    "[+ 新建扫描]",
+                    color = Cyan,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable(onClick = onNewDoc).padding(4.dp),
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "total ${state.docs.size}",
+                style = MaterialTheme.typography.bodySmall,
+                color = FoamMute,
+            )
+        }
+        Spacer(Modifier.height(14.dp))
         if (state.docs.isEmpty()) {
-            ScannerPlaceholder()
+            ScanEmptyState(onNewDoc = onNewDoc)
         } else {
+            SortToolbar(current = state.sort, onSelect = vm::setSort)
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -119,31 +128,48 @@ fun ScanLibraryScreen(
         DocActionsDialog(
             doc = doc,
             onDismiss = { actionTarget = null },
-            onResume = { actionTarget = null; onResumeDoc(doc.id) },
-            onDiscard = { actionTarget = null; vm.onDelete(doc.id) },
             onRename = { actionTarget = null; renameTarget = doc },
             onDelete = { actionTarget = null; deleteTarget = doc },
         )
     }
     renameTarget?.let { doc ->
-        RenameDialog(
+        TerminalInputDialog(
+            title = "重命名扫描",
             initial = doc.title,
+            onConfirm = { newTitle -> renameTarget = null; vm.onRename(doc.id, newTitle) },
             onDismiss = { renameTarget = null },
-            onConfirm = { newTitle ->
-                renameTarget = null
-                vm.onRename(doc.id, newTitle)
-            },
         )
     }
     deleteTarget?.let { doc ->
-        DeleteConfirmDialog(
-            title = doc.title,
+        TerminalConfirmDialog(
+            title = "删除扫描",
+            message = "删除「${doc.title}」？此操作不可撤销。",
+            confirmLabel = "删除",
+            onConfirm = { deleteTarget = null; vm.onDelete(doc.id) },
             onDismiss = { deleteTarget = null },
-            onConfirm = {
-                deleteTarget = null
-                vm.onDelete(doc.id)
-            },
         )
+    }
+}
+
+/** 空态:对齐 chat 列表的空态样式(`# 暂无…` + `▓ 点 [新建] 开始第一个…` + 闪烁光标)。 */
+@Composable
+private fun ScanEmptyState(onNewDoc: () -> Unit) {
+    Column(Modifier.padding(horizontal = 20.dp)) {
+        Text("# 暂无文档", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Spacer(Modifier.height(20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
+                    withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
+                    withStyle(SpanStyle(color = Cyan)) { append("[新建扫描]") }
+                    withStyle(SpanStyle(color = FoamDim)) { append(" 开始第一个扫描") }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clickable(onClick = onNewDoc),
+            )
+            BlinkingCursor()
+        }
     }
 }
 
@@ -156,9 +182,9 @@ private fun SortToolbar(current: SortMode, onSelect: (SortMode) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         listOf(
-            SortMode.TIME_DESC to "time",
-            SortMode.ALPHA_ASC to "alpha",
-            SortMode.RECENT_UPDATED to "recent",
+            SortMode.TIME_DESC to "时间",
+            SortMode.ALPHA_ASC to "名称",
+            SortMode.RECENT_UPDATED to "最近",
         ).forEach { (mode, label) ->
             val active = mode == current
             Text(
@@ -174,7 +200,7 @@ private fun SortToolbar(current: SortMode, onSelect: (SortMode) -> Unit) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DocRow(
-    doc: ScanDocument,
+    doc: ScanDocumentSummary,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
 ) {
@@ -185,22 +211,18 @@ private fun DocRow(
             .combinedClickable(onClick = onClick, onLongClick = onLongPress),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Placeholder thumbnail (no cover path denormalised yet).
-        ScanThumbnail(path = null)
+        ScanThumbnail(path = doc.coverPath)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = FoamDim)) { append("drwx── ") }
-                    if (doc.isPending) {
-                        withStyle(SpanStyle(color = Amber)) { append("[incomplete] ") }
-                    }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = "${doc.pageCount} page${if (doc.pageCount == 1) "" else "s"} · ${formatTs(doc.createdAt)}",
+                text = "${doc.pageCount} 页 · ${formatTs(doc.createdAt)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = FoamDim,
             )
@@ -210,156 +232,25 @@ private fun DocRow(
 
 @Composable
 private fun DocActionsDialog(
-    doc: ScanDocument,
+    doc: ScanDocumentSummary,
     onDismiss: () -> Unit,
-    onResume: () -> Unit,
-    onDiscard: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val pending = doc.isPending
-    AlertDialog(
-        containerColor = Void,
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (pending) "[incomplete] ${doc.title}" else doc.title,
-                color = if (pending) Amber else Foam,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        text = {
-            Text(
-                text = if (pending)
-                    "resume the in-progress scan, or discard its captured pages"
-                else
-                    "pick an action for this scan",
-                color = FoamDim,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = if (pending) onResume else onRename) {
-                Text(
-                    if (pending) "[ resume ]" else "[ rename ]",
-                    color = Phosphor,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = if (pending) onDiscard else onDelete) {
-                Text(
-                    if (pending) "[ discard ]" else "[ delete ]",
-                    color = Amber,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-    )
-}
-
-@Composable
-private fun RenameDialog(
-    initial: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-) {
-    var text by remember { mutableStateOf(initial) }
-    AlertDialog(
-        containerColor = Void,
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "rename scan",
-                color = Foam,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val trimmed = text.trim()
-                if (trimmed.isNotEmpty()) onConfirm(trimmed) else onDismiss()
-            }) {
-                Text(
-                    "[ ok ]",
-                    color = Phosphor,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    "[ cancel ]",
-                    color = FoamDim,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-    )
-}
-
-@Composable
-private fun DeleteConfirmDialog(
-    title: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        containerColor = Void,
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                "delete $title?",
-                color = Amber,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        text = {
-            Text(
-                "this cannot be undone.",
-                color = FoamDim,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    "[ delete ]",
-                    color = Amber,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    "[ cancel ]",
-                    color = FoamDim,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        },
-    )
-}
-
-private fun buildSortSubtitle(current: SortMode): String = buildString {
-    append("# sort: ")
-    listOf(
-        SortMode.TIME_DESC to "time",
-        SortMode.ALPHA_ASC to "alpha",
-        SortMode.RECENT_UPDATED to "recent",
-    ).forEach { (m, label) ->
-        if (m == current) append("[$label] ") else append("$label ")
+    TerminalBottomSheet(onDismiss = onDismiss, header = "「${doc.title}」") {
+        ActionLine("▸ 重命名", Foam, onRename)
+        ActionLine("▸ 删除", Carmine, onDelete)
     }
+}
+
+@Composable
+private fun ActionLine(label: String, color: Color, onClick: () -> Unit) {
+    Text(
+        label,
+        color = color,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+    )
 }
 
 private fun formatTs(ts: Long): String =

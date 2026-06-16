@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanFilter
+import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
@@ -91,14 +92,14 @@ fun EnhanceReviewScreen(
             ScanFilter.entries.forEach { f ->
                 val active = state.currentFilter == f
                 Text(
-                    "[${f.name.lowercase()}]",
+                    "[${scanFilterLabel(f)}]",
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (active) Phosphor else FoamDim,
                     modifier = Modifier.clickable { vm.selectFilter(f) },
                 )
             }
             Text(
-                "[↻ rot]",
+                "[↻ 旋转]",
                 style = MaterialTheme.typography.bodyMedium,
                 color = FoamDim,
                 modifier = Modifier.clickable { vm.rotateClockwise() },
@@ -116,7 +117,7 @@ fun EnhanceReviewScreen(
                     modifier = Modifier.clickable { saveToLib = !saveToLib },
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("save to scans/", color = Foam, style = MaterialTheme.typography.bodySmall)
+                Text("保存到扫描库", color = Foam, style = MaterialTheme.typography.bodySmall)
             }
         }
 
@@ -127,9 +128,9 @@ fun EnhanceReviewScreen(
                 .padding(horizontal = 24.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("[cancel]", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
+            Text("[取消]", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
             Text(
-                "[confirm ↵]",
+                "[确认 ↵]",
                 color = if (state.isLoading) FoamDim else Phosphor,
                 modifier = Modifier.clickable(enabled = !state.isLoading) {
                     onConfirm(state.currentFilter, saveToLib)

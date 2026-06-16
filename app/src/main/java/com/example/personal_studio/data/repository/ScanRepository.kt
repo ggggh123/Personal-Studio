@@ -5,6 +5,7 @@ import com.example.personal_studio.data.local.db.dao.ScanPageDao
 import com.example.personal_studio.data.local.db.entity.ScanDocumentEntity
 import com.example.personal_studio.data.local.db.entity.ScanPageEntity
 import com.example.personal_studio.domain.model.ScanDocument
+import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.ScanFilter
 import com.example.personal_studio.domain.model.ScanPage
 import com.example.personal_studio.domain.model.SortMode
@@ -17,6 +18,9 @@ import javax.inject.Singleton
 interface ScanRepository {
     /** Emits the full document list, re-sorted whenever the DB changes. */
     fun observeDocuments(sort: SortMode): Flow<List<ScanDocument>>
+
+    /** 同 observeDocuments,但带封面缩略图路径,按 [sort] 排序。 */
+    fun observeDocumentSummaries(sort: SortMode): Flow<List<ScanDocumentSummary>>
 
     /** Emits a single document (or null if deleted). */
     fun observeDocument(docId: Long): Flow<ScanDocument?>
@@ -106,6 +110,21 @@ class ScanRepositoryImpl @Inject constructor(
             SortMode.ALPHA_ASC -> docDao.observeAllByAlphaAsc()
             SortMode.RECENT_UPDATED -> docDao.observeAllByRecentUpdated()
         }.map { list -> list.map { it.toDomain() } }
+
+    override fun observeDocumentSummaries(sort: SortMode): Flow<List<ScanDocumentSummary>> =
+        docDao.observeDocumentSummaries().map { rows ->
+            val mapped = rows.map {
+                ScanDocumentSummary(
+                    it.id, it.title, it.createdAt, it.updatedAt,
+                    it.pageCount, it.coverPageId, it.coverPath,
+                )
+            }
+            when (sort) {
+                SortMode.TIME_DESC -> mapped.sortedByDescending { it.createdAt }
+                SortMode.ALPHA_ASC -> mapped.sortedBy { it.title.lowercase() }
+                SortMode.RECENT_UPDATED -> mapped.sortedByDescending { it.updatedAt }
+            }
+        }
 
     override fun observeDocument(docId: Long): Flow<ScanDocument?> =
         docDao.observe(docId).map { it?.toDomain() }

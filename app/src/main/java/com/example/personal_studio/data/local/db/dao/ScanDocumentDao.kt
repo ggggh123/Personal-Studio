@@ -8,6 +8,16 @@ import androidx.room.Update
 import com.example.personal_studio.data.local.db.entity.ScanDocumentEntity
 import kotlinx.coroutines.flow.Flow
 
+data class ScanDocumentSummaryRow(
+    val id: Long,
+    val title: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val pageCount: Int,
+    val coverPageId: Long?,
+    val coverPath: String?,
+)
+
 @Dao
 interface ScanDocumentDao {
 
@@ -19,6 +29,14 @@ interface ScanDocumentDao {
 
     @Query("SELECT * FROM scan_documents ORDER BY updatedAt DESC")
     fun observeAllByRecentUpdated(): Flow<List<ScanDocumentEntity>>
+
+    @Query(
+        "SELECT d.id AS id, d.title AS title, d.createdAt AS createdAt, d.updatedAt AS updatedAt, " +
+        "d.pageCount AS pageCount, d.coverPageId AS coverPageId, " +
+        "(SELECT enhancedImagePath FROM scan_pages WHERE docId = d.id ORDER BY ordinal ASC LIMIT 1) AS coverPath " +
+        "FROM scan_documents d"
+    )
+    fun observeDocumentSummaries(): Flow<List<ScanDocumentSummaryRow>>
 
     @Query("SELECT * FROM scan_documents WHERE id = :id")
     fun observe(id: Long): Flow<ScanDocumentEntity?>

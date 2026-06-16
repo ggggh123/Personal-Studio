@@ -244,14 +244,14 @@ fun CameraCaptureScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "[auto ${if (camState.autoDetect) "✓" else "✗"}]",
+                "[自动 ${if (camState.autoDetect) "✓" else "✗"}]",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (camState.autoDetect) Phosphor else FoamDim,
                 modifier = Modifier.clickable { vm.setAutoDetect(!camState.autoDetect) },
             )
             Spacer(Modifier.width(16.dp))
             Text(
-                "[⚡ ${if (camState.flashOn) "on" else "off"}]",
+                "[⚡ ${if (camState.flashOn) "开" else "关"}]",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (camState.flashOn) Amber else FoamDim,
                 modifier = Modifier.clickable { vm.setFlash(!camState.flashOn) },
@@ -270,13 +270,13 @@ fun CameraCaptureScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "[cancel]",
+                "[取消]",
                 style = MaterialTheme.typography.bodyMedium,
                 color = FoamDim,
                 modifier = Modifier.clickable { onCancel() },
             )
             Text(
-                "[ ● capture ]",
+                "[ ● 拍摄 ]",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Phosphor,
                 modifier = Modifier.clickable {
@@ -390,16 +390,16 @@ private fun PermissionDeniedUi(onRequest: () -> Unit, onCancel: () -> Unit) {
         Modifier.fillMaxSize().background(Void).padding(32.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("[!] camera permission denied", color = Carmine, style = MaterialTheme.typography.bodyMedium)
+        Text("[!] 相机权限被拒绝", color = Carmine, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(12.dp))
         Text(
-            "capture requires the camera permission to be granted.",
+            "拍摄需要授予相机权限。",
             color = FoamDim,
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(18.dp))
-        Text("[grant]", color = Phosphor, modifier = Modifier.clickable(onClick = onRequest))
+        Text("[授权]", color = Phosphor, modifier = Modifier.clickable(onClick = onRequest))
         Spacer(Modifier.height(8.dp))
-        Text("[cancel]", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
+        Text("[取消]", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
     }
 }

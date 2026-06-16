@@ -11,9 +11,7 @@ data class ScanDocument(
     val updatedAt: Long,
     val pageCount: Int,
     val coverPageId: Long?,
-) {
-    val isPending: Boolean get() = coverPageId == null
-}
+)
 
 data class ScanPage(
     val id: Long,
@@ -24,4 +22,15 @@ data class ScanPage(
     val filter: ScanFilter,
     val cornersJson: String?,
     val createdAt: Long,
+)
+
+/** 库列表富行:文档 + 封面(首页 enhanced 图)路径。 */
+data class ScanDocumentSummary(
+    val id: Long,
+    val title: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val pageCount: Int,
+    val coverPageId: Long?,
+    val coverPath: String?,
 )
