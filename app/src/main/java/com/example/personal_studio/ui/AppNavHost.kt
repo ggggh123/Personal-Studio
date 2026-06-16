@@ -184,6 +184,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             com.example.personal_studio.feature.timeline.ui.CourseSeriesListScreen(
                 onBack = { navController.popBackStack() },
                 onOpenSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
+                onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
             )
         }
         composable(
