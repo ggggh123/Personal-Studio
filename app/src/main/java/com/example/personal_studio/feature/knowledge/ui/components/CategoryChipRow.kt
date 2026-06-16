@@ -6,9 +6,11 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,7 +50,9 @@ fun CategoryChipRow(
 private fun CategoryTab(label: String, count: Int?, selected: Boolean, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(end = 18.dp).clickable(onClick = onClick),
+        // width(IntrinsicSize.Max): 在 horizontalScroll(无界宽约束)里把列宽钉到文字内在宽度,
+        // 否则下方下划线的 fillMaxWidth 会塌成 0 宽、看不见。
+        modifier = Modifier.padding(end = 18.dp).width(IntrinsicSize.Max).clickable(onClick = onClick),
     ) {
         Text(
             buildAnnotatedString {
