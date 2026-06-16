@@ -38,6 +38,7 @@ import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalInputDialog
+import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
@@ -67,20 +68,34 @@ fun ScanLibraryScreen(
     var deleteTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
 
     Column(Modifier.fillMaxSize().background(Void)) {
-        // 壳层(MainShell)已为 tab 路由渲染 studio:~/scanner $ 顶栏 + 设置齿轮;此屏**不再**
-        // 自带 TerminalTopBar(否则与壳层顶栏重叠成两行)。新建动作放进正文右上,排序状态由
-        // 下方 SortToolbar 自身呈现。
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
+        // 壳层(MainShell)已渲染 studio:~/scanner $ 顶栏 + 设置齿轮;此屏正文头部对齐 chat
+        // 列表:user@study:~$ ls scans/ + [+ 新建扫描] + total N。
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = Amber)) { append("user@study") }
+                        withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
+                        withStyle(SpanStyle(color = Foam)) { append("ls scans/") }
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "[+ 新建扫描]",
+                    color = Cyan,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.clickable(onClick = onNewDoc).padding(4.dp),
+                )
+            }
+            Spacer(Modifier.height(4.dp))
             Text(
-                "[+ 新建扫描]",
-                color = Phosphor,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onNewDoc),
+                "total ${state.docs.size}",
+                style = MaterialTheme.typography.bodySmall,
+                color = FoamMute,
             )
         }
+        Spacer(Modifier.height(14.dp))
         if (state.docs.isEmpty()) {
             ScanEmptyState(onNewDoc = onNewDoc)
         } else {
@@ -139,7 +154,7 @@ fun ScanLibraryScreen(
 /** 空态:对齐 chat 列表的空态样式(`# 暂无…` + `▓ 点 [新建] 开始第一个…` + 闪烁光标)。 */
 @Composable
 private fun ScanEmptyState(onNewDoc: () -> Unit) {
-    Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
+    Column(Modifier.padding(horizontal = 20.dp)) {
         Text("# 暂无文档", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
