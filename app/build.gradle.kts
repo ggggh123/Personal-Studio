@@ -50,7 +50,8 @@ android {
         }
 
         ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            // 只打 arm64-v8a:覆盖几乎所有现代设备;去掉 armeabi-v7a(老 32 位)省 ~27MB 原生库。
+            abiFilters += listOf("arm64-v8a")
         }
     }
 
