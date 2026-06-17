@@ -10,6 +10,7 @@ import com.example.personal_studio.domain.chat.SendChunk
 import com.example.personal_studio.domain.chat.SendMessageUseCase
 import com.example.personal_studio.domain.model.ChatMessage
 import com.example.personal_studio.domain.model.ChatSession
+import com.example.personal_studio.domain.model.MessageRole
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
@@ -99,7 +101,10 @@ class ChatDetailViewModel @AssistedInject constructor(
 
     fun onDismissError() { _uiState.update { it.copy(errorBanner = null) } }
 
+    private var sendJob: Job? = null
+
     fun onSend() {
+        if (_uiState.value.isSending) return
         val text = _uiState.value.input.trim()
         val imagePaths = _uiState.value.attachedImagePaths
         if (text.isBlank() && imagePaths.isEmpty()) return
@@ -113,7 +118,7 @@ class ChatDetailViewModel @AssistedInject constructor(
             )
         }
 
-        viewModelScope.launch {
+        sendJob = viewModelScope.launch {
             val buffer = StringBuilder()
             send(sessionId = sessionId, userText = text, userImagePaths = imagePaths).collect { chunk ->
                 when (chunk) {
@@ -139,6 +144,24 @@ class ChatDetailViewModel @AssistedInject constructor(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /** 用户「⏹ 停止」:取消正在生成的回复,保留已流式出的半截内容(存为 AI 消息 + 「（已停止）」)。 */
+    fun onStop() {
+        sendJob?.cancel()
+        sendJob = null
+        val partial = _uiState.value.streamingText
+        _uiState.update { it.copy(streamingText = null, isSending = false) }
+        if (!partial.isNullOrBlank()) {
+            viewModelScope.launch {
+                repo.appendMessage(
+                    sessionId = sessionId,
+                    role = MessageRole.AI,
+                    content = partial.trimEnd() + "\n\n（已停止）",
+                    modelUsed = _uiState.value.activeModel,
+                )
             }
         }
     }

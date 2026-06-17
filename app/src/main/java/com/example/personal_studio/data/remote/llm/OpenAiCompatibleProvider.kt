@@ -2,7 +2,9 @@ package com.example.personal_studio.data.remote.llm
 
 import android.util.Base64
 import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -197,7 +199,11 @@ class OpenAiCompatibleProvider(
         model: String,
     ) {
         val request = buildRequest(endpoint, key, body)
-        httpClient.newCall(request).execute().use { response ->
+        val call = httpClient.newCall(request)
+        // 协程取消(用户「⏹ 停止」)时取消 OkHttp Call → 关 socket,立刻中断阻塞的 readUtf8Line
+        // (思考阶段无字节在传、readTimeout=0 时尤其必要)。正常完成时 call 已结束,cancel 为 no-op。
+        coroutineContext.job.invokeOnCompletion { call.cancel() }
+        call.execute().use { response ->
             if (!response.isSuccessful) {
                 val errText = response.body?.string().orEmpty().take(500)
                 emit(LlmChunk.Error("HTTP ${response.code}: $errText", retryable = response.code >= 500))
@@ -278,7 +284,8 @@ class OpenAiCompatibleProvider(
         private fun defaultHttpClient(): OkHttpClient =
             OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(120, TimeUnit.SECONDS)
+                // 0 = 不限制读超时:推理模型思考几分钟也不被掐断(由用户「⏹ 停止」兜住无限等待)。
+                .readTimeout(0, TimeUnit.SECONDS)
                 // 2 minutes for upload — vision requests on Chinese mobile uplink
                 // routinely send multi-MB image payloads; 30s wasn't enough.
                 .writeTimeout(120, TimeUnit.SECONDS)

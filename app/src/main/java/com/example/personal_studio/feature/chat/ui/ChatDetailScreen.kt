@@ -359,12 +359,21 @@ fun ChatDetailScreen(
                 BlinkingCursor()
             }
             Spacer(Modifier.width(12.dp))
-            Text(
-                text = "↵ 发送",
-                style = MaterialTheme.typography.labelSmall,
-                color = Amber,
-                modifier = Modifier.clickableNoRipple { vm.onSend() }
-            )
+            if (state.isSending) {
+                Text(
+                    text = "⏹ 停止",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Carmine,
+                    modifier = Modifier.clickableNoRipple { vm.onStop() }
+                )
+            } else {
+                Text(
+                    text = "↵ 发送",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Amber,
+                    modifier = Modifier.clickableNoRipple { vm.onSend() }
+                )
+            }
             Spacer(Modifier.width(8.dp))
             val canAttach = state.attachedImagePaths.size < ChatDetailViewModel.MAX_IMAGES
             Text(
