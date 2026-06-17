@@ -444,12 +444,13 @@ private fun CourseCell(
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         // All three lines wrap freely — no maxLines cap, no ellipsis.
-        // Title stays left-aligned (default); period + location are centred
-        // horizontally inside the cell to match the official layout style.
+        // Title + period + location are all centred horizontally inside the cell.
         Text(
             item.title,
             color = Foam,
             style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Text(
             periodLabel,
