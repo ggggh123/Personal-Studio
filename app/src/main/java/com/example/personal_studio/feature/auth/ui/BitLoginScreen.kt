@@ -23,8 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -200,13 +198,6 @@ fun BitLoginScreen(
                         },
                         modifier = Modifier.fillMaxWidth(), colors = fieldColors,
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = st.rememberPwd, onCheckedChange = vm::onRememberToggle,
-                            colors = CheckboxDefaults.colors(checkedColor = Phosphor),
-                        )
-                        Text("记住密码（Keystore 加密）", color = FoamMute, style = MaterialTheme.typography.labelMedium)
-                    }
                     // 网络全自动:校内优先探测 + 校内↔校外按需回退,无需手动选择。
                     Text(
                         "› 网络 · 自动（校内↔校外按需切换）",
