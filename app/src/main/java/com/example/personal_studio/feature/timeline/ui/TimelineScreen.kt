@@ -33,6 +33,7 @@ import com.example.personal_studio.feature.timeline.ui.components.TimelineAxis
 import com.example.personal_studio.feature.timeline.ui.components.TimelineAxisSpec
 import com.example.personal_studio.feature.timeline.ui.components.TimelineBubble
 import com.example.personal_studio.feature.timeline.vm.TimelineViewModel
+import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
@@ -169,32 +170,25 @@ fun TimelineScreen(
     }
 
     expandedCluster?.let { items ->
-        ModalBottomSheet(onDismissRequest = { expandedCluster = null }) {
-            Column(Modifier.fillMaxWidth().padding(20.dp)) {
-                Text(
-                    "$ ls cluster/",
-                    color = Phosphor,
-                    style = MaterialTheme.typography.titleMedium,
+        TerminalBottomSheet(onDismiss = { expandedCluster = null }, header = "ls cluster/") {
+            Text(
+                "${items.size} 项被折叠 · 点击进入详情",
+                color = FoamDim,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Spacer(Modifier.height(12.dp))
+            items.forEach { item ->
+                ClusterItemRow(
+                    item = item,
+                    zone = zone,
+                    onClick = {
+                        expandedCluster = null
+                        onOpenDetail(item.id)
+                    },
                 )
-                Text(
-                    "${items.size} 项被折叠 · 点击进入详情",
-                    color = FoamDim,
-                    style = MaterialTheme.typography.labelSmall,
-                )
-                Spacer(Modifier.height(12.dp))
-                items.forEach { item ->
-                    ClusterItemRow(
-                        item = item,
-                        zone = zone,
-                        onClick = {
-                            expandedCluster = null
-                            onOpenDetail(item.id)
-                        },
-                    )
-                    Spacer(Modifier.height(6.dp))
-                }
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
