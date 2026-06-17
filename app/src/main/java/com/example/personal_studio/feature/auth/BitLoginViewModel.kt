@@ -29,7 +29,8 @@ data class BitLoginUiState(
 )
 
 sealed interface BitLoginEvent {
-    object Succeeded : BitLoginEvent
+    /** [firstSyncPending]=true 表示这是首启入口且尚未做过批量同步(且记住了密码),应导向一键同步页。 */
+    data class Succeeded(val firstSyncPending: Boolean) : BitLoginEvent
     object Skipped : BitLoginEvent
 }
 
@@ -74,8 +75,9 @@ class BitLoginViewModel @Inject constructor(
                 if (st.rememberPwd) credPrefs.save(st.username, st.password, r.mode)
                 else credPrefs.clear()
                 loginPrefs.setHasSeenLogin(true)
+                val firstSyncPending = st.rememberPwd && !loginPrefs.snapshotFirstSyncDone()
                 _uiState.update { it.copy(loading = false) }
-                _events.emit(BitLoginEvent.Succeeded)
+                _events.emit(BitLoginEvent.Succeeded(firstSyncPending))
             } else {
                 _uiState.update { it.copy(loading = false, error = r.outcome) }
             }

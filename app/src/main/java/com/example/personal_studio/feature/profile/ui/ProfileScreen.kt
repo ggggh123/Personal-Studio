@@ -45,6 +45,7 @@ fun ProfileScreen(
     onOpenDdlPoll: () -> Unit,
     onOpenEmptyRoom: () -> Unit,
     onLogin: () -> Unit,
+    onSyncAll: () -> Unit,
     vm: ProfileViewModel = hiltViewModel(),
 ) {
     val st by vm.uiState.collectAsStateWithLifecycle()
@@ -70,6 +71,17 @@ fun ProfileScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GridCard(Modifier.weight(1f), "⌂", "空教室", null, !st.loggedIn, onOpenEmptyRoom)
             Spacer(Modifier.weight(1f))
+        }
+
+        if (st.loggedIn) {
+            Row(
+                Modifier.fillMaxWidth().clickable { onSyncAll() }.padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("⟳ 一键全部同步", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f))
+                Text("课表·作业·考试·成绩", color = FoamDim, style = MaterialTheme.typography.labelSmall)
+            }
         }
 
         Spacer(Modifier.height(2.dp))
