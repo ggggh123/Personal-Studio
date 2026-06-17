@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -122,11 +120,7 @@ fun LlmSettingsScreen(
                 color = FoamDim, style = MaterialTheme.typography.bodySmall,
             )
             val activeBaseUrl = state.savedBaseUrl ?: BuildConfig.DEFAULT_API_BASE_URL
-            KeyValueRow(
-                key = "当前",
-                value = activeBaseUrl + if (state.savedBaseUrl == null) "  (默认)" else "",
-                valueColor = if (state.savedBaseUrl == null) FoamMute else Foam,
-            )
+            CurrentValueRow(value = activeBaseUrl, isDefault = state.savedBaseUrl == null)
             OutlinedTextField(
                 value = state.baseUrlDraft,
                 onValueChange = vm::onBaseUrlDraftChanged,
@@ -155,11 +149,7 @@ fun LlmSettingsScreen(
                 "# 端点支持的模型 id。例: google/gemini-2.0-flash-exp:free",
                 color = FoamDim, style = MaterialTheme.typography.bodySmall,
             )
-            KeyValueRow(
-                key = "当前",
-                value = activeModel + if (state.savedModel == null) "  (默认)" else "",
-                valueColor = if (state.savedModel == null) FoamMute else Foam,
-            )
+            CurrentValueRow(value = activeModel, isDefault = state.savedModel == null)
             OutlinedTextField(
                 value = state.modelDraft,
                 onValueChange = vm::onModelDraftChanged,
@@ -228,12 +218,16 @@ private fun DashedDivider() {
 }
 
 @Composable
-private fun KeyValueRow(key: String, value: String, valueColor: Color) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(key, style = MaterialTheme.typography.labelSmall, color = Phosphor, modifier = Modifier.width(140.dp))
-        Text("= ", style = MaterialTheme.typography.bodyMedium, color = FoamDim)
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = valueColor)
-    }
+private fun CurrentValueRow(value: String, isDefault: Boolean) {
+    Text(
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = Phosphor)) { append("当前  ") }
+            withStyle(SpanStyle(color = if (isDefault) FoamMute else Foam)) { append(value) }
+            if (isDefault) withStyle(SpanStyle(color = FoamMute)) { append("  (默认)") }
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
