@@ -31,10 +31,4 @@ class GradeVizMathTest {
         assertEquals("98", fmtScore(98.0))
         assertEquals("92.5", fmtScore(92.5))
     }
-
-    @Test fun `scoreAxisLo floors to ten and clamps at zero`() {
-        assertEquals(70f, scoreAxisLo(78.0, 92f), 0.001f)
-        assertEquals(40f, scoreAxisLo(55.0, 45f), 0.001f)
-        assertEquals(0f, scoreAxisLo(3.0, 5f), 0.001f)
-    }
 }

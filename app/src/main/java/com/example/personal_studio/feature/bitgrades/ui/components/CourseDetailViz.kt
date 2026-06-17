@@ -103,9 +103,11 @@ private fun PercentileBar(label: String, rankText: String, topPct: Int, size: In
             Box(Modifier.fillMaxWidth(ratio).fillMaxHeight().background(tier, barShape))
         }
         Spacer(Modifier.width(8.dp))
+        // 固定尾宽 → 三条排名条的 weight(1f) 等宽、右端对齐,便于一眼对比。
         Text(
             rankText + (size?.let { "·${it}人" } ?: ""),
             color = tier, style = MaterialTheme.typography.labelMedium, maxLines = 1,
+            modifier = Modifier.width(96.dp),
         )
     }
 }
@@ -113,8 +115,8 @@ private fun PercentileBar(label: String, rankText: String, topPct: Int, size: In
 /** 成绩对比条:轴 [lo, max],填充到你(Phosphor),平均处打 Amber 竖刻度;下方三值标签。 */
 @Composable
 private fun ScoreRangeBar(you: Float, avg: Double, max: Double) {
-    val lo = scoreAxisLo(avg, you)
-    val hi = maxOf(max.toFloat(), you)
+    val lo = 60f                 // 及格线作为轴下界
+    val hi = max.toFloat()       // 课程最高分作为轴上界
     val span = (hi - lo).coerceAtLeast(1f)
     val youFrac = ((you - lo) / span).coerceIn(0f, 1f)
     val avgFrac = ((avg.toFloat() - lo) / span).coerceIn(0f, 1f)
