@@ -335,6 +335,12 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onNavigate = { route -> navController.navigate(route) },
             )
         }
+        composable(NavRoutes.SETTINGS_AI_MODEL) {
+            com.example.personal_studio.feature.settings.ui.AiModelScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAdvanced = { navController.navigate(NavRoutes.SETTINGS_LLM) },
+            )
+        }
         composable(NavRoutes.SETTINGS_LLM) {
             com.example.personal_studio.feature.settings.ui.LlmSettingsScreen(
                 onBack = { navController.popBackStack() },

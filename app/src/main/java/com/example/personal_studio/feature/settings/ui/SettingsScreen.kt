@@ -65,7 +65,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(14.dp))
             GroupHeader("AI")
-            NavRow("AI 模型设置", hint = "密钥 · 接口 · 模型 · 测试") { onNavigate(NavRoutes.SETTINGS_LLM) }
+            NavRow("AI 模型", hint = "切换内置模型 · 高级自定义") { onNavigate(NavRoutes.SETTINGS_AI_MODEL) }
 
             Spacer(Modifier.height(14.dp))
             GroupHeader("关于")

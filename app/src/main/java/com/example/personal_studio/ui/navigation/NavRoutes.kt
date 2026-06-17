@@ -77,6 +77,7 @@ object NavRoutes {
     const val SETTINGS_SEMESTER = "settings/semester"
     const val SETTINGS_NOTIF = "settings/notif"
     const val SETTINGS_LLM = "settings/llm"
+    const val SETTINGS_AI_MODEL = "settings/ai-model"
     const val SETTINGS_GRADES_POLL = "settings/grades-poll"
     const val ASSIGNMENTS = "assignments"
     const val EXAMS = "exams"
