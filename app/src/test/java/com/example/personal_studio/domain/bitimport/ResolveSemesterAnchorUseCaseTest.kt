@@ -13,10 +13,10 @@ import java.time.LocalDate
 
 class ResolveSemesterAnchorUseCaseTest {
 
-    @Test fun `respects existing startDate when already set`() = runBlocking {
-        val existing = LocalDate.of(2026, 2, 24)
-        val prefs = mockk<SemesterPreferences> {
-            coEvery { startDate } returns flowOf(existing)
+    @Test fun `overwrites existing startDate with BIT week-1 Monday`() = runBlocking {
+        // 跨学期场景:prefs 里残留上学期的旧锚点,导入应按 BIT 周1覆盖刷新。
+        val prefs = mockk<SemesterPreferences>(relaxed = true) {
+            coEvery { startDate } returns flowOf(LocalDate.of(2025, 9, 1))
         }
         val useCase = ResolveSemesterAnchorUseCase(prefs)
 
@@ -24,8 +24,8 @@ class ResolveSemesterAnchorUseCaseTest {
             week1Days = listOf(WeekDateDto(weekday = 1, date = "2026-02-23")),
         )
 
-        assertEquals(existing, anchor)
-        coVerify(exactly = 0) { prefs.setStartDate(any()) }
+        assertEquals(LocalDate.of(2026, 2, 23), anchor)
+        coVerify(exactly = 1) { prefs.setStartDate(LocalDate.of(2026, 2, 23)) }
     }
 
     @Test fun `reads week-1 Monday date directly when prefs unset`() = runBlocking {

@@ -13,11 +13,12 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
@@ -56,26 +57,29 @@ class CourseWeekGridViewModel @Inject constructor(
     /** 1-based week to display. */
     private val displayWeekIndex = MutableStateFlow(1)
 
-    /** Static (per-process) initial bootstrap: semester start + period table. */
-    private val bootstrap = MutableStateFlow<Bootstrap?>(null)
-
     private data class Bootstrap(
         val semesterStart: LocalDate?,
         val periods: List<TimetablePeriod>,
     )
 
+    /**
+     * Reactive bootstrap: re-emits whenever the semester start or period table
+     * changes. Critical so that after an import (or manual pick) writes the
+     * anchor, this grid flips out of the "needs semester start" state live —
+     * even if the screen's ViewModel survived on the back stack.
+     */
+    private val bootstrap: StateFlow<Bootstrap?> =
+        combine(semester.startDate, timetable.periods) { start, periods ->
+            Bootstrap(start, periods)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     init {
+        // Position at the current week the first time a non-null start arrives.
         viewModelScope.launch {
-            val periods = timetable.periods.first()
-            val start = semester.startDate.first()
-            // Position at the current week if we have a semester start; otherwise default to 1.
+            val start = semester.startDate.first { it != null } ?: return@launch
             val today = LocalDate.now(zone)
-            val weekIdx = if (start != null) {
-                val days = ChronoUnit.DAYS.between(start, today)
-                (days / 7L).toInt() + 1
-            } else 1
-            displayWeekIndex.value = weekIdx.coerceAtLeast(1)
-            bootstrap.value = Bootstrap(start, periods)
+            val days = ChronoUnit.DAYS.between(start, today)
+            displayWeekIndex.value = ((days / 7L).toInt() + 1).coerceAtLeast(1)
         }
     }
 
@@ -85,7 +89,6 @@ class CourseWeekGridViewModel @Inject constructor(
                 val semesterStart = boot?.semesterStart
                 val periods = boot?.periods ?: emptyList()
                 if (semesterStart == null) {
-                    // Emit a single state value indicating semester-not-set.
                     kotlinx.coroutines.flow.flowOf(
                         CourseWeekGridUiState(
                             loading = boot == null,
@@ -104,8 +107,6 @@ class CourseWeekGridViewModel @Inject constructor(
                     val isCurrent = !today.isBefore(ws) && !today.isAfter(we)
                     repo.observeItemsInRange(startEpoch, endEpoch).map { rows ->
                         val courseRows = rows.filter { it.type == TimelineType.COURSE }
-                        // Key by (weekday, periodIndex) of the START period; renderer
-                        // computes the row span from periodEndIndex.
                         val byCell: Map<Pair<Int, Int>, TimelineItem> = courseRows
                             .filter { it.weekdayCode != null && it.periodIndex != null }
                             .associateBy { it.weekdayCode!! to it.periodIndex!! }
@@ -124,6 +125,12 @@ class CourseWeekGridViewModel @Inject constructor(
                 }
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CourseWeekGridUiState())
+
+    /** 手设兜底:持久化用户选的学期起始日(已由 SemesterStartModal 归一到周一)。
+     *  响应式 bootstrap 会随之刷新,课表立即渲染。 */
+    fun onSemesterStartPicked(date: LocalDate) {
+        viewModelScope.launch { semester.setStartDate(date) }
+    }
 
     fun onPrevWeek() = displayWeekIndex.update { (it - 1).coerceAtLeast(1) }
     fun onNextWeek() = displayWeekIndex.update { it + 1 }

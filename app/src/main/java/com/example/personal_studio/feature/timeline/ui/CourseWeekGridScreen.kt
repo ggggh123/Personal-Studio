@@ -42,7 +42,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.core.util.CourseColorPalette
 import com.example.personal_studio.domain.model.TimelineItem
+import com.example.personal_studio.feature.timeline.ui.components.SemesterStartModal
 import com.example.personal_studio.feature.timeline.vm.CourseWeekGridViewModel
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
@@ -90,6 +93,7 @@ fun CourseWeekGridScreen(
     vm: CourseWeekGridViewModel = hiltViewModel(),
 ) {
     val ui by vm.uiState.collectAsStateWithLifecycle()
+    var showManualPicker by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -167,13 +171,10 @@ fun CourseWeekGridScreen(
                 }
             }
             ui.needsSemesterStart -> {
-                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        "请先到 Settings → 学期设置 设置学期起始日期",
-                        color = Foam,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                SemesterSetupCta(
+                    onNavigateToImport = onNavigateToImport,
+                    onPickManually = { showManualPicker = true },
+                )
             }
             ui.periods.isEmpty() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -189,6 +190,53 @@ fun CourseWeekGridScreen(
                 }
                 WeekGridBody(ui = ui, onOpenItem = onOpenItem)
             }
+        }
+    }
+
+    if (showManualPicker) {
+        SemesterStartModal(
+            onPicked = { date -> showManualPicker = false; vm.onSemesterStartPicked(date) },
+            onDismiss = { showManualPicker = false },
+        )
+    }
+}
+
+/** 首启/未定锚时的引导:主推从教务一键导入(自动定锚+灌课程),次选手动设置学期起始日。 */
+@Composable
+private fun SemesterSetupCta(
+    onNavigateToImport: () -> Unit,
+    onPickManually: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            "# 课程表尚未初始化",
+            color = Foam,
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "从教务系统导入会自动获取学期起始日与课程",
+            color = FoamDim,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(20.dp))
+        Button(
+            onClick = onNavigateToImport,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Phosphor,
+                contentColor = Void,
+            ),
+        ) {
+            Text("从教务系统一键导入", style = MaterialTheme.typography.labelLarge)
+        }
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onPickManually) {
+            Text("[手动设置学期起始日]", color = FoamDim, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
