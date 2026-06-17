@@ -12,7 +12,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.TimetableEditorViewModel
+import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.Phosphor
 
@@ -22,10 +24,17 @@ fun TimetableEditorScreen(
     vm: TimetableEditorViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
         TerminalTopBar(route = "timetable", subtitle = "$ ls timetable/", trailing = {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
         })
+
+        Text(
+            "※ 当前已按照北京理工大学作息表自动设置，不建议手动更改，否则可能导致课程表等功能发生异常",
+            color = Amber,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        )
 
         ui.error?.let { msg ->
             Text(msg, color = Foam, modifier = Modifier.padding(16.dp))
@@ -58,25 +67,41 @@ fun TimetableEditorScreen(
             }
         }
 
-        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = vm::onAddRow) { Text("+ 添加节次") }
-            OutlinedButton(onClick = vm::onRemoveLast) { Text("- 删除最后") }
-            OutlinedButton(onClick = vm::onResetDefault) { Text("恢复默认") }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = vm::onAddRow,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+            ) { Text("+ 添加节次", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+            OutlinedButton(
+                onClick = vm::onRemoveLast,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+            ) { Text("- 删除最后", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+            OutlinedButton(
+                onClick = vm::onResetDefault,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+            ) { Text("恢复默认", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
         }
-        Button(onClick = vm::openConfirmDialog, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Button(
+            onClick = vm::openConfirmDialog,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        ) {
             Text(if (ui.saving) "保存中…" else "保存")
         }
     }
 
     if (ui.confirmDialogVisible) {
-        AlertDialog(
-            onDismissRequest = vm::closeConfirmDialog,
-            title = { Text("确认更新作息表？") },
-            text = { Text("将更新所有未来课程的起止时间。") },
-            confirmButton = {
-                TextButton(onClick = { vm.save(onComplete = { _ -> /* Phase 5 reschedules */ }) }) { Text("确认") }
-            },
-            dismissButton = { TextButton(onClick = vm::closeConfirmDialog) { Text("取消") } },
+        TerminalConfirmDialog(
+            title = "确认更新作息表",
+            message = "将更新所有未来课程的起止时间。",
+            confirmLabel = "确认",
+            onConfirm = { vm.save(onComplete = { _ -> /* Phase 5 reschedules */ }) },
+            onDismiss = vm::closeConfirmDialog,
         )
     }
 }
