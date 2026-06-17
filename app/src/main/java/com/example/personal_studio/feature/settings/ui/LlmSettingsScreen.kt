@@ -119,8 +119,20 @@ fun LlmSettingsScreen(
                 "# OpenAI 兼容地址,自动补 /chat/completions。例: openrouter.ai/api/v1",
                 color = FoamDim, style = MaterialTheme.typography.bodySmall,
             )
-            val activeBaseUrl = state.savedBaseUrl ?: BuildConfig.DEFAULT_API_BASE_URL
-            CurrentValueRow(value = activeBaseUrl, isDefault = state.savedBaseUrl == null)
+            // 接口地址默认值(内置端点)不明文暴露;仅在用户自定义时显示其值。
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = Phosphor)) { append("当前  ") }
+                    val custom = state.savedBaseUrl
+                    if (custom != null) {
+                        withStyle(SpanStyle(color = Foam)) { append(custom) }
+                    } else {
+                        withStyle(SpanStyle(color = FoamMute)) { append("内置默认（已隐藏）") }
+                    }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth(),
+            )
             OutlinedTextField(
                 value = state.baseUrlDraft,
                 onValueChange = vm::onBaseUrlDraftChanged,

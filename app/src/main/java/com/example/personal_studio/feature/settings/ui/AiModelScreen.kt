@@ -10,13 +10,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +30,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,13 +40,17 @@ import com.example.personal_studio.BuildConfig
 import com.example.personal_studio.core.llm.CuratedModel
 import com.example.personal_studio.core.llm.CuratedModels
 import com.example.personal_studio.feature.settings.vm.SettingsViewModel
+import com.example.personal_studio.feature.settings.vm.TestConnectionState
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.theme.Amber
+import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
+import com.example.personal_studio.ui.theme.Olive
 import com.example.personal_studio.ui.theme.Phosphor
+import com.example.personal_studio.ui.theme.Void
 
 @Composable
 fun AiModelScreen(
@@ -75,12 +87,36 @@ fun AiModelScreen(
             CuratedModels.ALL.forEach { m ->
                 ModelRow(m, selected = m.code == active) { vm.selectCuratedModel(m.code) }
             }
+
+            Spacer(Modifier.height(14.dp))
+            // 测试当前选中模型 + 内置端点是否连通
+            Button(
+                onClick = vm::onTestConnection,
+                enabled = state.testConnection !is TestConnectionState.Running,
+                colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Void),
+            ) {
+                if (state.testConnection is TestConnectionState.Running) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(14.dp), color = Void)
+                    Spacer(Modifier.size(8.dp))
+                    Text("测试中…", style = MaterialTheme.typography.labelLarge)
+                } else {
+                    Text("测试当前模型 ↵", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            when (val tc = state.testConnection) {
+                TestConnectionState.Idle, TestConnectionState.Running -> Unit
+                is TestConnectionState.Success -> StatusLine(ok = true, body = tc.replyPreview)
+                is TestConnectionState.Failure -> StatusLine(ok = false, body = tc.message)
+            }
+
             Spacer(Modifier.height(18.dp))
-            Text(
-                "⚙ AI 模型高级设置（自定义接口 / 密钥 / 模型）",
-                color = FoamMute, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth().clickable { showWarning = true }.padding(vertical = 8.dp),
-            )
+            OutlinedButton(
+                onClick = { showWarning = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Foam),
+            ) {
+                Text("⚙ AI 模型高级设置", style = MaterialTheme.typography.labelLarge)
+            }
         }
     }
 
@@ -113,4 +149,17 @@ private fun ModelRow(m: CuratedModel, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+@Composable
+private fun StatusLine(ok: Boolean, body: String) {
+    val tag = if (ok) "成功" else "失败"
+    val tagColor = if (ok) Olive else Carmine
+    Text(
+        buildAnnotatedString {
+            withStyle(SpanStyle(color = tagColor)) { append("[$tag] ") }
+            withStyle(SpanStyle(color = Foam)) { append(body) }
+        },
+        style = MaterialTheme.typography.bodyMedium,
+    )
 }
