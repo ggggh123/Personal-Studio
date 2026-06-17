@@ -63,6 +63,10 @@ object NavRoutes {
     // BIT Import wizard (P5)
     const val IMPORT_WIZARD = "import"
 
+    // 一键批量同步(首启自动 / 个中手动)
+    const val SYNC_ALL = "sync-all?first={first}"
+    fun syncAll(first: Boolean) = "sync-all?first=$first"
+
     // BIT 成绩查询 (P6)
     const val GRADES = "grades"
     const val GRADES_WHATIF = "grades/whatif"

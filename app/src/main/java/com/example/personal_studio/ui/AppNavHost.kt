@@ -127,6 +127,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onOpenDdlPoll = { navController.navigate(NavRoutes.SETTINGS_DDL_POLL) },
                 onOpenEmptyRoom = { navController.navigate(NavRoutes.EMPTY_ROOM) },
                 onLogin = { navController.navigate(NavRoutes.login(null)) },
+                onSyncAll = { navController.navigate(NavRoutes.syncAll(first = false)) },
             )
         }
         composable(NavRoutes.TIMELINE_WEEK_GRID) {
@@ -296,17 +297,34 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             val next = backStack.arguments?.getString("next").orEmpty().ifBlank { null }?.let { Uri.decode(it) }
             BitLoginScreen(
                 skipVisible = next == null,
-                onSucceeded = {
-                    if (next != null) navController.navigate(next) {
+                onSucceeded = { firstSyncPending ->
+                    val dest = when {
+                        next != null -> next
+                        firstSyncPending -> NavRoutes.syncAll(first = true)
+                        else -> NavRoutes.PROFILE
+                    }
+                    navController.navigate(dest) {
                         popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         launchSingleTop = true   // 守卫场景目标屏可能已在栈中,避免压重复实例
-                    } else navController.navigate(NavRoutes.PROFILE) {
-                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
-                        launchSingleTop = true
                     }
                 },
                 onSkipped = {
                     navController.navigate(NavRoutes.PROFILE) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
+                },
+            )
+        }
+
+        composable(
+            route = NavRoutes.SYNC_ALL,
+            arguments = listOf(navArgument("first") { type = NavType.BoolType; defaultValue = false }),
+        ) { backStack ->
+            val first = backStack.arguments?.getBoolean("first") ?: false
+            com.example.personal_studio.feature.bitimport.ui.SyncAllScreen(
+                onFinish = {
+                    if (first) navController.navigate(NavRoutes.PROFILE) {
+                        popUpTo(NavRoutes.SYNC_ALL) { inclusive = true }
+                        launchSingleTop = true
+                    } else navController.popBackStack()
                 },
             )
         }

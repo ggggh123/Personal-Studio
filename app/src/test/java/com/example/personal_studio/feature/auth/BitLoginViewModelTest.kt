@@ -56,7 +56,7 @@ class BitLoginViewModelTest {
         sut.events.test {
             sut.onLogin()
             advanceUntilIdle()
-            assertEquals(BitLoginEvent.Succeeded, awaitItem())
+            assertEquals(BitLoginEvent.Succeeded(firstSyncPending = true), awaitItem())
         }
         coVerify { credPrefs.save("2024xx", "pw", NetworkMode.LOCAL) }
         coVerify { loginPrefs.setHasSeenLogin(true) }

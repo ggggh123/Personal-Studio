@@ -77,7 +77,7 @@ private const val BOOT_TAIL_DELAY_MS = 320L
 @Composable
 fun BitLoginScreen(
     skipVisible: Boolean,
-    onSucceeded: () -> Unit,
+    onSucceeded: (firstSyncPending: Boolean) -> Unit,
     onSkipped: () -> Unit,
     vm: BitLoginViewModel = hiltViewModel(),
 ) {
@@ -92,7 +92,7 @@ fun BitLoginScreen(
     LaunchedEffect(Unit) {
         vm.events.collectLatest { ev ->
             when (ev) {
-                BitLoginEvent.Succeeded -> onSucceeded()
+                is BitLoginEvent.Succeeded -> onSucceeded(ev.firstSyncPending)
                 BitLoginEvent.Skipped -> onSkipped()
             }
         }
