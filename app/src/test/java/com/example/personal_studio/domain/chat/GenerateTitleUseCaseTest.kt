@@ -13,9 +13,9 @@ class GenerateTitleUseCaseTest {
     @Test fun `non-empty title from LLM is trimmed and persisted`() = runTest {
         val repo = FakeChatRepository()
         val sid = repo.createSession("session #001")
-        repo.appendMessage(sid, MessageRole.USER, "极限怎么求?", null)
-        repo.appendMessage(sid, MessageRole.AI, "洛必达法则...", null)
-        repo.appendMessage(sid, MessageRole.USER, "谢谢", null)
+        repo.appendMessage(sid, MessageRole.USER, "极限怎么求?", emptyList())
+        repo.appendMessage(sid, MessageRole.AI, "洛必达法则...", emptyList())
+        repo.appendMessage(sid, MessageRole.USER, "谢谢", emptyList())
 
         val llm = FakeLLMProvider(textChunks = listOf("高数 · 极限 "))
         val useCase = GenerateTitleUseCase(repo, llm)
@@ -28,7 +28,7 @@ class GenerateTitleUseCaseTest {
     @Test fun `empty LLM output leaves session title unchanged`() = runTest {
         val repo = FakeChatRepository()
         val sid = repo.createSession("session #042")
-        repo.appendMessage(sid, MessageRole.USER, "hi", null)
+        repo.appendMessage(sid, MessageRole.USER, "hi", emptyList())
 
         val llm = FakeLLMProvider(textChunks = emptyList())
         val useCase = GenerateTitleUseCase(repo, llm)

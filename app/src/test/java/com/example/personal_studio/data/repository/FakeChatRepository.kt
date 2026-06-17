@@ -63,7 +63,7 @@ class FakeChatRepository : ChatRepository {
         sessionId: Long,
         role: MessageRole,
         content: String,
-        attachedImagePath: String?,
+        attachedImagePaths: List<String>,
         generationMs: Long?,
         tokenCount: Int?,
         modelUsed: String?,
@@ -72,7 +72,7 @@ class FakeChatRepository : ChatRepository {
         val now = System.currentTimeMillis()
         val msg = ChatMessage(
             id = id, sessionId = sessionId, role = role,
-            contentMarkdown = content, attachedImagePath = attachedImagePath,
+            contentMarkdown = content, attachedImagePaths = attachedImagePaths,
             createdAt = now,
             generationMs = generationMs, tokenCount = tokenCount, modelUsed = modelUsed,
         )

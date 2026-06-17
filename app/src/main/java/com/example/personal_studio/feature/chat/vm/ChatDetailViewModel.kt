@@ -27,7 +27,7 @@ data class ChatDetailUiState(
     val session: ChatSession? = null,
     val messages: List<ChatMessage> = emptyList(),
     val input: String = "",
-    val attachedImagePath: String? = null,
+    val attachedImagePaths: List<String> = emptyList(),
     val streamingText: String? = null,
     val errorBanner: String? = null,
     val isSending: Boolean = false,
@@ -50,6 +50,8 @@ class ChatDetailViewModel @AssistedInject constructor(
     interface Factory {
         fun create(sessionId: Long): ChatDetailViewModel
     }
+
+    companion object { const val MAX_IMAGES = 6 }
 
     private val _uiState = MutableStateFlow(ChatDetailUiState())
     val uiState: StateFlow<ChatDetailUiState> = _uiState.asStateFlow()
@@ -83,18 +85,29 @@ class ChatDetailViewModel @AssistedInject constructor(
     }
 
     fun onInputChanged(value: String) { _uiState.update { it.copy(input = value) } }
-    fun onAttachImage(path: String?) { _uiState.update { it.copy(attachedImagePath = path) } }
+
+    /** 追加一张图(已满 MAX_IMAGES 则忽略)。裁剪确认后调用。 */
+    fun onAttachImage(path: String) = _uiState.update {
+        if (it.attachedImagePaths.size >= MAX_IMAGES) it
+        else it.copy(attachedImagePaths = it.attachedImagePaths + path)
+    }
+
+    /** 从预览里移除指定图。 */
+    fun onRemoveAttachedImage(path: String) = _uiState.update {
+        it.copy(attachedImagePaths = it.attachedImagePaths - path)
+    }
+
     fun onDismissError() { _uiState.update { it.copy(errorBanner = null) } }
 
     fun onSend() {
         val text = _uiState.value.input.trim()
-        val imagePath = _uiState.value.attachedImagePath
-        if (text.isBlank() && imagePath == null) return
+        val imagePaths = _uiState.value.attachedImagePaths
+        if (text.isBlank() && imagePaths.isEmpty()) return
 
         _uiState.update {
             it.copy(
                 input = "",
-                attachedImagePath = null,
+                attachedImagePaths = emptyList(),
                 isSending = true,
                 streamingText = "",
             )
@@ -102,7 +115,7 @@ class ChatDetailViewModel @AssistedInject constructor(
 
         viewModelScope.launch {
             val buffer = StringBuilder()
-            send(sessionId = sessionId, userText = text, userImagePath = imagePath).collect { chunk ->
+            send(sessionId = sessionId, userText = text, userImagePaths = imagePaths).collect { chunk ->
                 when (chunk) {
                     is SendChunk.UserPersisted -> { /* messages flow updates the list */ }
                     is SendChunk.Delta -> {

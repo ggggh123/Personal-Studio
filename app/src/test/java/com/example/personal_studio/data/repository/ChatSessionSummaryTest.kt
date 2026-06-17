@@ -10,8 +10,8 @@ class ChatSessionSummaryTest {
     @Test fun `summary reports message count and last snippet`() = runTest {
         val repo = FakeChatRepository()
         val id = repo.createSession("数学作业")
-        repo.appendMessage(id, MessageRole.USER, "第一条", null)
-        repo.appendMessage(id, MessageRole.AI, "末条预览", null)
+        repo.appendMessage(id, MessageRole.USER, "第一条", emptyList())
+        repo.appendMessage(id, MessageRole.AI, "末条预览", emptyList())
         repo.observeSessionSummaries().test {
             val row = awaitItem().first { it.id == id }
             assertEquals(2, row.msgCount)

@@ -22,6 +22,8 @@ data class ChatMessageEntity(
     val sessionId: Long,
     val role: MessageRole,
     val contentMarkdown: String,
+    // 存「图路径 JSON 数组」字符串(单条消息可多图,≤6);向后兼容旧的裸单路径。
+    // 编解码见 data/repository/ChatImagePaths.kt。列名/类型不变,故不需 Room 迁移。
     val attachedImagePath: String? = null,
     val sourceScanPageId: Long? = null,  // P2 wiring; stays null in P1
     val createdAt: Long,
