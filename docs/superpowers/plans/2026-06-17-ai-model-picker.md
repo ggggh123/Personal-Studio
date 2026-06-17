@@ -323,7 +323,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 全部 Task 完成且 `./gradlew :app:testDebugUnitTest` 全绿后,用 **superpowers:finishing-a-development-branch** 收尾(真机 DoD → 合并 main → 推 GitHub → 更新记忆)。**收尾前再次确认 `git status`/`git log` 无 `local.properties`、无 `AI-models`、无明文 key。**
 
-**真机 DoD：** 设置 → AI 模型:① 11 模型单选,默认 ● Gemini 3.5 Flash;点别的即切换;② chat/成绩分析等用新模型且能连通(走内置 yansd666 端点);③ 点「AI 模型高级设置」→ 弹警告(那句话)→ 确认进自定义页/取消留下;④ 高级页改过 model 后回选择器顶部显「当前：⟨…⟩（自定义）」,再选名单模型切回内置。
+**真机 DoD：** 设置 → AI 模型:① 11 模型单选,默认 ● Gemini 3.5 Flash;点别的即切换;② chat/成绩分析等用新模型且能连通(走内置端点);③ 点「AI 模型高级设置」→ 弹警告(那句话)→ 确认进自定义页/取消留下;④ 高级页改过 model 后回选择器顶部显「当前：⟨…⟩（自定义）」,再选名单模型切回内置。
 
 ## Self-Review 记录
 

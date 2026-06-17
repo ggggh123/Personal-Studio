@@ -7,7 +7,7 @@
 
 当前 AI 配置只有「自定义 URL/API/Model」的开发者表单（`LlmSettingsScreen`，已是设置重构的高级页）。目标：给普通用户一个**内置默认模型选择器**——从一份精选名单里切换模型,端点+密钥作为 App 内置默认**隐藏**;原始 URL/API/Model 自定义降级为**「AI 模型高级设置」**,点击前弹警告确认。
 
-数据来源 `AI-models` 文件：11 个模型(显示名↔实际代号),共用同一聚合接口 `https://yansd666.com/v1/chat/completions` + 同一 key。
+数据来源 `AI-models` 文件：11 个模型(显示名↔实际代号),共用同一聚合接口(地址 + key 见仓库外 AI-models 文件,不写入任何提交)。
 
 ## 决策（已与用户确认）
 
@@ -37,7 +37,7 @@
 ```
 setModelName(code); setApiBaseUrl(null); setApiKey(null)
 ```
-切到名单模型时清掉任何自定义 url/key → 回退到内置 `BuildConfig.DEFAULT_API_BASE_URL`/`DEFAULT_API_KEY`(yansd666)。`LLMProvider` 既有 null→default 解析(现有 reset 行为印证)负责生效。
+切到名单模型时清掉任何自定义 url/key → 回退到内置 `BuildConfig.DEFAULT_API_BASE_URL`/`DEFAULT_API_KEY`(内置端点)。`LLMProvider` 既有 null→default 解析(现有 reset 行为印证)负责生效。
 
 ## ④ 高级门：警告弹窗 → 现有 `LlmSettingsScreen`
 
