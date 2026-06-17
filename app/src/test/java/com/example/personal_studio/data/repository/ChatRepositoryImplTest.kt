@@ -25,7 +25,7 @@ class FakeChatRepositoryTest {
     @Test fun `appendMessage updates observeMessages for that session`() = runTest {
         val repo = FakeChatRepository()
         val sid = repo.createSession(initialTitle = "x")
-        repo.appendMessage(sid, MessageRole.USER, "hi", null)
+        repo.appendMessage(sid, MessageRole.USER, "hi", emptyList())
 
         repo.observeMessages(sid).test {
             val msgs = awaitItem()
@@ -47,7 +47,7 @@ class FakeChatRepositoryTest {
         }
 
         Thread.sleep(5)
-        repo.appendMessage(sid, MessageRole.USER, "hi", null)
+        repo.appendMessage(sid, MessageRole.USER, "hi", emptyList())
 
         var after: List<com.example.personal_studio.domain.model.ChatSession> = emptyList()
         repo.observeSessions().test {

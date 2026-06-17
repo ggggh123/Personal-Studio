@@ -1,7 +1,9 @@
 package com.example.personal_studio.feature.chat.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -192,11 +194,15 @@ fun ChatDetailScreen(
             items(state.messages, key = { it.id }) { m ->
                 when (m.role) {
                     MessageRole.USER -> {
-                        val imagePath = m.attachedImagePath
+                        val paths = m.attachedImagePaths
                         UserPromptLine(
                             text = m.contentMarkdown,
-                            imageThumb = if (imagePath != null) {
-                                { ChatImageThumbnail(path = imagePath) }
+                            imageThumb = if (paths.isNotEmpty()) {
+                                {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        paths.forEach { ChatImageThumbnail(path = it) }
+                                    }
+                                }
                             } else null,
                         )
                     }
@@ -248,10 +254,16 @@ fun ChatDetailScreen(
             if (state.streamingText != null) {
                 item(key = "__streaming__") {
                     AiFrame(header = state.activeModel) {
-                        TypewriterText(
-                            text = state.streamingText ?: "",
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                        )
+                        // 出首字前(streamingText 为空)显示幽默思考提示 + 秒数,
+                        // 让用户知道是模型在想而非卡死;出真实 token 即切回正文。
+                        if (state.streamingText.isNullOrEmpty()) {
+                            ThinkingIndicator()
+                        } else {
+                            TypewriterText(
+                                text = state.streamingText ?: "",
+                                style = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                            )
+                        }
                     }
                 }
             }
@@ -277,29 +289,29 @@ fun ChatDetailScreen(
             }
         }
 
-        // Attached image preview row
-        if (state.attachedImagePath != null) {
-            val attachedPath = state.attachedImagePath!!
+        // Attached images preview row (≤ MAX_IMAGES, each removable)
+        if (state.attachedImagePaths.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ChatImageThumbnailSmall(path = attachedPath)
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = "[图片] ${File(attachedPath).name}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Cyan,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    "[x]",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Carmine,
-                    modifier = Modifier.clickableNoRipple { vm.onAttachImage(null) }
-                )
+                state.attachedImagePaths.forEach { p ->
+                    Box {
+                        ChatImageThumbnailSmall(path = p)
+                        Text(
+                            "[x]",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Carmine,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .clickableNoRipple { vm.onRemoveAttachedImage(p) },
+                        )
+                    }
+                }
             }
         }
 
@@ -347,18 +359,28 @@ fun ChatDetailScreen(
                 BlinkingCursor()
             }
             Spacer(Modifier.width(12.dp))
-            Text(
-                text = "↵ 发送",
-                style = MaterialTheme.typography.labelSmall,
-                color = Amber,
-                modifier = Modifier.clickableNoRipple { vm.onSend() }
-            )
+            if (state.isSending) {
+                Text(
+                    text = "⏹ 停止",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Carmine,
+                    modifier = Modifier.clickableNoRipple { vm.onStop() }
+                )
+            } else {
+                Text(
+                    text = "↵ 发送",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Amber,
+                    modifier = Modifier.clickableNoRipple { vm.onSend() }
+                )
+            }
             Spacer(Modifier.width(8.dp))
+            val canAttach = state.attachedImagePaths.size < ChatDetailViewModel.MAX_IMAGES
             Text(
                 "[+]",
-                color = Cyan,
+                color = if (canAttach) Cyan else FoamDim,
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickableNoRipple { showAttachmentSheet = true },
+                modifier = Modifier.clickableNoRipple { if (canAttach) showAttachmentSheet = true },
             )
         }
 

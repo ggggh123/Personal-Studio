@@ -20,7 +20,7 @@ class SendMessageUseCaseTest {
         val chunks = useCase(
             sessionId = sessionId,
             userText = "hi",
-            userImagePath = null,
+            userImagePaths = emptyList(),
         ).toList()
 
         assertEquals(4, chunks.size)
@@ -43,7 +43,7 @@ class SendMessageUseCaseTest {
         val llm = FakeLLMProviderThatErrors("fail")
         val useCase = SendMessageUseCase(repo, llm)
 
-        val chunks = useCase(sid, "hi", null).toList()
+        val chunks = useCase(sid, "hi", emptyList()).toList()
 
         assertTrue(chunks.any { it is SendChunk.UserPersisted })
         assertTrue(chunks.any { it is SendChunk.Error && it.message == "fail" })

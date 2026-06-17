@@ -24,6 +24,6 @@ class StartGradeChatUseCaseTest {
         val sid = StartGradeChatUseCase(repo, BuildGradeSummaryUseCase()).invoke(book)
         assertEquals(42L, sid)
         coVerify { repo.createSession(match { it.contains("成绩") }) }
-        coVerify { repo.appendMessage(42L, MessageRole.SYSTEM, any(), null, any(), any(), any()) }
+        coVerify { repo.appendMessage(42L, MessageRole.SYSTEM, any(), emptyList(), any(), any(), any()) }
     }
 }

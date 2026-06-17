@@ -28,7 +28,7 @@ interface ChatRepository {
         sessionId: Long,
         role: MessageRole,
         content: String,
-        attachedImagePath: String?,
+        attachedImagePaths: List<String> = emptyList(),
         generationMs: Long? = null,
         tokenCount: Int? = null,
         modelUsed: String? = null,
@@ -75,7 +75,7 @@ class ChatRepositoryImpl @Inject constructor(
         sessionId: Long,
         role: MessageRole,
         content: String,
-        attachedImagePath: String?,
+        attachedImagePaths: List<String>,
         generationMs: Long?,
         tokenCount: Int?,
         modelUsed: String?,
@@ -86,7 +86,7 @@ class ChatRepositoryImpl @Inject constructor(
                 sessionId = sessionId,
                 role = role.toEntity(),
                 contentMarkdown = content,
-                attachedImagePath = attachedImagePath,
+                attachedImagePath = encodeChatImagePaths(attachedImagePaths),
                 createdAt = now,
                 generationMs = generationMs,
                 tokenCount = tokenCount,
@@ -113,7 +113,7 @@ private fun com.example.personal_studio.data.local.db.dao.ChatSessionSummaryRow.
 
 private fun ChatMessageEntity.toDomain() = ChatMessage(
     id = id, sessionId = sessionId, role = role.toDomain(),
-    contentMarkdown = contentMarkdown, attachedImagePath = attachedImagePath,
+    contentMarkdown = contentMarkdown, attachedImagePaths = decodeChatImagePaths(attachedImagePath),
     createdAt = createdAt,
     generationMs = generationMs, tokenCount = tokenCount, modelUsed = modelUsed,
 )

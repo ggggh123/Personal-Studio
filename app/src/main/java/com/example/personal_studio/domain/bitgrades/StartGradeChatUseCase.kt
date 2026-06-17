@@ -19,7 +19,6 @@ class StartGradeChatUseCase @Inject constructor(
             sessionId = sessionId,
             role = MessageRole.SYSTEM,
             content = ctx,
-            attachedImagePath = null,
         )
         return sessionId
     }

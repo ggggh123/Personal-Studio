@@ -58,8 +58,9 @@ class SourceContextLoader @Inject constructor(
             append("\n\n### AI 回答\n")
             append(ai.contentMarkdown)
         }
-        val imageBytes = precedingUser?.attachedImagePath?.let { File(it).takeIf(File::exists)?.readBytes() }
-        val staged = precedingUser?.attachedImagePath?.let { imageStore.stageCopy(it) }
+        val firstImagePath = precedingUser?.let { decodeChatImagePaths(it.attachedImagePath).firstOrNull() }
+        val imageBytes = firstImagePath?.let { File(it).takeIf(File::exists)?.readBytes() }
+        val staged = firstImagePath?.let { imageStore.stageCopy(it) }
 
         val messages = listOf(
             LlmMessage(LlmRole.USER, text, images = listOfNotNull(imageBytes)),

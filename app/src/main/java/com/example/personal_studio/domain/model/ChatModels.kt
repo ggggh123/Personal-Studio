@@ -15,7 +15,7 @@ data class ChatMessage(
     val sessionId: Long,
     val role: MessageRole,
     val contentMarkdown: String,
-    val attachedImagePath: String?,
+    val attachedImagePaths: List<String> = emptyList(),
     val createdAt: Long,
     /** Wall-clock streaming duration for AI turns, in ms. `null` for non-AI messages. */
     val generationMs: Long? = null,

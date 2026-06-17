@@ -25,15 +25,15 @@ class SendMessageUseCase @Inject constructor(
     operator fun invoke(
         sessionId: Long,
         userText: String,
-        userImagePath: String?,
+        userImagePaths: List<String>,
         systemPrompt: String? = SYSTEM_PROMPT,
     ): Flow<SendChunk> = flow {
-        // 1. Persist the new user message (including any attached image).
+        // 1. Persist the new user message (including any attached images).
         val userId = repo.appendMessage(
             sessionId = sessionId,
             role = MessageRole.USER,
             content = userText,
-            attachedImagePath = userImagePath,
+            attachedImagePaths = userImagePaths,
         )
         emit(SendChunk.UserPersisted(userId))
 
@@ -51,11 +51,9 @@ class SendMessageUseCase @Inject constructor(
                     MessageRole.AI -> LlmRole.ASSISTANT
                     MessageRole.SYSTEM -> LlmRole.SYSTEM
                 }
-                val images = m.attachedImagePath
-                    ?.let { File(it) }
-                    ?.takeIf { it.exists() }
-                    ?.let { listOf(it.readBytes()) }
-                    ?: emptyList()
+                val images = m.attachedImagePaths.mapNotNull { p ->
+                    File(p).takeIf { it.exists() }?.readBytes()
+                }
                 add(LlmMessage(role, m.contentMarkdown, images))
             }
         }
@@ -79,7 +77,6 @@ class SendMessageUseCase @Inject constructor(
                         sessionId = sessionId,
                         role = MessageRole.AI,
                         content = body,
-                        attachedImagePath = null,
                         generationMs = duration,
                         tokenCount = tokens,
                         modelUsed = chunk.model,
