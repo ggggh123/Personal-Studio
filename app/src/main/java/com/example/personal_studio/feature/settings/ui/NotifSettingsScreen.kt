@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -87,8 +88,11 @@ fun NotifSettingsScreen(
         })
         Column(
             modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp)
-                .verticalScroll(rememberScrollState()),
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ── 3 toggles ──────────────────────────────
