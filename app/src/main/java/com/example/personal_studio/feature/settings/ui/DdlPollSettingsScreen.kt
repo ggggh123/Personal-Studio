@@ -95,6 +95,11 @@ fun DdlPollSettingsScreen(onBack: () -> Unit, vm: DdlPollSettingsViewModel = hil
             |  会立即停轮,需手动重启。""".trimMargin(),
             color = Amber, style = MaterialTheme.typography.labelMedium,
         )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "※ 建议在最近任务中锁定本应用，以确保后台提醒工作正常",
+            color = Amber, style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 
