@@ -254,10 +254,16 @@ fun ChatDetailScreen(
             if (state.streamingText != null) {
                 item(key = "__streaming__") {
                     AiFrame(header = state.activeModel) {
-                        TypewriterText(
-                            text = state.streamingText ?: "",
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                        )
+                        // 出首字前(streamingText 为空)显示幽默思考提示 + 秒数,
+                        // 让用户知道是模型在想而非卡死;出真实 token 即切回正文。
+                        if (state.streamingText.isNullOrEmpty()) {
+                            ThinkingIndicator()
+                        } else {
+                            TypewriterText(
+                                text = state.streamingText ?: "",
+                                style = MaterialTheme.typography.bodyMedium.copy(color = Foam),
+                            )
+                        }
                     }
                 }
             }
