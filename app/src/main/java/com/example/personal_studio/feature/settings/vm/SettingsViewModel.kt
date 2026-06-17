@@ -118,6 +118,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** 选内置精选模型:切代号 + 清掉任何自定义 url/key → 回退到内置端点+密钥(BuildConfig 默认)。 */
+    fun selectCuratedModel(code: String) {
+        viewModelScope.launch {
+            prefs.setModelName(code)
+            prefs.setApiBaseUrl(null)
+            prefs.setApiKey(null)
+        }
+    }
+
     // Test connection --------------------------------------------------------
 
     fun onTestConnection() {
