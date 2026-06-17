@@ -347,8 +347,11 @@ private fun ClusterItemRow(
             modifier = Modifier.width(110.dp),
         )
         Text(
-            text = (item.courseName?.takeIf { it.isNotBlank() }?.let { "$it · " } ?: "") +
-                item.title + (item.location?.let { "  ·  $it" } ?: ""),
+            text = if (item.type == TimelineType.EXAM)
+                "【考试】" + item.title + (item.location?.let { "  ·  $it" } ?: "")
+            else
+                (item.courseName?.takeIf { it.isNotBlank() }?.let { "$it · " } ?: "") +
+                    item.title + (item.location?.let { "  ·  $it" } ?: ""),
             color = Foam,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),

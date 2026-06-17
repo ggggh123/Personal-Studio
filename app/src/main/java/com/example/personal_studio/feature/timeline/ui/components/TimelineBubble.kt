@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.example.personal_studio.core.util.CourseColorPalette
 import com.example.personal_studio.domain.model.BubbleState
 import com.example.personal_studio.domain.model.TimelineItem
+import com.example.personal_studio.domain.model.TimelineType
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Cyan
@@ -84,7 +85,8 @@ fun TimelineBubble(
             .padding(8.dp),
     ) {
         Text(
-            text = item.title,
+            // 考试同步进来 title 只是课程名,在 day 块里标出它是一门考试。
+            text = if (item.type == TimelineType.EXAM) "【考试】${item.title}" else item.title,
             color = Foam,
             style = MaterialTheme.typography.bodyMedium,
             textDecoration = if (state is BubbleState.TaskDone || state is BubbleState.CustomDone ||

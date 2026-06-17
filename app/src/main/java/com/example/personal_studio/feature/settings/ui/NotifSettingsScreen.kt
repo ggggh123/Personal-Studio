@@ -67,20 +67,30 @@ fun NotifSettingsScreen(
     val s by vm.switches.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
 
-    // Diagnostic statuses are recomputed on every recomposition — these are
-    // cheap synchronous calls. Returning to this screen after the user edits
-    // a system setting picks up the new value automatically.
-    val notifPermissionGranted = if (Build.VERSION.SDK_INT >= 33)
-        ContextCompat.checkSelfPermission(
-            ctx, Manifest.permission.POST_NOTIFICATIONS,
-        ) == PackageManager.PERMISSION_GRANTED
-    else true
     val alarmManager = remember { ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager }
-    val canScheduleExactAlarms =
-        if (Build.VERSION.SDK_INT >= 31) alarmManager.canScheduleExactAlarms() else true
     val powerManager = remember { ctx.getSystemService(Context.POWER_SERVICE) as PowerManager }
-    val isIgnoringBatteryOptimizations =
+
+    // 诊断状态读的是实时系统状态,不是 Compose State——从系统设置 Activity 返回时本身
+    // 不会触发重组,否则 ✓/✗ 会一直停在旧值直到本屏被重建。每次 ON_RESUME 自增 refreshTick,
+    // 三项检查 remember(refreshTick) 重算,这样用户从系统设置回来立刻刷新。
+    var refreshTick by remember { mutableStateOf(0) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        refreshTick++
+        onPauseOrDispose { }
+    }
+    val notifPermissionGranted = remember(refreshTick) {
+        if (Build.VERSION.SDK_INT >= 33)
+            ContextCompat.checkSelfPermission(
+                ctx, Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+        else true
+    }
+    val canScheduleExactAlarms = remember(refreshTick) {
+        if (Build.VERSION.SDK_INT >= 31) alarmManager.canScheduleExactAlarms() else true
+    }
+    val isIgnoringBatteryOptimizations = remember(refreshTick) {
         powerManager.isIgnoringBatteryOptimizations(ctx.packageName)
+    }
 
     Column(Modifier.fillMaxSize()) {
         TerminalTopBar(route = "notif", subtitle = "# notifications", trailing = {
