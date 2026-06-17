@@ -1,5 +1,7 @@
 package com.example.personal_studio.feature.timeline.ui
 
+import android.widget.Toast
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,10 +32,19 @@ fun AddCourseScreen(
     vm: AddCourseViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         vm.events.collectLatest { ev ->
             if (ev is AddCourseEvent.RequestNotifPermission) onRequestNotifPermission()
+        }
+    }
+
+    // 保存成功反馈:用系统 Toast(始终可见,不受滚动位置影响),再清掉状态。
+    LaunchedEffect(ui.savedToast) {
+        ui.savedToast?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            vm.consumedToast()
         }
     }
 
@@ -49,17 +61,15 @@ fun AddCourseScreen(
         })
 
         Column(
-            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ui.savedToast?.let {
-                Text(it, color = Phosphor)
-                LaunchedEffect(it) {
-                    kotlinx.coroutines.delay(2000)
-                    vm.consumedToast()
-                }
-            }
-
             if (ui.conflicts.isNotEmpty()) {
                 AssistChip(
                     onClick = {},
@@ -86,7 +96,10 @@ fun AddCourseScreen(
             )
 
             Text("星期", color = Phosphor)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 listOf("一" to 1, "二" to 2, "三" to 3, "四" to 4, "五" to 5, "六" to 6, "日" to 7).forEach { (label, code) ->
                     FilterChip(selected = code in ui.weekdays, onClick = { vm.onToggleWeekday(code) }, label = { Text(label) })
                 }

@@ -11,9 +11,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.feature.timeline.ui.components.DeleteScopeDialog
 import com.example.personal_studio.feature.timeline.vm.CourseSeriesEditEvent
 import com.example.personal_studio.feature.timeline.vm.CourseSeriesEditViewModel
+import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
@@ -73,10 +73,12 @@ fun CourseSeriesEditScreen(
     }
 
     if (ui.deleteDialogVisible) {
-        DeleteScopeDialog(
-            seriesTitle = ui.title,
+        TerminalConfirmDialog(
+            title = "删除整个系列",
+            message = "将删除「${ui.title}」全部 ${ui.occurrenceCount} 节(含已上历史)，无法撤销。",
+            confirmLabel = "删除",
+            onConfirm = vm::confirmDeleteAll,
             onDismiss = vm::closeDeleteDialog,
-            onConfirm = vm::confirmDelete,
         )
     }
 }

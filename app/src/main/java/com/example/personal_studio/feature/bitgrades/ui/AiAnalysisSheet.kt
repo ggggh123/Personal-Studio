@@ -3,6 +3,7 @@ package com.example.personal_studio.feature.bitgrades.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,7 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.components.MarkdownText
+import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.FoamMute
 import com.example.personal_studio.ui.theme.Phosphor
@@ -40,8 +41,8 @@ fun AiAnalysisSheet(
     onRegenerate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+    TerminalBottomSheet(onDismiss = onDismiss, showHandle = true) {
+        Column(Modifier.fillMaxWidth()) {
             // 标题行 + 时间戳
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("$ ai-analysis", color = Phosphor, style = MaterialTheme.typography.titleMedium)
@@ -74,8 +75,16 @@ fun AiAnalysisSheet(
             // 底部按钮区:有内容且不在分析 → 显示「重新生成」+「在聊天里追问」
             if (!analyzing && text.isNotBlank()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onRegenerate, Modifier.weight(1f)) { Text("↻ 重新生成") }
-                    Button(onAskInChat, Modifier.weight(1f)) { Text("在聊天里追问 →") }
+                    OutlinedButton(
+                        onRegenerate,
+                        Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                    ) { Text("↻ 重新生成", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+                    Button(
+                        onAskInChat,
+                        Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                    ) { Text("去聊天追问 →", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
                 }
             }
         }

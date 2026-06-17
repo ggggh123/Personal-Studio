@@ -102,6 +102,9 @@ class CourseSeriesEditViewModel @Inject constructor(
     fun openDeleteDialog() = _ui.update { it.copy(deleteDialogVisible = true) }
     fun closeDeleteDialog() = _ui.update { it.copy(deleteDialogVisible = false) }
 
+    /** 终端确认弹窗只做单确认:删除整个系列(含历史)。 */
+    fun confirmDeleteAll() = confirmDelete(DeleteCourseSeriesUseCase.Scope.ALL)
+
     fun confirmDelete(scope: DeleteCourseSeriesUseCase.Scope) {
         viewModelScope.launch {
             // Cancel reminders for all rows that are about to be deleted.

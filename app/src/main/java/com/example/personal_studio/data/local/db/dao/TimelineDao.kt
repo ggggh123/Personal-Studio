@@ -13,6 +13,9 @@ data class CourseSeriesSummaryRow(
     val occurrenceCount: Int,
     val minWeek: Int,
     val maxWeek: Int,
+    val weekdaysCsv: String?,
+    val periodStart: Int?,
+    val periodEnd: Int?,
 )
 
 /**
@@ -123,7 +126,9 @@ interface TimelineDao {
         """
         SELECT seriesId, MIN(title) AS title, MIN(instructor) AS instructor, MIN(location) AS location,
                MIN(credits) AS credits,
-               COUNT(*) AS occurrenceCount, MIN(weekIndexInSemester) AS minWeek, MAX(weekIndexInSemester) AS maxWeek
+               COUNT(*) AS occurrenceCount, MIN(weekIndexInSemester) AS minWeek, MAX(weekIndexInSemester) AS maxWeek,
+               GROUP_CONCAT(DISTINCT weekdayCode) AS weekdaysCsv,
+               MIN(periodIndex) AS periodStart, MAX(periodEndIndex) AS periodEnd
         FROM timeline_items
         WHERE type = 'COURSE' AND seriesId IS NOT NULL
         GROUP BY seriesId

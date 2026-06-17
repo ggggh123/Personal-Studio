@@ -38,6 +38,14 @@ class TimelineRepositoryImpl @Inject constructor(
                     occurrenceCount = it.occurrenceCount,
                     minWeek = it.minWeek,
                     maxWeek = it.maxWeek,
+                    weekdays = it.weekdaysCsv
+                        ?.split(",")
+                        ?.mapNotNull { code -> code.trim().toIntOrNull() }
+                        ?.distinct()
+                        ?.sorted()
+                        ?: emptyList(),
+                    periodStart = it.periodStart,
+                    periodEnd = it.periodEnd,
                 )
             }
         }
