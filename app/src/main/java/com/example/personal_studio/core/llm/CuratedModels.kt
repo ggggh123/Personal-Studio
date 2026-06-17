@@ -14,7 +14,7 @@ object CuratedModels {
         CuratedModel("Deepseek V4 Flash", "deepseek-v4-flash"),
         CuratedModel("Deepseek V4 Pro", "deepseek-v4-pro"),
         CuratedModel("GLM 5.2", "glm-5.2"),
-        CuratedModel("Kimi 2.6", "kimi-2.6"),
+        CuratedModel("Kimi 2.6", "kimi-k2.6"),
         CuratedModel("Minimax M3", "MiniMax-M3"),
         CuratedModel("豆包", "doubao-seed-2-0-lite-260428"),
     )

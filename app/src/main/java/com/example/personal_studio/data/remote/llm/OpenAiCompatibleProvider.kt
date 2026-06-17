@@ -14,6 +14,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -84,7 +85,7 @@ class OpenAiCompatibleProvider(
 
         val body = buildJsonObject {
             put("model", model)
-            put("temperature", temperature.toDouble())
+            put("temperature", temperature2dp(temperature))
             put("stream", true)
             putJsonArray("messages") {
                 messages.forEach { m -> add(serializeMessage(m)) }
@@ -119,7 +120,7 @@ class OpenAiCompatibleProvider(
 
         val body = buildJsonObject {
             put("model", model)
-            put("temperature", temperature.toDouble())
+            put("temperature", temperature2dp(temperature))
             put("stream", false)
             putJsonArray("messages") {
                 finalMessages.forEach { m -> add(serializeMessage(m)) }
@@ -137,7 +138,7 @@ class OpenAiCompatibleProvider(
             val content = root["choices"]?.jsonArray?.firstOrNull()
                 ?.jsonObject?.get("message")
                 ?.jsonObject?.get("content")
-                ?.jsonPrimitive?.content
+                ?.jsonPrimitive?.contentOrNull
                 ?: error("upstream returned no content")
             content
         }
@@ -226,7 +227,7 @@ class OpenAiCompatibleProvider(
 
                 val errorObj = root["error"] as? JsonObject
                 if (errorObj != null) {
-                    val msg = errorObj["message"]?.jsonPrimitive?.content ?: "upstream error"
+                    val msg = errorObj["message"]?.jsonPrimitive?.contentOrNull ?: "upstream error"
                     emit(LlmChunk.Error(msg, retryable = false))
                     return@use
                 }
@@ -234,7 +235,7 @@ class OpenAiCompatibleProvider(
                 val delta = root["choices"]?.jsonArray?.firstOrNull()
                     ?.jsonObject?.get("delta")
                     ?.jsonObject?.get("content")
-                    ?.jsonPrimitive?.content
+                    ?.jsonPrimitive?.contentOrNull
 
                 if (!delta.isNullOrEmpty()) {
                     gotAnyContent = true
@@ -266,6 +267,10 @@ class OpenAiCompatibleProvider(
 
     private fun completionsUrl(baseUrl: String): String =
         baseUrl.trimEnd('/') + "/chat/completions"
+
+    /** GLM 等严格后端要求 temperature 小数 ≤2 位;`0.7f.toDouble()` 会得 0.6999999… 触发非法,
+     *  故四舍五入到 2 位再发。 */
+    private fun temperature2dp(t: Float): Double = kotlin.math.round(t.toDouble() * 100.0) / 100.0
 
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
