@@ -23,7 +23,6 @@ data class BitLoginUiState(
     val username: String = "",
     val password: String = "",
     val showPassword: Boolean = false,
-    val rememberPwd: Boolean = true,
     val loading: Boolean = false,
     val error: LoginOutcome? = null,
 )
@@ -52,7 +51,7 @@ class BitLoginViewModel @Inject constructor(
         credPrefs.observeAll().value?.let { saved ->
             // lastMode 只作 Auto 的首选 mode,在 onLogin 时按需读取。
             _uiState.update {
-                it.copy(username = saved.username, password = saved.password, rememberPwd = true)
+                it.copy(username = saved.username, password = saved.password)
             }
         }
     }
@@ -60,7 +59,6 @@ class BitLoginViewModel @Inject constructor(
     fun onUsernameChange(v: String) = _uiState.update { it.copy(username = v) }
     fun onPasswordChange(v: String) = _uiState.update { it.copy(password = v) }
     fun onShowPasswordToggle() = _uiState.update { it.copy(showPassword = !it.showPassword) }
-    fun onRememberToggle(v: Boolean) = _uiState.update { it.copy(rememberPwd = v) }
     fun onDismissError() = _uiState.update { it.copy(error = null) }
 
     fun onLogin() {
@@ -72,10 +70,10 @@ class BitLoginViewModel @Inject constructor(
             val first = resolveNetworkMode(credPrefs.observeAll().value?.lastMode)
             val r = validate.validateAuto(LoginRequest(st.username, st.password, first))
             if (r.outcome is LoginOutcome.Success) {
-                if (st.rememberPwd) credPrefs.save(st.username, st.password, r.mode)
-                else credPrefs.clear()
+                // 默认始终记住密码(Keystore 加密):凭据落库 → 登录态/后台同步均依赖它。
+                credPrefs.save(st.username, st.password, r.mode)
                 loginPrefs.setHasSeenLogin(true)
-                val firstSyncPending = st.rememberPwd && !loginPrefs.snapshotFirstSyncDone()
+                val firstSyncPending = !loginPrefs.snapshotFirstSyncDone()
                 _uiState.update { it.copy(loading = false) }
                 _events.emit(BitLoginEvent.Succeeded(firstSyncPending))
             } else {

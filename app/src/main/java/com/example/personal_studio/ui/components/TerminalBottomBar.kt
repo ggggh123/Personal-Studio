@@ -67,14 +67,15 @@ fun TerminalBottomBar(
         tabs.forEach { tab ->
             val selected = tab.route == selectedRoute
             if (tab.prominent) {
-                // 中央凸起方块:上移浮起,描边方块,像实体按钮
+                // 中央凸起方块:上移浮起,描边方块,像实体按钮。
+                // clickable 必须在 offset/size 之后,否则点击涟漪停在偏移前的原位、与可见按钮错开。
                 Box(
                     modifier = Modifier
-                        .clickable { onTabClick(tab) }
                         .offset(y = (-12).dp)
                         .size(46.dp)
                         .border(1.dp, Phosphor)
-                        .background(if (selected) Phosphor.copy(alpha = 0.16f) else Void),
+                        .background(if (selected) Phosphor.copy(alpha = 0.16f) else Void)
+                        .clickable { onTabClick(tab) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(

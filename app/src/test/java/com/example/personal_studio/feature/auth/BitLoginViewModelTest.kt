@@ -73,13 +73,14 @@ class BitLoginViewModelTest {
         coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
     }
 
-    @Test fun `login without rememberPwd clears creds`() = runTest {
+    @Test fun `login always persists creds and never clears (remember-password removed)`() = runTest {
         val validate = mockk<ValidateCredentialsUseCase> { coEvery { this@mockk.validateAuto(any()) } returns AutoLoginResult(LoginOutcome.Success, NetworkMode.LOCAL) }
         val credPrefs = creds()
         val sut = vm(validate, credPrefs)
-        sut.onUsernameChange("u"); sut.onPasswordChange("p"); sut.onRememberToggle(false)
+        sut.onUsernameChange("u"); sut.onPasswordChange("p")
         sut.onLogin(); advanceUntilIdle()
-        coVerify { credPrefs.clear() }
+        coVerify { credPrefs.save("u", "p", NetworkMode.LOCAL) }
+        coVerify(exactly = 0) { credPrefs.clear() }
     }
 
     @Test fun `wrong credentials sets error and does not save`() = runTest {
