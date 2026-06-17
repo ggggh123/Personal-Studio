@@ -49,6 +49,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.NotifSettingsViewModel
 import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
@@ -255,6 +256,13 @@ private fun ManufacturerGuidanceCard(onOpenAppDetails: () -> Unit) {
                 color = FoamMute,
                 style = MaterialTheme.typography.bodySmall,
             )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "※ 建议在最近任务中锁定本应用，以确保后台提醒工作正常",
+                color = Amber,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(6.dp))
             ManufacturerLine("小米 / 红米", "设置 → 应用管理 → Personal-Studio → 自启动 / 省电策略 → 无限制")
             ManufacturerLine("华为 / 荣耀", "手机管家 → 应用启动管理 → Personal-Studio → 手动管理 → 全部开启")
             ManufacturerLine("OPPO / 一加", "设置 → 电池 → 应用电池管理 → Personal-Studio → 后台不冻结 / 不休眠")
