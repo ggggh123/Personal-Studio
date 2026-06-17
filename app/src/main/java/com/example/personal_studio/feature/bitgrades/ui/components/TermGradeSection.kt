@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,7 +25,6 @@ import com.example.personal_studio.core.util.CreditFormat
 import com.example.personal_studio.domain.bitgrades.model.TermGrades
 import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Cyan
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.FoamMute
@@ -102,22 +100,7 @@ fun TermGradeSection(
                             }
                         }
                         AnimatedVisibility(courseExpanded) {
-                            val lines = gradeDetailLines(c)
-                            Column(Modifier.padding(start = 28.dp, top = 1.dp, bottom = 3.dp)) {
-                                if (lines.isEmpty()) {
-                                    Text(
-                                        "无详情", color = FoamDim,
-                                        style = MaterialTheme.typography.labelMedium,
-                                    )
-                                } else {
-                                    lines.forEach { line ->
-                                        Text(
-                                            line, color = Cyan,
-                                            style = MaterialTheme.typography.labelMedium,
-                                        )
-                                    }
-                                }
-                            }
+                            CourseDetailViz(c)
                         }
                     }
                 }
