@@ -104,7 +104,7 @@ class ExamsViewModel @Inject constructor(
     private fun ExamSyncError.toMessage(): String = when (this) {
         is ExamSyncError.WrongCredentials -> "密码错误"
         is ExamSyncError.AccountLocked -> "账号锁定"
-        is ExamSyncError.CaptchaRequired -> "需验证码,请网页端登录一次"
+        is ExamSyncError.CaptchaRequired -> "请到个人中心重新登录，并完成应用内的学校网页验证"
         is ExamSyncError.ParseFail -> "教务返回异常"
         is ExamSyncError.NetworkFail -> "网络错误,请重试"
         is ExamSyncError.Unexpected -> "未知错误"

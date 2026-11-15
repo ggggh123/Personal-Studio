@@ -11,12 +11,12 @@ import org.junit.Test
 
 class ResolveNetworkModeUseCaseTest {
 
-    @Test fun `LOCAL or null stays LOCAL without probing`() = runTest {
-        val probe = mockk<CampusReachabilityProbe>()   // 未 stub:若被调用会抛,验证不探测
+    @Test fun `old campus mode and first login use VPN after leaving campus`() = runTest {
+        val probe = mockk<CampusReachabilityProbe> { coEvery { localReachable() } returns false }
         val resolve = ResolveNetworkModeUseCase(probe)
-        assertEquals(NetworkMode.LOCAL, resolve(NetworkMode.LOCAL))
-        assertEquals(NetworkMode.LOCAL, resolve(null))
-        coVerify(exactly = 0) { probe.localReachable() }
+        assertEquals(NetworkMode.WEBVPN, resolve(NetworkMode.LOCAL))
+        assertEquals(NetworkMode.WEBVPN, resolve(null))
+        coVerify(exactly = 2) { probe.localReachable() }
     }
 
     @Test fun `WEBVPN reverts to LOCAL when campus is reachable`() = runTest {

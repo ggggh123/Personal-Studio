@@ -11,6 +11,7 @@ import com.example.personal_studio.domain.bitddl.model.DdlSyncStep
 import com.example.personal_studio.domain.bitddl.model.LexueUrlResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.CancellationException
 import java.io.IOException
 import javax.inject.Inject
 
@@ -27,6 +28,7 @@ class SyncAssignmentsUseCase @Inject constructor(
     private val replacer: ReplaceImportedDdlUseCase,
 ) {
     fun sync(req: DdlSyncRequest): Flow<DdlSyncStep> = flow {
+        apiClient.acquireSession()
         try {
             apiClient.open(req.networkMode)
             emit(DdlSyncStep.FetchingCalendar)
@@ -42,7 +44,7 @@ class SyncAssignmentsUseCase @Inject constructor(
                 }
             }
         } finally {
-            apiClient.close()
+            try { apiClient.close() } finally { apiClient.releaseSession() }
         }
     }
 
@@ -85,6 +87,8 @@ class SyncAssignmentsUseCase @Inject constructor(
             }
         } catch (io: IOException) {
             BackgroundDdlResult.Transient
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             BackgroundDdlResult.Transient
         }

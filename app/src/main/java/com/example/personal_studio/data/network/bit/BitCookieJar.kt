@@ -8,11 +8,11 @@ import javax.inject.Singleton
 
 /**
  * In-memory cookie jar scoped to a single BIT session. Cleared explicitly on
- * [clear] (called by `BitApiClient.close()`) — cookies never survive a wizard
- * dismissal, which limits the value of a stolen session.
+ * [clear] (called by `BitApiClient.close()`). On Android the browser cookie
+ * interceptor supplies the persistent, account-scoped verification session.
  *
- * Stores cookies keyed by `(domain, name)` so a newer Set-Cookie for the same
- * (domain, name) pair fully replaces the older value (e.g. when CAS rotates
+ * Stores cookies keyed by `(domain, path, name)` so a newer Set-Cookie for the same
+ * identity fully replaces the older value (e.g. when CAS rotates
  * the SESSION cookie mid-redirect-chain).
  *
  * Filtering on load uses OkHttp's [Cookie.matches] — that's the canonical
@@ -23,14 +23,14 @@ import javax.inject.Singleton
 @Singleton
 class BitCookieJar @Inject constructor() : CookieJar {
 
-    private data class Key(val domain: String, val name: String)
+    private data class Key(val domain: String, val path: String, val name: String)
 
     private val store = mutableMapOf<Key, Cookie>()
 
     @Synchronized
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         for (cookie in cookies) {
-            store[Key(cookie.domain, cookie.name)] = cookie
+            store[Key(cookie.domain, cookie.path, cookie.name)] = cookie
         }
     }
 
@@ -48,7 +48,7 @@ class BitCookieJar @Inject constructor() : CookieJar {
             if (cookie.matches(url)) matched += cookie
         }
         for (k in expired) store.remove(k)
-        return matched
+        return matched.sortedByDescending { it.path.length }
     }
 
     /** Clears all cookies. Intended to be called only by [BitApiClient.close];

@@ -68,7 +68,11 @@ class TimelineNotifier @Inject constructor() {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(notificationId, notification) }
+        try {
+            NotificationManagerCompat.from(context).notify(notificationId, notification)
+        } catch (_: SecurityException) {
+            // Notification permission can be revoked before a reminder fires.
+        }
     }
 
     private fun humanDuration(minutes: Int): String =

@@ -34,7 +34,7 @@ fun ImportEntryRoute(
     // 后者对已登录用户渲染成 TerminalSplash,会卡死在裸 logo。
     val err = ui.error
     if (err != null) {
-        ImportErrorScreen(error = err, onRetry = vm::onRetry, onClose = onClose)
+        ImportErrorScreen(error = err, onRetry = vm::onRetry, onClose = onClose, onNeedLogin = onNeedLogin)
     } else when (ui.currentScreen) {
         ImportScreen.Credentials -> TerminalSplash()
         ImportScreen.TermPicker  -> ImportTermPickerScreen(vm = vm)
@@ -50,6 +50,7 @@ private fun ImportErrorScreen(
     error: ImportError,
     onRetry: () -> Unit,
     onClose: () -> Unit,
+    onNeedLogin: () -> Unit,
 ) {
     val context = LocalContext.current
     WizardScaffold(
@@ -65,9 +66,7 @@ private fun ImportErrorScreen(
             onAction = { action ->
                 when (action) {
                     BannerAction.Retry -> onRetry()
-                    BannerAction.OpenBrowserLoginPage -> context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse("https://sso.bit.edu.cn/cas/login")),
-                    )
+                    BannerAction.Reauthenticate -> onNeedLogin()
                     BannerAction.OpenIssueTracker -> context.startActivity(
                         Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ggggh123/Personal-Studio/issues")),
                     )

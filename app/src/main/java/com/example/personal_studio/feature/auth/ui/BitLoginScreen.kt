@@ -1,10 +1,9 @@
 package com.example.personal_studio.feature.auth.ui
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -47,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
 import com.example.personal_studio.feature.auth.BitLoginEvent
+import com.example.personal_studio.feature.auth.BitLoginStage
 import com.example.personal_studio.feature.auth.BitLoginViewModel
 import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.theme.Amber
@@ -80,7 +79,22 @@ fun BitLoginScreen(
     vm: BitLoginViewModel = hiltViewModel(),
 ) {
     val st by vm.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    BackHandler(enabled = st.loading && st.webLoginUrl == null) { vm.onCancelLogin() }
+    var slowResponse by remember { mutableStateOf(false) }
+    LaunchedEffect(st.stage) {
+        slowResponse = false
+        if (st.loading && st.webLoginUrl == null) {
+            delay(10_000)
+            slowResponse = true
+        }
+    }
+    st.webLoginUrl?.let { url ->
+        BitWebVerificationDialog(
+            url = url,
+            username = st.username,
+            onFinished = vm::onWebLoginFinished,
+        )
+    }
 
     // 守卫场景(skipVisible=false:用户点功能被拦截)直接进表单,不播开机动效。
     // 首屏场景才播一次启动序列。bootDone 用 remember,登录失败重组不会重播。
@@ -161,13 +175,7 @@ fun BitLoginScreen(
                     )
 
                     st.error?.let { err ->
-                        ErrorBox(err) {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, Uri.parse("https://login.bit.edu.cn/")),
-                                )
-                            }
-                        }
+                        ErrorBox(err, vm::onOpenWebLogin)
                     }
 
                     val fieldColors = OutlinedTextFieldDefaults.colors(
@@ -181,11 +189,13 @@ fun BitLoginScreen(
                     )
                     OutlinedTextField(
                         value = st.username, onValueChange = vm::onUsernameChange,
+                        enabled = !st.loading,
                         label = { Text("学号") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), colors = fieldColors,
                     )
                     OutlinedTextField(
                         value = st.password, onValueChange = vm::onPasswordChange,
+                        enabled = !st.loading,
                         label = { Text("密码") }, singleLine = true,
                         visualTransformation = if (st.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
@@ -200,7 +210,7 @@ fun BitLoginScreen(
                     )
                     // 网络全自动:校内优先探测 + 校内↔校外按需回退,无需手动选择。
                     Text(
-                        "› 网络 · 自动（校内↔校外按需切换）",
+                        "› 自动选择可用的学校访问方式",
                         color = FoamMute, style = MaterialTheme.typography.labelSmall,
                     )
                 }
@@ -220,13 +230,36 @@ fun BitLoginScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(if (st.loading) "验证中 " else "登录 →", color = if (st.loading) FoamDim else Phosphor)
+                    Text(when (st.stage) {
+                        BitLoginStage.CheckingNetwork -> "正在检测连接 "
+                        BitLoginStage.Authenticating -> "正在登录学校账户 "
+                        BitLoginStage.OpeningBrowser -> "正在准备学校验证 "
+                        BitLoginStage.BrowserVerification -> "等待完成学校验证 "
+                        BitLoginStage.VerifyingBrowser -> "正在确认验证结果 "
+                        null -> "登录 →"
+                    }, color = if (st.loading) FoamDim else Phosphor)
                     if (st.loading) BlinkingCursor()
                 }
 
+                if (st.loading && st.webLoginUrl == null) {
+                    if (slowResponse) {
+                        Text("学校响应较慢，可以继续等待或取消后重试。", color = FoamMute,
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    TextButton(onClick = vm::onCancelLogin, modifier = Modifier.fillMaxWidth()) {
+                        Text("取消本次登录", color = FoamMute)
+                    }
+                }
+
+                TextButton(
+                    onClick = vm::onOpenWebLogin,
+                    enabled = !st.loading && st.username.isNotBlank() && st.password.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("学校网页验证 / 短信验证", color = Amber) }
+
                 if (skipVisible) {
                     Spacer(Modifier.height(16.dp))
-                    TextButton(onClick = vm::onSkip, modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = vm::onSkip, enabled = !st.loading, modifier = Modifier.fillMaxWidth()) {
                         Text("跳过", color = FoamDim)
                     }
                 }
@@ -240,15 +273,15 @@ private fun ErrorBox(err: LoginOutcome, onOpenWeb: () -> Unit) {
     val msg = when (err) {
         LoginOutcome.WrongCredentials -> "学号或密码错误"
         LoginOutcome.AccountLocked -> "账号已锁定,请稍后或网页端处理"
-        LoginOutcome.CaptchaRequired -> "需要验证码,请在网页端登录一次后重试"
-        is LoginOutcome.NetworkFail -> "连接失败,检查网络或切换校内/校外后重试"
-        is LoginOutcome.Unexpected -> "登录失败,请重试"
+        LoginOutcome.CaptchaRequired -> "学校要求网页或短信验证，请在下方完成验证后重试"
+        is LoginOutcome.NetworkFail -> "暂时无法连接学校服务，请检查网络后重试"
+        is LoginOutcome.Unexpected -> "登录失败：${err.cause}"
         LoginOutcome.Success -> return
     }
     Column(Modifier.fillMaxWidth().border(1.dp, Carmine.copy(alpha = 0.6f)).padding(8.dp)) {
         Text(msg, color = Carmine, style = MaterialTheme.typography.labelMedium)
         if (err == LoginOutcome.CaptchaRequired) {
-            TextButton(onClick = onOpenWeb) { Text("打开网页端", color = Amber) }
+            TextButton(onClick = onOpenWeb) { Text("完成学校网页验证", color = Amber) }
         }
     }
 }

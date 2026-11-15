@@ -22,6 +22,7 @@ import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 
 /**
  * 后台作业 DDL 轮询 Worker(对照 M4 GradePollWorker)。
@@ -54,11 +55,14 @@ class DdlPollWorker @AssistedInject constructor(
         val first = resolveNetworkMode(creds.lastMode)
         var result: BackgroundDdlResult = BackgroundDdlResult.Transient
         var usedMode = first
+        apiClient.acquireSession()
         return try {
             for (mode in listOf(first, otherMode(first))) {
                 apiClient.open(mode)
                 result = try {
                     sync.syncForBackground(DdlSyncRequest(creds.username, creds.password, mode, true))
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Throwable) {
                     BackgroundDdlResult.Transient
                 }
@@ -68,7 +72,7 @@ class DdlPollWorker @AssistedInject constructor(
             }
             handle(result, creds, usedMode)
         } finally {
-            apiClient.close()
+            try { apiClient.close() } finally { apiClient.releaseSession() }
         }
     }
 

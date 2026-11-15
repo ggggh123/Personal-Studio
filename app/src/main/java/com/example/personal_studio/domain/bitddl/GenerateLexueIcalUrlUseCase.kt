@@ -7,6 +7,7 @@ import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.domain.bitddl.model.LexueUrlResult
 import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -18,12 +19,9 @@ class GenerateLexueIcalUrlUseCase @Inject constructor(
     private val ssoLogin: SsoLoginUseCase,
 ) {
     suspend fun invoke(req: DdlSyncRequest): LexueUrlResult {
-        val login = ssoLogin.invoke(apiClient, req.username, req.password)
-        login.toDdlError()?.let { return LexueUrlResult.Failed(it) }
         return try {
-            // CAS 激活须穿当前 mode 的 CAS 端点(校外走 webvpn 网关,否则 webvpn 域的 TGC 带不上)。
-            // 乐学 host 本身公网可直连,故 service 仍是裸乐学(不给乐学配网关前缀)。
-            apiClient.cas.activateServiceAt(apiClient.casLoginEndpoint(), LEXUE_SERVICE)
+            val login = ssoLogin.loginLexue(apiClient, req.username, req.password)
+            login.toDdlError()?.let { return LexueUrlResult.Failed(it) }
             val indexHtml = (apiClient.lexue.getIndexHtml().let { it.body() ?: it.errorBody() })?.string().orEmpty()
             val sesskey = extractSesskey(indexHtml)
                 ?: return LexueUrlResult.Failed(DdlSyncError.ParseFail("no sesskey"))
@@ -33,6 +31,8 @@ class GenerateLexueIcalUrlUseCase @Inject constructor(
             LexueUrlResult.Ok(url)
         } catch (io: IOException) {
             LexueUrlResult.Failed(DdlSyncError.NetworkFail(io.message ?: "io"))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             LexueUrlResult.Failed(DdlSyncError.Unexpected(e.message ?: e.javaClass.simpleName))
         }
@@ -47,9 +47,6 @@ class GenerateLexueIcalUrlUseCase @Inject constructor(
     }
 
     companion object {
-        /** 必须与 CAS 注册的乐学 service 完全一致——待真机抓包确认。 */
-        const val LEXUE_SERVICE = "https://lexue.bit.edu.cn/login/index.php"
-
         private val SESSKEY = Regex("""["']sesskey["']\s*:\s*["']([^"']+)["']""")
         private val ICAL_URL = Regex("""https?://[^\s"'<>]*export_execute\.php[^\s"'<>]*""")
 

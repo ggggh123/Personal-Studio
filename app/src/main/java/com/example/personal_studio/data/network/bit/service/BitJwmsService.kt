@@ -3,6 +3,9 @@ package com.example.personal_studio.data.network.bit.service
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.Url
 
 /**
@@ -17,11 +20,17 @@ import retrofit2.http.Url
 interface BitJwmsService {
 
     /** 成绩查询列表 — HTML table with id `dataList`. Requires an active jwms
-     *  session (see [BitCasService.activateService]). If the student hasn't
+     *  session established by SsoLoginUseCase.loginGrades. If the student hasn't
      *  finished 评教 (course evaluation), this page hides grades and contains
      *  the word "评教" instead. */
-    @GET("jsxsd/kscj/cjcx_list")
-    suspend fun getScoreListHtml(): Response<ResponseBody>
+    @FormUrlEncoded
+    @POST("jsxsd/kscj/cjcx_list")
+    suspend fun getScoreListHtml(
+        @Field("kksj") term: String = "",
+        @Field("kcxz") courseType: String = "",
+        @Field("kcmc") courseName: String = "",
+        @Field("xsfs") display: String = "all",
+    ): Response<ResponseBody>
 
     /** 成绩分析(cjfx)详情页 HTML。[url] 必须是相对 jwms **base** 的路径(**不带**前导 '/',
      *  如 `jsxsd/kscj/cjfx?...`)：@Url 传以 '/' 开头的绝对路径会被解析成替换整段 path,从而

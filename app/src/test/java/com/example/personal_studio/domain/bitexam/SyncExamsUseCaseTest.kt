@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 class SyncExamsUseCaseTest {
     private val term = "2025-2026-2"
@@ -54,6 +55,7 @@ class SyncExamsUseCaseTest {
         examSchedule: BitJwappService.() -> Unit = { coEvery { getExamSchedule(any()) } returns Response.success(examResp) },
     ) = mockk<BitJwappService>(relaxed = true) {
         coEvery { getCurrentTerm() } returns currentTerm
+        coEvery { getExamIndex() } answers { Response.success("<html>exam app</html>".toResponseBody()) }
         examSchedule()
     }
 
@@ -129,16 +131,15 @@ class SyncExamsUseCaseTest {
             jwapp.getAppConfig()
             jwapp.switchLang()
             jwapp.getCurrentTerm()
-            jwapp.getExamAppConfig()
-            jwapp.switchLangExam()
+            jwapp.getExamIndex()
             jwapp.getExamSchedule(any())
         }
     }
 
-    @Test fun `requestParamStr carries term and order`() = runTest {
+    @Test fun `exam request carries term and order as separate fields`() = runTest {
         val sso = successSso()
         val jwapp = jwapp()
         useCase(sso, jwapp = jwapp).sync(req()).toList()
-        coVerify { jwapp.getExamSchedule(match { it.contains(term) && it.contains("*order") }) }
+        coVerify { jwapp.getExamSchedule(term, "-KSRQ") }
     }
 }

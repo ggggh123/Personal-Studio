@@ -14,7 +14,7 @@ fun otherMode(m: NetworkMode): NetworkMode =
  *
  * **有意取舍**:只在连接级失败(各功能的 NetworkFail / IOException)回退——其余失败可能是真实状态
  * (无数据 / 评教未完成 / 密码错),盲目翻网会掩盖真因。纯函数,不依赖 BitApiClient,便于单测。
- * 设计见 docs/superpowers/specs/2026-06-09-network-auto-fallback-design.md。
+ * 当前认证与回退规则见 docs/school-integration.md。
  */
 fun <S> autoNetworkFallback(
     first: NetworkMode,

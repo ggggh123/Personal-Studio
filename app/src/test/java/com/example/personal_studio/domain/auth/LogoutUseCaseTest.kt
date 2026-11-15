@@ -10,6 +10,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import com.example.personal_studio.data.network.bit.BitApiClient
 
 class LogoutUseCaseTest {
     @Test fun `logout clears creds, cancels schedulers, disables sync`() = runTest {
@@ -18,7 +19,8 @@ class LogoutUseCaseTest {
         val ddlSyncPrefs = mockk<DdlSyncPrefs>(relaxed = true)
         val gradesScheduler = mockk<GradesPollScheduler>(relaxed = true)
         val ddlScheduler = mockk<DdlPollScheduler>(relaxed = true)
-        val useCase = LogoutUseCase(credPrefs, gradesSyncPrefs, ddlSyncPrefs, gradesScheduler, ddlScheduler)
+        val api = mockk<BitApiClient>(relaxed = true)
+        val useCase = LogoutUseCase(credPrefs, gradesSyncPrefs, ddlSyncPrefs, gradesScheduler, ddlScheduler, api)
 
         useCase.invoke()
 
@@ -27,5 +29,6 @@ class LogoutUseCaseTest {
         verify { ddlScheduler.cancel() }
         coVerify { gradesSyncPrefs.setEnabled(false) }
         coVerify { ddlSyncPrefs.setEnabled(false) }
+        coVerify { api.clearBrowserSession() }
     }
 }

@@ -6,6 +6,8 @@ import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import com.example.personal_studio.feature.bitgrades.GradesPollScheduler
 import javax.inject.Inject
+import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.withExclusiveSession
 
 /**
  * 登出:清除已存凭据 + 取消两个后台轮询 + 关闭两个自动同步开关。
@@ -17,6 +19,7 @@ class LogoutUseCase @Inject constructor(
     private val ddlSyncPrefs: DdlSyncPrefs,
     private val gradesPollScheduler: GradesPollScheduler,
     private val ddlPollScheduler: DdlPollScheduler,
+    private val apiClient: BitApiClient,
 ) {
     suspend operator fun invoke() {
         credPrefs.clear()
@@ -24,5 +27,6 @@ class LogoutUseCase @Inject constructor(
         ddlPollScheduler.cancel()
         gradesSyncPrefs.setEnabled(false)
         ddlSyncPrefs.setEnabled(false)
+        apiClient.withExclusiveSession { apiClient.clearBrowserSession() }
     }
 }

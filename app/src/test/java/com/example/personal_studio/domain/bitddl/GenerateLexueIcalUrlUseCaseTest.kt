@@ -3,7 +3,6 @@ package com.example.personal_studio.domain.bitddl
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
-import com.example.personal_studio.data.network.bit.service.BitCasService
 import com.example.personal_studio.data.network.bit.service.BitLexueService
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
@@ -30,7 +29,7 @@ class GenerateLexueIcalUrlUseCaseTest {
      *  receiver so the call doesn't collide with MockK's matcher-scope DSL. */
     private fun ssoReturning(result: CasLoginDto): SsoLoginUseCase {
         val sso = mockk<SsoLoginUseCase>()
-        coEvery { sso.invoke(any(), any(), any()) } returns result
+        coEvery { sso.loginLexue(any(), any(), any()) } returns result
         return sso
     }
 
@@ -62,7 +61,6 @@ class GenerateLexueIcalUrlUseCaseTest {
                 ok("""<div class="calendarurl">https://lexue.bit.edu.cn/calendar/export_execute.php?authtoken=T</div>""")
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns mockk<BitCasService>(relaxed = true)
             coEvery { this@mockk.lexue } returns lexue
         }
         val sso = ssoReturning(CasLoginDto.Success)
@@ -71,27 +69,23 @@ class GenerateLexueIcalUrlUseCaseTest {
         assertEquals("https://lexue.bit.edu.cn/calendar/export_execute.php?authtoken=T", (r as LexueUrlResult.Ok).url)
     }
 
-    @Test fun `activates lexue service through casLoginEndpoint (webvpn-aware, not direct sso)`() = runTest {
-        val cas = mockk<BitCasService>(relaxed = true)
+    @Test fun `uses independent lexue login without activating an unchecked CAS endpoint`() = runTest {
         val lexue = mockk<BitLexueService> {
             coEvery { getIndexHtml() } returns ok("""x"sesskey":"K"x""")
             coEvery { exportCalendar(any(), any(), any(), any(), any()) } returns
                 ok("""<div class="calendarurl">https://lexue.bit.edu.cn/calendar/export_execute.php?authtoken=T</div>""")
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns cas
             coEvery { this@mockk.lexue } returns lexue
-            every { casLoginEndpoint() } returns "https://webvpn.example/https/enc/cas/login"
         }
-        GenerateLexueIcalUrlUseCase(api, ssoReturning(CasLoginDto.Success)).invoke(req())
-        // 激活走的是当前 mode 的 CAS 端点(可穿 webvpn),service 仍是裸乐学。
-        coVerify { cas.activateServiceAt("https://webvpn.example/https/enc/cas/login", GenerateLexueIcalUrlUseCase.LEXUE_SERVICE) }
+        val sso = ssoReturning(CasLoginDto.Success)
+        GenerateLexueIcalUrlUseCase(api, sso).invoke(req())
+        coVerify { sso.loginLexue(api, "u", "p") }
     }
 
     @Test fun `missing sesskey returns Failed ParseFail`() = runTest {
         val lexue = mockk<BitLexueService> { coEvery { getIndexHtml() } returns ok("<html>no key</html>") }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns mockk<BitCasService>(relaxed = true)
             coEvery { this@mockk.lexue } returns lexue
         }
         val sso = ssoReturning(CasLoginDto.Success)

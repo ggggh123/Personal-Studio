@@ -122,7 +122,7 @@ class AssignmentsViewModel @Inject constructor(
     private fun DdlSyncError.toMessage(): String = when (this) {
         is DdlSyncError.WrongCredentials -> "密码错误"
         is DdlSyncError.AccountLocked -> "账号锁定"
-        is DdlSyncError.CaptchaRequired -> "需验证码,请网页端登录一次"
+        is DdlSyncError.CaptchaRequired -> "请到个人中心重新登录，并完成应用内的学校网页验证"
         is DdlSyncError.NeedReview -> "请先完成评教"
         is DdlSyncError.ParseFail -> "乐学返回异常"
         is DdlSyncError.NetworkFail -> "网络错误,请重试"

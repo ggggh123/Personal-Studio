@@ -25,27 +25,19 @@ package com.example.personal_studio.data.network.bit
  */
 object BitUrlsConfig {
 
-    data class Hosts(val cas: String, val jwapp: String, val jwms: String, val lexue: String)
+    data class Hosts(val jwapp: String, val jwms: String, val lexue: String)
 
-    /** Campus-network direct.
-     *  `jwms` = 正方教务系统 (成绩查询 lives here as HTML, NOT in the ehall app).
-     *  CAS registered jwms's service as http://jwms.bit.edu.cn/, but the host
-     *  also serves https; we fetch over https to avoid cleartext (the CAS
-     *  ticket bounce to http is permitted via network_security_config). */
+    /** Campus data endpoints. jwms's registered service uses HTTP; off campus
+     * requests are carried inside the HTTPS WebVPN connection below. */
     val LOCAL = Hosts(
-        cas   = "https://sso.bit.edu.cn/",
         jwapp = "https://jxzxehallapp.bit.edu.cn/",
         jwms  = "http://jwms.bit.edu.cn/",
         lexue = "https://lexue.bit.edu.cn/",
     )
 
-    /** Off-campus through BIT's WebVPN gateway. The /https/<encoded>/ prefix
-     *  is BIT's URL-rewriting scheme — verified against BIT101-Android's
-     *  DEFAULT_WEB_VPN_URLS reference table. The jwms encoded host comes from
-     *  BIT101-GO's score module (the `/http/...` jsxsd prefix). WEBVPN grades
-     *  are untested on real device (same pending status as P5 WebVPN). */
+    /** Off-campus endpoints, matching BIT-Login v4.0.2's gateway host mapping.
+     * CAS remains direct; BitAuthUrls rewrites each issued service callback. */
     val WEBVPN = Hosts(
-        cas   = "https://sso.bit.edu.cn/",
         jwapp = "https://webvpn.bit.edu.cn/https/" +
             "77726476706e69737468656265737421faef5b842238695c720999bcd6572a216b231105adc27d/",
         jwms  = "https://webvpn.bit.edu.cn/http/" +
@@ -58,25 +50,4 @@ object BitUrlsConfig {
         NetworkMode.WEBVPN -> WEBVPN
     }
 
-    /**
-     * CAS-login endpoint (no query string) to use for **service-ticket
-     * activation** of a webvpn-proxied target (currently only jwms / 正方教务).
-     *
-     * - LOCAL: direct `sso.bit.edu.cn` — identical to the historical behaviour.
-     * - WEBVPN: the sso host **wrapped by the webvpn gateway**. This is the fix
-     *   for off-campus 成绩查询: after a webvpn login the CAS TGC cookie lives on
-     *   `webvpn.bit.edu.cn`, and the jwms ticket bounce must stay inside the
-     *   gateway so the jsxsd session cookie also lands there (where
-     *   [Hosts.jwms] fetches from). Hitting direct sso instead can't carry the
-     *   webvpn-scoped TGC and bounces to the unreachable raw jwms host.
-     *
-     * The encoded sso prefix decodes to `sso.bit.edu.cn` (AES-128-CFB,
-     * key=iv="wrdvpnisthebest!") and is verified against BIT101-GO
-     * pkg/webvpn/score.go `pre_url`.
-     */
-    fun casLoginEndpoint(mode: NetworkMode): String = when (mode) {
-        NetworkMode.LOCAL  -> "https://sso.bit.edu.cn/cas/login"
-        NetworkMode.WEBVPN -> "https://webvpn.bit.edu.cn/https/" +
-            "77726476706e69737468656265737421e3e44ed225397c1e7b0c9ce29b5b/cas/login"
-    }
 }

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -206,6 +207,7 @@ class EmptyRoomViewModel @Inject constructor(
                 first = firstMode,
                 onModeSucceeded = { if (it != firstMode) credPrefs.save(creds.username, creds.password, it) },
             ) { mode ->
+                repo.acquireSession()
                 try {
                     when (val r = repo.openAndLogin(creds.username, creds.password, mode)) {
                         is EmptyRoomResult.Ok -> block(r.value)
@@ -215,6 +217,8 @@ class EmptyRoomViewModel @Inject constructor(
                     repo.close()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             // 连接级失败两 mode 都失败,或非连接级异常(withSessionAutoFallback 对非 IOException 不重试,
             // 直接抛出)——统一当"网络/未知错误"处理(与重构前 catch(Throwable) 行为一致)。

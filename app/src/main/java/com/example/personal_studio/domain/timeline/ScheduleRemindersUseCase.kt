@@ -17,8 +17,8 @@ import com.example.personal_studio.domain.model.TimelineType
  * Why not WorkManager any more? Doze + Chinese OEM aggressive background-kill
  * batched notifications until the user re-opened the app. exact-while-idle
  * alarms bypass Doze so reminders fire on time even if the process was
- * frozen. See spec 2026-05-01-p4-timeline-design §3.5 / §8 ("厂商 ROM 阻断
- * WorkManager" risk).
+ * frozen. Permission fallback and scheduling coverage are documented in
+ * docs/timeline.md; the historical tradeoff is recorded in docs/decisions.md.
  *
  * `suspend` is kept on `invoke` for source compatibility with existing
  * callers (AddTaskViewModel, AddCourseViewModel, TaskDetailViewModel, etc.);

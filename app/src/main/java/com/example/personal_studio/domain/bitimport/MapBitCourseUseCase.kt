@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 /**
  * Converts one BIT ScheduleRow into N TimelineItemEntities — one per `'1'` in
- * its SKZC bitmap. Field mapping decisions are documented in the spec §5.2.
+ * its SKZC bitmap. Mapping and replacement rules are documented in docs/timeline.md.
  *
  * `baseSeriesId` should be `dao.maxSeriesId() + 1` at the start of an import
  * session. `kchToSeries` is a session-scoped scratchpad so rows with the same

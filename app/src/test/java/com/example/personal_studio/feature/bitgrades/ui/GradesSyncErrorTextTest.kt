@@ -11,9 +11,9 @@ class GradesSyncErrorTextTest {
     @Test fun `each variant maps to a non-generic message`() {
         assertEquals("用户名或密码错误，请重新登录", GradesSyncError.WrongCredentials.userMessage())
         assertEquals("账号已被锁定，请稍后再试或到教务系统解锁", GradesSyncError.AccountLocked.userMessage())
-        assertEquals("登录需要验证码，请先在教务系统网页端登录一次再试", GradesSyncError.CaptchaRequired.userMessage())
+        assertTrue(GradesSyncError.CaptchaRequired.userMessage().contains("应用内的学校网页验证"))
         assertEquals("需先在教务系统完成评教才能查成绩", GradesSyncError.NeedReview.userMessage())
-        assertTrue(GradesSyncError.EmptyGrades.userMessage().contains("没拉到成绩"))
+        assertTrue(GradesSyncError.EmptyGrades.userMessage().contains("成绩表为空"))
         assertEquals("解析失败：CAS: boom", GradesSyncError.ParseFail("CAS: boom").userMessage())
     }
 
