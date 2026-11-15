@@ -68,32 +68,22 @@ fun ScanLibraryScreen(
     var deleteTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
 
     Column(Modifier.fillMaxSize().background(Void)) {
-        // 壳层(MainShell)已渲染 studio:~/scanner $ 顶栏 + 设置齿轮;此屏正文头部对齐 chat
-        // 列表:user@study:~$ ls scans/ + [+ 新建扫描] + total N。
+        // 资料页的“扫描文档”分段：数量 + 新建扫描（天光阶段 1 去掉了终端提示符）。
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = Amber)) { append("user@study") }
-                        withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
-                        withStyle(SpanStyle(color = Foam)) { append("ls scans/") }
-                    },
+                    text = "${state.docs.size} 份文档",
+                    color = FoamMute,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "[+ 新建扫描]",
+                    "新建扫描",
                     color = Cyan,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.clickable(onClick = onNewDoc).padding(4.dp),
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "total ${state.docs.size}",
-                style = MaterialTheme.typography.bodySmall,
-                color = FoamMute,
-            )
         }
         Spacer(Modifier.height(14.dp))
         if (state.docs.isEmpty()) {
@@ -155,20 +145,18 @@ fun ScanLibraryScreen(
 @Composable
 private fun ScanEmptyState(onNewDoc: () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp)) {
-        Text("# 暂无文档", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Text("暂无文档", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
-                    withStyle(SpanStyle(color = Cyan)) { append("[新建扫描]") }
+                    withStyle(SpanStyle(color = Cyan)) { append("新建扫描") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 开始第一个扫描") }
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable(onClick = onNewDoc),
             )
-            BlinkingCursor()
         }
     }
 }
@@ -216,7 +204,6 @@ private fun DocRow(
         Column(Modifier.weight(1f)) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = FoamDim)) { append("") }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,

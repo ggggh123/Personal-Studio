@@ -26,7 +26,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.TimelineItem
 import com.example.personal_studio.domain.model.TimelineType
 import com.example.personal_studio.domain.timeline.ComputeBubbleStateUseCase
-import com.example.personal_studio.feature.timeline.ui.components.AddItemFab
 import com.example.personal_studio.feature.timeline.ui.components.DayStripBar
 import com.example.personal_studio.feature.timeline.ui.components.NowIndicator
 import com.example.personal_studio.feature.timeline.ui.components.TimelineAxis
@@ -162,15 +161,11 @@ fun TimelineScreen(
             }
         }
 
-        AddItemFab(
-            onAddTask = onAddTask,
-            onAddCourse = onAddCourse,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
-        )
+        // New tasks and courses are created from the shell's ＋ sheet (天光 phase 1).
     }
 
     expandedCluster?.let { items ->
-        TerminalBottomSheet(onDismiss = { expandedCluster = null }, header = "ls cluster/") {
+        TerminalBottomSheet(onDismiss = { expandedCluster = null }, header = "折叠的事项") {
             Text(
                 "${items.size} 项被折叠 · 点击进入详情",
                 color = FoamDim,

@@ -81,7 +81,7 @@ fun SyncAllScreen(
             } else {
                 if (anyFailed) {
                     Text(
-                        "[重试失败项]", color = Amber, style = MaterialTheme.typography.bodyMedium,
+                        "重试失败项", color = Amber, style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable { vm.retry() }.padding(8.dp),
                     )
                     Spacer(Modifier.width(12.dp))

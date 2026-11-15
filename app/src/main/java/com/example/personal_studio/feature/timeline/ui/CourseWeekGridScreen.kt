@@ -213,7 +213,7 @@ private fun SemesterSetupCta(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            "# 课程表尚未初始化",
+            "课程表尚未初始化",
             color = Foam,
             style = MaterialTheme.typography.titleMedium,
         )
@@ -277,7 +277,7 @@ private fun EmptyCoursesCta(
                 Text("从教务系统一键导入", style = MaterialTheme.typography.labelLarge)
             }
             TextButton(onClick = onNavigateToAddCourse) {
-                Text("[手动添加]", color = FoamDim, style = MaterialTheme.typography.labelLarge)
+                Text("手动添加", color = FoamDim, style = MaterialTheme.typography.labelLarge)
             }
         }
     }

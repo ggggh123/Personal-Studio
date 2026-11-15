@@ -1,8 +1,6 @@
 package com.example.personal_studio.feature.settings.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,9 +21,7 @@ fun SemesterSettingsScreen(
     val current by vm.current.collectAsStateWithLifecycle()
     val ctx = androidx.compose.ui.platform.LocalContext.current
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "semester", subtitle = "# semester start", trailing = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
-        })
+        TerminalTopBar(route = "semester", subtitle = "学期起始日", onBack = onBack)
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("当前学期起始日：${current?.toString() ?: "未设置"}", color = Foam)
             Button(onClick = {

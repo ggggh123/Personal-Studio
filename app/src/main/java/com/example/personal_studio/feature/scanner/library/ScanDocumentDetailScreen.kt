@@ -205,16 +205,9 @@ private fun EditorView(
     ) {
         TerminalTopBar(
             route = "scans/$title",
-            subtitle = "# 会话: $title\n# ${pages.size} 页" +
+            subtitle = "$title\n${pages.size} 页" +
                 (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
-            trailing = {
-                Text(
-                    "返回",
-                    color = FoamMute,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onBack),
-                )
-            },
+            onBack = onBack,
         )
         ReorderablePageGrid(
             pages = pages,
@@ -253,12 +246,12 @@ private fun EditorActionBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "[+ 添加页面]",
+            "添加页面",
             color = Phosphor,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.clickable(onClick = onAddPage),
         )
-        val label = if (isExporting) "[... 导出 PDF 中]" else "[📄 导出 PDF]"
+        val label = if (isExporting) "正在导出 PDF…" else "导出 PDF"
         val color = when {
             isExporting -> Amber
             canExport -> Phosphor

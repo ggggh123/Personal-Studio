@@ -62,11 +62,8 @@ fun ChatListScreen(
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Amber)) { append("user@study") }
-                    withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
-                    withStyle(SpanStyle(color = Foam)) { append("ls sessions/") }
-                },
+                text = "${state.sessions.size} 个会话",
+                color = FoamMute,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -75,8 +72,6 @@ fun ChatListScreen(
                 modifier = Modifier.clickable { vm.createNewSession(onCreated = onOpenSession) }.padding(4.dp),
             )
         }
-        Spacer(Modifier.height(4.dp))
-        Text("total ${state.sessions.size}", style = MaterialTheme.typography.bodySmall, color = FoamMute)
         Spacer(Modifier.height(14.dp))
 
         if (state.sessions.isEmpty()) {
@@ -130,7 +125,6 @@ fun ChatListScreen(
     ) {
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(color = FoamDim)) { append("") }
                 withStyle(SpanStyle(color = FoamMute)) { append(label) }
                 withStyle(SpanStyle(color = FoamDim)) { append(" ") }
             },
@@ -173,12 +167,11 @@ fun ChatListScreen(
 
 @Composable private fun EmptyState(onOpenNew: () -> Unit) {
     Column {
-        Text("# 暂无会话", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Text("暂无会话", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
                     withStyle(SpanStyle(color = Cyan)) { append("新建") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 开始第一个会话") }
@@ -186,7 +179,6 @@ fun ChatListScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable(onClick = onOpenNew),
             )
-            BlinkingCursor()
         }
     }
 }

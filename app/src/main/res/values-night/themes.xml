@@ -1,5 +1,4 @@
 <resources>
-    <style name="Theme.PersonalStudio" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
-    </style>
+    <!-- First launch, before the app has recorded a 天光 family: follow the system. -->
+    <style name="Theme.PersonalStudio" parent="Theme.PersonalStudio.Night" />
 </resources>

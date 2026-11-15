@@ -95,25 +95,21 @@ fun KbEntryDetailScreen(
     Box(Modifier.fillMaxSize().background(Void)) {
         Column(Modifier.fillMaxSize()) {
             TerminalTopBar(
-                route = (state as? KbEntryDetailUiState.Loaded)?.entry?.title.orEmpty().ifBlank { "kb/" },
+                route = (state as? KbEntryDetailUiState.Loaded)?.entry?.title.orEmpty().ifBlank { "知识条目" },
+                onBack = onBack,
                 trailing = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box {
-                            IconButton(onClick = { menuExpanded = true }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = "menu", tint = Foam)
-                            }
-                            TerminalDropdownMenu(
-                                expanded = menuExpanded,
-                                onDismissRequest = { menuExpanded = false },
-                            ) {
-                                TerminalDropdownItem("重命名") { showRename = true; menuExpanded = false }
-                                TerminalDropdownItem("改分类") { showCategorySheet = true; menuExpanded = false }
-                                TerminalDropdownItem("重新生成") { showRegenerateConfirm = true; menuExpanded = false }
-                                TerminalDropdownItem("删除", Carmine) { showDeleteConfirm = true; menuExpanded = false }
-                            }
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "更多", tint = Foam)
                         }
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back", tint = Foam)
+                        TerminalDropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            TerminalDropdownItem("重命名") { showRename = true; menuExpanded = false }
+                            TerminalDropdownItem("改分类") { showCategorySheet = true; menuExpanded = false }
+                            TerminalDropdownItem("重新生成") { showRegenerateConfirm = true; menuExpanded = false }
+                            TerminalDropdownItem("删除", Carmine) { showDeleteConfirm = true; menuExpanded = false }
                         }
                     }
                 },

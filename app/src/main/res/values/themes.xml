@@ -1,6 +1,21 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.PersonalStudio" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.PersonalStudio" parent="Theme.PersonalStudio.Day" />
+
+    <!-- Day and Night are also handed to SplashScreen.setSplashScreenTheme (API 33+), so the
+         next cold start opens on the 天光 family the app was last showing, not the system's. -->
+    <style name="Theme.PersonalStudio.Day" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/tg_day_bg</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/tg_day_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/ic_launcher_foreground</item>
+    </style>
+
+    <style name="Theme.PersonalStudio.Night" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/tg_night_bg</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/tg_night_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/splash_mark_night</item>
     </style>
 </resources>

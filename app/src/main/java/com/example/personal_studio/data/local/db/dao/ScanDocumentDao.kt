@@ -73,6 +73,10 @@ interface ScanDocumentDao {
     @Query("DELETE FROM scan_documents WHERE id = :id")
     suspend fun delete(id: Long)
 
+    /** Documents with no page at all, e.g. a scan abandoned before its first page. */
+    @Query("SELECT id FROM scan_documents d WHERE NOT EXISTS (SELECT 1 FROM scan_pages WHERE docId = d.id)")
+    suspend fun idsWithoutPages(): List<Long>
+
     @Query("SELECT * FROM scan_documents WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): ScanDocumentEntity?
 }

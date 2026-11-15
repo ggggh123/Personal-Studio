@@ -55,23 +55,7 @@ fun KbHomeScreen(
 
     Box(Modifier.fillMaxSize().background(Void)) {
         Column(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
-                Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(color = Amber)) { append("user@study") }
-                        withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
-                        withStyle(SpanStyle(color = Foam)) { append("ls kb/") }
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "total ${state.notesCount + state.mistakesCount}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = FoamMute,
-                )
-            }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(4.dp))
             KbSearchBar(query = state.searchQuery, onQueryChange = vm::onSearchChange)
 
             // Top stats row: 3 mutually-exclusive filter chips. ALL is the default
@@ -124,12 +108,11 @@ fun KbHomeScreen(
 @Composable
 private fun KbEmptyState() {
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
-        Text("# 暂无条目", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Text("暂无条目", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 buildAnnotatedString {
-                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("从 ") }
                     withStyle(SpanStyle(color = Cyan)) { append("聊天") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 或 ") }
@@ -138,7 +121,6 @@ private fun KbEmptyState() {
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
-            BlinkingCursor()
         }
     }
 }

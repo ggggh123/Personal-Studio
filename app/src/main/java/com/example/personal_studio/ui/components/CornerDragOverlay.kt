@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.example.personal_studio.ui.theme.Tg
 
 enum class CornerId { TL, TR, BR, BL }
 
@@ -31,13 +32,16 @@ fun CornerDragOverlay(
     corners: List<Offset>,             // TL, TR, BR, BL — in Compose px
     onCornersChange: (List<Offset>) -> Unit,
     modifier: Modifier = Modifier,
-    strokeColor: Color = Color(0xFF41FF8F),
-    handleColor: Color = Color(0xFF41FF8F),
+    strokeColor: Color = Tg.colors.accent,
+    handleColor: Color = Tg.colors.accent,
+    ringColor: Color = Tg.colors.text,
 ) {
     require(corners.size == 4) { "corners must have 4 points" }
     var boxSize by remember { mutableStateOf(Size.Zero) }
     val density = LocalDensity.current
-    val handlePx = with(density) { 18.dp.toPx() }
+    val handleRadiusPx = with(density) { 9.dp.toPx() }
+    val ringPx = with(density) { 2.dp.toPx() }
+    val strokePx = with(density) { 2.dp.toPx() }
     val grabRadiusPx = with(density) { 36.dp.toPx() }
     var dragging by remember { mutableStateOf<CornerId?>(null) }
 
@@ -79,13 +83,13 @@ fun CornerDragOverlay(
             lineTo(corners[3].x, corners[3].y)
             close()
         }
-        drawPath(path, color = strokeColor, style = Stroke(width = 3f))
-        corners.forEach { c ->
-            drawRect(
-                color = handleColor,
-                topLeft = Offset(c.x - handlePx / 2, c.y - handlePx / 2),
-                size = Size(handlePx, handlePx),
-            )
+        drawPath(path, color = strokeColor.copy(alpha = 0.18f))
+        drawPath(path, color = strokeColor, style = Stroke(width = strokePx))
+        corners.forEachIndexed { i, c ->
+            // The handle being dragged grows a little so the finger can see it moved.
+            val r = if (dragging?.ordinal == i) handleRadiusPx * 1.35f else handleRadiusPx
+            drawCircle(color = ringColor, radius = r + ringPx, center = c)
+            drawCircle(color = handleColor, radius = r, center = c)
         }
     }
 }

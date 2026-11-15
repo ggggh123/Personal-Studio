@@ -44,7 +44,7 @@
 
 [`BitCookieJar`](../app/src/main/java/com/example/personal_studio/data/network/bit/BitCookieJar.kt) 以 `(domain, path, name)` 为键，新 Cookie 覆盖旧值，匹配请求使用标准 `Cookie.matches()`。原生请求通过 network interceptor 与 [CookieManager](../app/src/main/java/com/example/personal_studio/data/network/bit/BitBrowserSessions.kt) 双向同步，并及时写入响应 Cookie，使下一跳能立即使用。
 
-每次 `close()` 会释放 Retrofit 实例和临时原生 Cookie，**保留浏览器 Cookie**。它们由学校有效期控制，切账号或退出登录才主动清除；没有“固定七天免短信”的客户端保证。个人中心的“账户已保存”表示本地凭据存在，不表示所有服务在线，“上次连接”也不表示当前网络位置。
+每次 `close()` 会释放 Retrofit 实例和临时原生 Cookie，**保留浏览器 Cookie**。它们由学校有效期控制，切账号或退出登录才主动清除；没有“固定七天免短信”的客户端保证。校园页的“账户已保存”表示本地凭据存在，不表示所有服务在线，“上次连接”也不表示当前网络位置。
 
 ## 网络选择
 

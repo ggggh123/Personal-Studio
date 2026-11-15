@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.chat.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,18 +26,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.personal_studio.ui.theme.Rule
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -74,6 +75,8 @@ fun ChatDetailScreen(
     sessionId: Long,
     onBack: () -> Unit,
     onNavigateToKbEntry: (Long) -> Unit,
+    /** Open the photo-question camera right away (＋ → 拍题提问). */
+    startWithQuickCapture: Boolean = false,
 ) {
     val vm: ChatDetailViewModel = hiltViewModel(
         creationCallback = { factory: ChatDetailViewModel.Factory -> factory.create(sessionId) }
@@ -94,7 +97,7 @@ fun ChatDetailScreen(
     var showAttachmentSheet by remember { mutableStateOf(false) }
     var pickedForCrop by remember { mutableStateOf<String?>(null) }
     // Full-screen takeover states for scanner integration.
-    var showQuickCapture by remember { mutableStateOf(false) }
+    var showQuickCapture by rememberSaveable { mutableStateOf(startWithQuickCapture) }
     var showScansPicker by remember { mutableStateOf(false) }
 
     // Per-message rendered height cache. MathMarkdownView is a WebView that reports
@@ -159,28 +162,21 @@ fun ChatDetailScreen(
         TerminalTopBar(
             route = "chat",
             subtitle = buildSubtitle(state.session?.title, state.activeModel),
+            onBack = onBack,
             trailing = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "[+ 归档会话]",
-                        color = Phosphor,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .clickable {
-                                val src = KbDraftSource.FromChatSession(sessionId = sessionId)
-                                activeSourceState.value = src
-                                saveVm.startDraft(src)
-                            }
-                            .padding(8.dp),
-                    )
-                    Text(
-                        "←",
-                        color = FoamMute,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.clickableNoRipple(onBack).padding(8.dp),
-                    )
-                }
-            }
+                Text(
+                    "归档会话",
+                    color = Phosphor,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .clickable {
+                            val src = KbDraftSource.FromChatSession(sessionId = sessionId)
+                            activeSourceState.value = src
+                            saveVm.startDraft(src)
+                        }
+                        .padding(8.dp),
+                )
+            },
         )
 
         LazyColumn(
@@ -315,8 +311,8 @@ fun ChatDetailScreen(
             }
         }
 
-        // Phosphor dashed rule above the input — matching the top bar's divider style.
-        DashedPhosphorRule()
+        // Hairline above the input, matching the header's divider.
+        InputRule()
 
         // Input line. MIUI 等在 edge-to-edge 下仍会因 IME 自动缩窗(已把内容抬到键盘上方),
         // 此处**不再叠加 imePadding**——叠了会翻倍,把输入框顶到屏幕中部。只用 navigationBarsPadding
@@ -328,22 +324,17 @@ fun ChatDetailScreen(
                 .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "> ",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Phosphor,
-            )
             BasicTextField(
                 value = state.input,
                 onValueChange = vm::onInputChanged,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
                 cursorBrush = SolidColor(Phosphor),
-                // 回车插入换行(支持多行);发送只走右侧「↵ 发送」。
+                // 回车插入换行(支持多行);发送只走右侧「发送」。
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
                 maxLines = 5,
                 modifier = Modifier.weight(1f),
                 decorationBox = { innerTextField ->
-                    // Terminal-style placeholder: rendered underneath the inner text
+                    // Placeholder: rendered underneath the inner text
                     // field so it disappears as soon as the user types.
                     if (state.input.isEmpty()) {
                         Text(
@@ -355,20 +346,17 @@ fun ChatDetailScreen(
                     innerTextField()
                 },
             )
-            if (state.input.isBlank()) {
-                BlinkingCursor()
-            }
             Spacer(Modifier.width(12.dp))
             if (state.isSending) {
                 Text(
-                    text = "⏹ 停止",
+                    text = "停止",
                     style = MaterialTheme.typography.labelSmall,
                     color = Carmine,
                     modifier = Modifier.clickableNoRipple { vm.onStop() }
                 )
             } else {
                 Text(
-                    text = "↵ 发送",
+                    text = "发送",
                     style = MaterialTheme.typography.labelSmall,
                     color = Amber,
                     modifier = Modifier.clickableNoRipple { vm.onSend() }
@@ -456,7 +444,7 @@ private fun buildSubtitle(title: String?, model: String): String {
     val sessionLabel = title?.takeIf { it.isNotBlank() } ?: "(未命名)"
     // Two comment-style lines — keeps the session title readable when long and
     // gives the active model its own row so it doesn't wrap awkwardly.
-    return "# 会话: $sessionLabel\n# 模型: $model"
+    return "$sessionLabel\n$model"
 }
 
 /**
@@ -473,22 +461,13 @@ private fun formatDoneLine(message: ChatMessage): String {
 }
 
 @Composable
-private fun DashedPhosphorRule() {
-    val ruleColor = Phosphor
+private fun InputRule() {
     Box(
         modifier = Modifier
+            .padding(horizontal = 20.dp)
             .fillMaxWidth()
             .height(1.dp)
-            .padding(horizontal = 20.dp)
-            .drawBehind {
-                drawLine(
-                    color = ruleColor,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 1f,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f)),
-                )
-            }
+            .background(Rule),
     )
 }
 

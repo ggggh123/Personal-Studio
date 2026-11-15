@@ -3,4 +3,8 @@
     <color name="brand_blue">#FF7CC4FF</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- 天光 backgrounds for the window and the system splash, before Compose draws.
+         Keep in sync with DaylightPalette.Noon.bg / Night.bg. -->
+    <color name="tg_day_bg">#FFF8F7F3</color>
+    <color name="tg_night_bg">#FF13100C</color>
 </resources>

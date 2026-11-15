@@ -24,7 +24,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.Divider
@@ -93,9 +92,7 @@ fun NotifSettingsScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "notif", subtitle = "# notifications", trailing = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
-        })
+        TerminalTopBar(route = "notif", subtitle = "通知与后台提醒", onBack = onBack)
         Column(
             modifier = Modifier
                 .weight(1f)

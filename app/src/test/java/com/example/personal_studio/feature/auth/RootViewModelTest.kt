@@ -21,12 +21,12 @@ class RootViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
 
-    @Test fun `seen login goes to PROFILE`() = runTest {
+    @Test fun `seen login goes to TIMELINE`() = runTest {
         val prefs = mockk<LoginPrefs> { every { observe } returns flowOf(true) }
         val vm = RootViewModel(prefs)
         val job = launch { vm.startDestination.collect {} }
         advanceUntilIdle()
-        assertEquals(NavRoutes.PROFILE, vm.startDestination.value)
+        assertEquals(NavRoutes.TIMELINE, vm.startDestination.value)
         job.cancel()
     }
 

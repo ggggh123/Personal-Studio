@@ -11,13 +11,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** 冷启动决定起始目的地:见过登录 → PROFILE;否则 → LOGIN。初值 null = splash 中。 */
+/** 冷启动决定起始目的地：见过登录 → 今日；否则 → 登录。初值 null 表示仍在读取（首帧被挂起）。 */
 @HiltViewModel
 class RootViewModel @Inject constructor(
     loginPrefs: LoginPrefs,
 ) : ViewModel() {
     val startDestination: StateFlow<String?> =
         loginPrefs.observe
-            .map { seen -> if (seen) NavRoutes.PROFILE else NavRoutes.LOGIN }
+            .map { seen -> if (seen) NavRoutes.TIMELINE else NavRoutes.LOGIN }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 }

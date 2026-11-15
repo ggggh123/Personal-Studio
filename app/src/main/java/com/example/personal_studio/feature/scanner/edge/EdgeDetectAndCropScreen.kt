@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.personal_studio.ui.theme.DarkCanvas
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,7 +54,8 @@ fun EdgeDetectAndCropScreen(
     preDetectedNormalized: List<PointF>? = null,
     onConfirm: (corners: List<PointF>) -> Unit,
     onRetake: () -> Unit,
-) {
+) = DarkCanvas {
+
     // Keying the VM by capturedFilePath means each distinct capture gets its
     // own VM instance — critical when this composable is reused inside a
     // DocumentBuilder state machine (same nav entry, multiple rounds of

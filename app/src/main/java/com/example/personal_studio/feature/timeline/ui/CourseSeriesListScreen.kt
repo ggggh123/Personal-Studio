@@ -14,10 +14,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,30 +52,23 @@ fun CourseSeriesListScreen(
 ) {
     val series by vm.series.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize().background(Void)) {
-        TerminalTopBar(route = "courses", subtitle = "# 课程管理", trailing = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
-        })
-        // 内联头部:user@study:~$ ls courses/ + [+新建课程] + total N(对齐 scanner)
+        TerminalTopBar(route = "courses", subtitle = "# 课程管理", onBack = onBack)
+        // 头部：课程数量 + 新建课程。
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = Amber)) { append("user@study") }
-                        withStyle(SpanStyle(color = FoamDim)) { append(":~$ ") }
-                        withStyle(SpanStyle(color = Foam)) { append("ls courses/") }
-                    },
+                    text = "${series.size} 门课程",
+                    color = FoamMute,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "[+新建课程]",
+                    "新建课程",
                     color = Cyan,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.clickable(onClick = onAddCourse).padding(4.dp),
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Text("total ${series.size}", style = MaterialTheme.typography.bodySmall, color = FoamMute)
         }
         Spacer(Modifier.height(14.dp))
         if (series.isEmpty()) {
@@ -105,7 +94,6 @@ private fun CourseRow(s: CourseSeriesSummary, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp)) {
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(color = FoamDim)) { append("") }
                 withStyle(SpanStyle(color = Phosphor)) { append(s.title) }
             },
             style = MaterialTheme.typography.bodyMedium,
@@ -135,24 +123,22 @@ private fun CourseRow(s: CourseSeriesSummary, onClick: () -> Unit) {
     }
 }
 
-/** 空态:对齐 chat/scanner(`# 暂无课程` + `▓ 点 [新建课程] 或 day 界面的 [+] 录入` + 闪烁光标)。 */
+/** 空态:对齐 chat/scanner(`# 暂无课程` + `▓ 点 新建课程 或 day 界面的 [+] 录入` + 闪烁光标)。 */
 @Composable
 private fun CourseEmptyState(onAddCourse: () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp)) {
-        Text("# 暂无课程", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
+        Text("暂无课程", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
         Spacer(Modifier.height(20.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
-                    withStyle(SpanStyle(color = Cyan)) { append("[新建课程]") }
+                    withStyle(SpanStyle(color = Cyan)) { append("新建课程") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 或在日程页点 ＋ 添加") }
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable(onClick = onAddCourse),
             )
-            BlinkingCursor()
         }
     }
 }

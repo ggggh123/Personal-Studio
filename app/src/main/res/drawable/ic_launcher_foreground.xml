@@ -1,32 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 终端屏:phosphor 绿圆角边框(CRT 屏框) + 框内居中的小号 ">_" 提示符。
-     边框/字均收在自适应图标安全区内,避免被各家圆/方遮罩裁切。
-     整体被 <monochrome> 复用 → Android 13+ 主题图标自动取其形状着色。 -->
+<!-- 天光 mark, day: a vermilion sun on the horizon over two fading ripples. Everything sits
+     inside the adaptive-icon safe circle (r 33 around 54,54). Reused as the <monochrome>
+     layer and as the day splash icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 一圈圆角边框(屏框) -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#41FF8F"
-        android:strokeWidth="4"
-        android:strokeLineJoin="round"
-        android:pathData="M34,18 L74,18 Q90,18 90,34 L90,74 Q90,90 74,90 L34,90 Q18,90 18,74 L18,34 Q18,18 34,18 Z" />
-    <!-- > 尖括号(小一号) -->
+        android:fillColor="#B03A22"
+        android:pathData="M40,56 A14,14 0 0,1 68,56 Z" />
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#41FF8F"
-        android:strokeWidth="7"
+        android:strokeColor="#1E1913"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M40,42 L54,54 L40,66" />
-    <!-- _ 光标(下划线) -->
+        android:pathData="M30,60 H78" />
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#41FF8F"
-        android:strokeWidth="7"
+        android:strokeColor="#1E1913"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
-        android:pathData="M56,66 L68,66" />
+        android:pathData="M40,67 H68" />
+    <path
+        android:strokeColor="#1E1913"
+        android:strokeAlpha="0.22"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M47,74 H61" />
 </vector>

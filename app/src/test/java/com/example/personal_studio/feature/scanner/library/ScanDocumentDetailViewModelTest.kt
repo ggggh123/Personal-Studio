@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ScanDocumentDetailViewModelTest {
@@ -73,18 +74,28 @@ class ScanDocumentDetailViewModelTest {
         assertEquals(1, repo.observePages(docId).first().size)
     }
 
-    @Test fun `new doc (navDocId 0) creates a pending document`() = runTest {
+    @Test fun `new doc (navDocId 0) writes nothing before the first page`() = runTest {
         val repo = FakeScanRepository()
         val vm = newVm(repo, 0L)
         assertTrue(vm.isNew)
-        assertEquals(1, repo.observeDocuments(SortMode.TIME_DESC).first().size)
+        assertEquals(0, repo.observeDocuments(SortMode.TIME_DESC).first().size)
     }
 
-    @Test fun `onExit discards an empty new doc`() = runTest {
+    @Test fun `first confirmed page creates the new doc with that page`() = runTest {
         val repo = FakeScanRepository()
-        val vm = newVm(repo, 0L)           // 新建空文档
+        val vm = newVm(repo, 0L)
+        vm.confirmPage(File("tmp.jpg"), emptyList(), ScanFilter.BW)
+        val docs = repo.observeDocuments(SortMode.TIME_DESC).first()
+        assertEquals(1, docs.size)
+        assertEquals(1, repo.observePages(docs.single().id).first().size)
+        assertEquals(1, vm.state.value.pages.size)
+    }
+
+    @Test fun `abandoning a new doc leaves nothing behind`() = runTest {
+        val repo = FakeScanRepository()
+        val vm = newVm(repo, 0L)           // 新建,没拍就退出
         vm.onExit()
-        assertEquals(0, repo.observeDocuments(SortMode.TIME_DESC).first().size)  // 空壳被丢弃
+        assertEquals(0, repo.observeDocuments(SortMode.TIME_DESC).first().size)
     }
 
     @Test fun `onExit keeps an existing doc`() = runTest {

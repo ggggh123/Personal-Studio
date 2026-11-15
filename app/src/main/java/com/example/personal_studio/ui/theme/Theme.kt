@@ -7,17 +7,21 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +66,9 @@ val LocalDaylight = compositionLocalOf<DaylightState?> { null }
  * app is handled by [AppTheme] itself.
  */
 val LocalThemeSafePoint = staticCompositionLocalOf<() -> Unit> { {} }
+
+/** How many [DarkCanvas] screens are showing; while any is, the system bars stay light-on-dark. */
+private val LocalDarkCanvasCount = staticCompositionLocalOf<MutableIntState?> { null }
 
 /** Entry point to the 天光 tokens for redesigned screens. */
 object Tg {
@@ -113,9 +120,10 @@ fun AppTheme(
     val target = DaylightPalette.resolve(mode, hour, sun, isSystemInDarkTheme(), if (moment != null) null else held)
     val colors = animatedColors(target)
 
+    val darkCanvases = remember { mutableIntStateOf(0) }
     val view = LocalView.current
     if (!view.isInEditMode) {
-        val lightBars = colors.isLight
+        val lightBars = colors.isLight && darkCanvases.intValue == 0
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
             WindowCompat.getInsetsController(window, view).apply {
@@ -129,31 +137,42 @@ fun AppTheme(
         LocalTgColors provides colors,
         LocalDaylight provides DaylightState(now.toLocalDate(), hour, sun, mode),
         LocalThemeSafePoint provides safePoint,
+        LocalDarkCanvasCount provides darkCanvases,
     ) {
         MaterialTheme(
             colorScheme = colors.toColorScheme(),
             typography = TgTypography,
             shapes = TgShapes,
-            content = content,
-        )
+        ) {
+            // Text and icons without an explicit colour follow the theme instead of
+            // Material's black default (no Scaffold/Surface sits above the screens).
+            CompositionLocalProvider(LocalContentColor provides colors.text, content = content)
+        }
     }
 }
 
 /**
  * Camera, crop and photo-review screens stay dark whatever the time (design rule): the
- * chrome must never tint or brighten a photo. [enabled] switches the palette without
- * changing the composition structure, so wrapped navigation state survives the toggle.
+ * chrome must never tint or brighten a photo. Each such screen wraps itself, so the page it
+ * slides over keeps its own colours during the transition. [enabled] switches the palette
+ * without changing the composition structure.
  */
 @Composable
 fun DarkCanvas(enabled: Boolean = true, content: @Composable () -> Unit) {
+    val counter = LocalDarkCanvasCount.current
+    DisposableEffect(counter, enabled) {
+        if (enabled) counter?.let { it.intValue++ }
+        onDispose { if (enabled) counter?.let { it.intValue-- } }
+    }
     val colors = if (enabled) DaylightPalette.Night else LocalTgColors.current
     CompositionLocalProvider(LocalTgColors provides colors) {
         MaterialTheme(
             colorScheme = colors.toColorScheme(),
             typography = TgTypography,
             shapes = TgShapes,
-            content = content,
-        )
+        ) {
+            CompositionLocalProvider(LocalContentColor provides colors.text, content = content)
+        }
     }
 }
 

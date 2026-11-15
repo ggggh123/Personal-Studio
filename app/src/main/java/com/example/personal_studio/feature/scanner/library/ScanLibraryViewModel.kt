@@ -38,6 +38,12 @@ class ScanLibraryViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanLibraryUiState())
 
+    init {
+        // New scans only reach the database with their first page; this clears the empty
+        // documents older versions could leave behind when a scan was abandoned.
+        viewModelScope.launch { repo.deleteEmptyDocuments() }
+    }
+
     fun setSort(mode: SortMode) { sort.value = mode }
 
     fun onRename(docId: Long, newTitle: String) = viewModelScope.launch {

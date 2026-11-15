@@ -1,8 +1,6 @@
 package com.example.personal_studio.feature.timeline.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,9 +33,7 @@ fun TaskDetailScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "detail", subtitle = "# timeline item", trailing = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
-        })
+        TerminalTopBar(route = "detail", subtitle = "事项详情", onBack = onBack)
 
         if (ui.loading) {
             Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {

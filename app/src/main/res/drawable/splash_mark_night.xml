@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 天光 mark, night: the same horizon with an amber crescent high above it. Splash icon
+     for the Night theme; same geometry and safe circle as ic_launcher_foreground. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#E3A54E"
+        android:pathData="M51.1,29.39 A11,11 0 1,0 63.95,44.7 A10,10 0 0,1 51.1,29.39 Z" />
+    <path
+        android:strokeColor="#EFE6D8"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M30,60 H78" />
+    <path
+        android:strokeColor="#EFE6D8"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M40,67 H68" />
+    <path
+        android:strokeColor="#EFE6D8"
+        android:strokeAlpha="0.22"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:pathData="M47,74 H61" />
+</vector>

@@ -3,16 +3,23 @@ package com.example.personal_studio.ui.navigation
 import android.net.Uri
 
 object NavRoutes {
-    // Bottom-nav tabs
-    const val CHAT = "chat"
-    const val SCANNER = "scanner"
-    const val KNOWLEDGE = "knowledge"
+    // Bottom-nav tabs (天光): 今日 · 问答 · ＋ · 资料 · 校园
     const val TIMELINE = "timeline"
+    const val CHAT = "chat"
+    /** 资料: knowledge base and scanned documents behind one segmented header. */
+    const val LIBRARY = "library?tab={tab}"
+    fun library(tab: String = LIBRARY_TAB_KB) = "library?tab=$tab"
+    const val LIBRARY_TAB_KB = "kb"
+    const val LIBRARY_TAB_SCANS = "scans"
     const val PROFILE = "profile"
 
+    /** Routes that show the shell's top and bottom bars. */
+    val TAB_ROUTES = setOf(TIMELINE, CHAT, LIBRARY, PROFILE)
+
     // Sub-destinations
-    const val CHAT_DETAIL = "chat/detail/{sessionId}"
-    fun chatDetail(sessionId: Long) = "chat/detail/$sessionId"
+    const val CHAT_DETAIL = "chat/detail/{sessionId}?capture={capture}"
+    /** [capture] opens the photo-question camera immediately (＋ → 拍题提问). */
+    fun chatDetail(sessionId: Long, capture: Boolean = false) = "chat/detail/$sessionId?capture=$capture"
 
     const val SETTINGS = "settings"
 

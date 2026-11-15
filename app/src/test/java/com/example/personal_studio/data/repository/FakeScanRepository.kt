@@ -125,5 +125,11 @@ class FakeScanRepository(
         documentDir(docId).deleteRecursively()
     }
 
+    override suspend fun deleteEmptyDocuments(): Int {
+        val empty = docs.value.filter { pagesByDoc[it.id]?.value.isNullOrEmpty() }.map { it.id }
+        empty.forEach { deleteDocument(it) }
+        return empty.size
+    }
+
     override fun documentDir(docId: Long): File = File(rootDir, docId.toString())
 }

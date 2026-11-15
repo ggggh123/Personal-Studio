@@ -3,8 +3,6 @@ package com.example.personal_studio.feature.settings.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -25,9 +23,7 @@ fun TimetableEditorScreen(
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TerminalTopBar(route = "timetable", subtitle = "作息表", trailing = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
-        })
+        TerminalTopBar(route = "timetable", subtitle = "作息表", onBack = onBack)
 
         Text(
             "※ 当前已按照北京理工大学作息表自动设置，不建议手动更改，否则可能导致课程表等功能发生异常",

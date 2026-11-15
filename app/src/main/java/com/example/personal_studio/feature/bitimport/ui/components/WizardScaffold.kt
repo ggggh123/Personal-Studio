@@ -31,7 +31,7 @@ fun WizardScaffold(
             verticalAlignment = Alignment.CenterVertically) {
             Text("$title", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
-            Text("[$stepNumber/$totalSteps]", color = FoamDim, style = MaterialTheme.typography.labelMedium)
+            Text("$stepNumber / $totalSteps", color = FoamDim, style = MaterialTheme.typography.labelMedium)
         }
         HorizontalDivider(color = FoamDim.copy(alpha = 0.3f))
         // Body

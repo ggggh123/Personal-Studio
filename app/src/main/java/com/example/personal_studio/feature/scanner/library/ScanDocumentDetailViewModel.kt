@@ -22,9 +22,12 @@ import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,8 +43,9 @@ data class ScanDetailUiState(
 internal fun shouldDiscardOnExit(isNew: Boolean, pageCount: Int): Boolean = isNew && pageCount == 0
 
 /**
- * 统一文档编辑器 VM。navDocId>0 = 打开已有;navDocId<=0 = 新建(VM 现建一篇空文档)。
- * 能力:加页(拍照→增强→append)、重排、单页删除、导出 PDF、退出空文档清理。
+ * 统一文档编辑器 VM。navDocId>0 = 打开已有;navDocId<=0 = 新建。
+ * 新建时文档行在**确认第一页**时才写入:拍照途中取消、被划掉或进程被杀都不会留下空文档。
+ * 能力:加页(拍照→增强→append)、重排、单页删除、导出 PDF、退出空文档清理(兜底)。
  */
 @HiltViewModel(assistedFactory = ScanDocumentDetailViewModel.Factory::class)
 class ScanDocumentDetailViewModel @AssistedInject constructor(
@@ -58,7 +62,9 @@ class ScanDocumentDetailViewModel @AssistedInject constructor(
 ) : ViewModel() {
 
     val isNew: Boolean = navDocId <= 0L
+    /** <= 0 until a new document's first page is confirmed. */
     private var realDocId: Long = navDocId
+    private val createLock = Mutex()
 
     private val _state = MutableStateFlow(ScanDetailUiState())
     val state = _state.asStateFlow()
@@ -67,35 +73,41 @@ class ScanDocumentDetailViewModel @AssistedInject constructor(
     val pendingShareUri = _pendingShareUri.asStateFlow()
 
     init {
+        if (navDocId > 0) observe(navDocId)
+    }
+
+    private fun observe(docId: Long) {
         viewModelScope.launch {
-            realDocId = if (navDocId > 0) navDocId else createDoc(defaultTitle())
-            launch {
-                repo.observeDocument(realDocId).collect { doc ->
-                    _state.value = _state.value.copy(doc = doc)
-                }
-            }
-            launch {
-                repo.observePages(realDocId).collect { pages ->
-                    _state.value = _state.value.copy(pages = pages)
-                }
-            }
+            repo.observeDocument(docId).collect { doc -> _state.value = _state.value.copy(doc = doc) }
+        }
+        viewModelScope.launch {
+            repo.observePages(docId).collect { pages -> _state.value = _state.value.copy(pages = pages) }
         }
     }
 
-    /** 拍照→warp+滤镜→append 一页(复用构建器同款流程)。 */
+    private suspend fun ensureDocument(): Long = createLock.withLock {
+        if (realDocId <= 0) {
+            realDocId = createDoc(defaultTitle())
+            observe(realDocId)
+        }
+        realDocId
+    }
+
+    /** 拍照→warp+滤镜→append 一页(复用构建器同款流程)。新建文档在这里才真正写库。 */
     fun confirmPage(tmpCapture: File, corners: List<PointF>, filter: ScanFilter) = viewModelScope.launch {
-        val result = captureAndEnhance(repo.documentDir(realDocId), tmpCapture, corners, filter)
-        addPage(realDocId, result.originalImagePath, result.enhancedImagePath, result.filter, result.cornersJson)
+        val docId = ensureDocument()
+        val result = captureAndEnhance(repo.documentDir(docId), tmpCapture, corners, filter)
+        addPage(docId, result.originalImagePath, result.enhancedImagePath, result.filter, result.cornersJson)
     }
 
     fun reorderPages(orderedIds: List<Long>) = viewModelScope.launch {
-        if (orderedIds.isNotEmpty()) reorderUc(realDocId, orderedIds)
+        if (orderedIds.isNotEmpty() && realDocId > 0) reorderUc(realDocId, orderedIds)
     }
 
     fun deletePage(pageId: Long) = viewModelScope.launch { removePageUc(pageId) }
 
     fun exportPdf() = viewModelScope.launch {
-        if (_state.value.isExporting) return@launch
+        if (_state.value.isExporting || realDocId <= 0) return@launch
         _state.value = _state.value.copy(isExporting = true)
         try {
             val file = exportUc(realDocId)
@@ -107,9 +119,12 @@ class ScanDocumentDetailViewModel @AssistedInject constructor(
         }
     }
 
-    /** 退出时:新建且 0 页 → 丢弃空壳;否则不动。 */
-    fun onExit() = viewModelScope.launch {
-        if (shouldDiscardOnExit(isNew, _state.value.pages.size)) deleteDoc(realDocId)
+    /**
+     * 退出时:新建且 0 页 → 丢弃空壳(只在第一页保存失败时才会有);否则不动。
+     * NonCancellable:退出紧接着出栈,VM 的作用域随即取消,删除必须跑完。
+     */
+    fun onExit() = viewModelScope.launch(NonCancellable) {
+        if (realDocId > 0 && shouldDiscardOnExit(isNew, _state.value.pages.size)) deleteDoc(realDocId)
     }
 
     fun clearShareIntent() { _pendingShareUri.value = null }

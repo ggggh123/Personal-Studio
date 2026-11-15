@@ -2,8 +2,6 @@ package com.example.personal_studio.feature.timeline.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,9 +33,7 @@ fun CourseSeriesEditScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "edit", subtitle = "# course series", trailing = {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
-        })
+        TerminalTopBar(route = "edit", subtitle = "课程系列", onBack = onBack)
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("${ui.occurrenceCount} 节 · 第 ${ui.minWeek}-${ui.maxWeek} 周",
                 color = FoamDim, style = MaterialTheme.typography.labelMedium)

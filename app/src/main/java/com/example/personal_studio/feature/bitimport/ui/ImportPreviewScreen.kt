@@ -45,7 +45,7 @@ fun ImportPreviewScreen(
         Spacer(Modifier.height(12.dp))
 
         TextButton(onClick = { expanded = !expanded }) {
-            Text(if (expanded) "[收起列表 ▲]" else "[展开列表 ▼]")
+            Text(if (expanded) "收起列表" else "展开列表")
         }
         if (expanded) {
             LazyColumn(Modifier.weight(1f, fill = false).heightIn(max = 240.dp)) {

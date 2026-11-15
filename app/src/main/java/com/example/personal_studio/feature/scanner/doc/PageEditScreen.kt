@@ -223,7 +223,7 @@ private fun ReviewView(
             ScanFilter.entries.forEach { f ->
                 val active = state.currentFilter == f
                 Text(
-                    "[${scanFilterLabel(f)}]",
+                    scanFilterLabel(f),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (active) Phosphor else FoamDim,
                     modifier = Modifier.clickable { onSelectFilter(f) },

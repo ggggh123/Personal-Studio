@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.personal_studio.ui.components.ShutterButton
+import com.example.personal_studio.ui.theme.DarkCanvas
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -75,7 +78,8 @@ fun CameraCaptureScreen(
      */
     onCaptured: (file: File, autoDetect: Boolean, liveCornersNorm: List<android.graphics.PointF>?) -> Unit,
     onCancel: () -> Unit,
-) {
+) = DarkCanvas {
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val vm: CameraCaptureViewModel = hiltViewModel()
@@ -99,7 +103,7 @@ fun CameraCaptureScreen(
             onRequest = { permissionLauncher.launch(Manifest.permission.CAMERA) },
             onCancel = onCancel,
         )
-        return
+        return@DarkCanvas
     }
 
     val imageCapture = remember {
@@ -245,14 +249,14 @@ fun CameraCaptureScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "[自动 ${if (camState.autoDetect) "✓" else "✗"}]",
+                "自动识边 ${if (camState.autoDetect) "开" else "关"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (camState.autoDetect) Phosphor else FoamDim,
                 modifier = Modifier.clickable { vm.setAutoDetect(!camState.autoDetect) },
             )
             Spacer(Modifier.width(16.dp))
             Text(
-                "[⚡ ${if (camState.flashOn) "开" else "关"}]",
+                "闪光 ${if (camState.flashOn) "开" else "关"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (camState.flashOn) Amber else FoamDim,
                 modifier = Modifier.clickable { vm.setFlash(!camState.flashOn) },
@@ -276,11 +280,8 @@ fun CameraCaptureScreen(
                 color = FoamDim,
                 modifier = Modifier.clickable { onCancel() },
             )
-            Text(
-                "[ ● 拍摄 ]",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Phosphor,
-                modifier = Modifier.clickable {
+            ShutterButton(
+                onClick = {
                     outputDir.mkdirs()
                     val tmp = File(outputDir, "tmp-${System.currentTimeMillis()}.jpg")
                     val opts = ImageCapture.OutputFileOptions.Builder(tmp).build()
@@ -320,7 +321,8 @@ fun CameraCaptureScreen(
                     )
                 },
             )
-            Spacer(Modifier.width(60.dp))
+            // Balances 取消 so the shutter sits centred.
+            Text("取消", style = MaterialTheme.typography.bodyMedium, color = Color.Transparent)
         }
     }
 }

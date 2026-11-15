@@ -212,7 +212,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         FieldLabel("标准化题目", Modifier.weight(1f))
                         Text(
-                            if (editingStandardizedQuestionRaw) "预览" else "[编辑源码]",
+                            if (editingStandardizedQuestionRaw) "预览" else "编辑源码",
                             color = FoamDim,
                             modifier = Modifier
                                 .clickable { editingStandardizedQuestionRaw = !editingStandardizedQuestionRaw }
@@ -230,7 +230,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FieldLabel("摘要", Modifier.weight(1f))
                     Text(
-                        if (editingSummaryRaw) "预览" else "[编辑源码]",
+                        if (editingSummaryRaw) "预览" else "编辑源码",
                         color = FoamDim,
                         modifier = Modifier
                             .clickable { editingSummaryRaw = !editingSummaryRaw }

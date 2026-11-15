@@ -6,8 +6,6 @@ import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -46,11 +44,7 @@ fun AddTaskScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "add", subtitle = "# new ddl / event", trailing = {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
-            }
-        })
+        TerminalTopBar(route = "add", subtitle = "新建待办或日程", onBack = onBack)
 
         Column(
             Modifier

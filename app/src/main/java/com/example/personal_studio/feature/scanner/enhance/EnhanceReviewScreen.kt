@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.personal_studio.ui.theme.DarkCanvas
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,7 +48,8 @@ fun EnhanceReviewScreen(
     showSaveToLibCheckbox: Boolean = false,
     onConfirm: (filter: ScanFilter, saveToLib: Boolean) -> Unit,
     onCancel: () -> Unit,
-) {
+) = DarkCanvas {
+
     // Same reasoning as EdgeDetectAndCropScreen: key by the tmp path so nested
     // use inside DocumentBuilder doesn't reuse VMs across captures.
     val vm: EnhanceReviewViewModel = hiltViewModel(
@@ -92,7 +94,7 @@ fun EnhanceReviewScreen(
             ScanFilter.entries.forEach { f ->
                 val active = state.currentFilter == f
                 Text(
-                    "[${scanFilterLabel(f)}]",
+                    scanFilterLabel(f),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (active) Phosphor else FoamDim,
                     modifier = Modifier.clickable { vm.selectFilter(f) },

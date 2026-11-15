@@ -141,7 +141,6 @@ private fun PickerDocRow(doc: ScanDocumentSummary, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = FoamDim)) { append("") }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -176,16 +175,7 @@ private fun PageGrid(
         TerminalTopBar(
             route = "scans/pick/$docId",
             subtitle = "# 点一页以附加",
-            trailing = {
-                Text(
-                    "返回",
-                    color = FoamMute,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .clickable(onClick = onBack),
-                )
-            },
+            onBack = onBack,
         )
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),

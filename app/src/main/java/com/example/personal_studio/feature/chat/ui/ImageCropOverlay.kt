@@ -201,7 +201,7 @@ fun ImageCropOverlay(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Void),
             ) {
                 Text(
-                    "# 拖动四角裁剪",
+                    "拖动四角裁剪",
                     color = FoamDim,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(start = 24.dp, top = 8.dp),

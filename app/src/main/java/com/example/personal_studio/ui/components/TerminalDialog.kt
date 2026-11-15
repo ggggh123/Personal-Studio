@@ -48,9 +48,7 @@ fun TerminalDialog(onDismiss: () -> Unit, title: String? = null, content: @Compo
             if (title != null) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = FoamDim)) { append("") }
                         withStyle(SpanStyle(color = Phosphor)) { append(title) }
-                        withStyle(SpanStyle(color = FoamDim)) { append("") }
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -77,7 +75,7 @@ fun TerminalConfirmDialog(
             Text("取消", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
             Spacer(Modifier.width(12.dp))
-            Text("[$confirmLabel]", color = Carmine, style = MaterialTheme.typography.bodyMedium,
+            Text(confirmLabel, color = Carmine, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable { onConfirm() }.padding(8.dp))
         }
     }
@@ -94,7 +92,6 @@ fun TerminalInputDialog(
     var text by remember { mutableStateOf(initial) }
     TerminalDialog(onDismiss = onDismiss, title = title) {
         Row(Modifier.fillMaxWidth()) {
-            Text("> ", color = Phosphor, style = MaterialTheme.typography.bodyMedium)
             BasicTextField(
                 value = text,
                 onValueChange = { text = it },

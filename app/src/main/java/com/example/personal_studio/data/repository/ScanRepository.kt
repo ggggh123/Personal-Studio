@@ -93,6 +93,9 @@ interface ScanRepository {
      */
     suspend fun deleteDocument(docId: Long)
 
+    /** Deletes documents that have no page (abandoned scans); returns how many. */
+    suspend fun deleteEmptyDocuments(): Int
+
     /** Returns the per-document image directory (filesDir/scans/<docId>). */
     fun documentDir(docId: Long): File
 }
@@ -229,6 +232,12 @@ class ScanRepositoryImpl @Inject constructor(
     override suspend fun deleteDocument(docId: Long) {
         docDao.delete(docId)  // pages CASCADE
         documentDir(docId).deleteRecursively()
+    }
+
+    override suspend fun deleteEmptyDocuments(): Int {
+        val ids = docDao.idsWithoutPages()
+        ids.forEach { deleteDocument(it) }
+        return ids.size
     }
 
     override fun documentDir(docId: Long): File =

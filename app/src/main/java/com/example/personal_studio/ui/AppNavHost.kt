@@ -4,8 +4,16 @@ import android.graphics.PointF
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -21,17 +29,40 @@ import com.example.personal_studio.feature.scanner.doc.PageEditScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.scanner.library.ScanDocumentDetailScreen
-import com.example.personal_studio.feature.scanner.library.ScanLibraryScreen
+import com.example.personal_studio.feature.library.LibraryScreen
 import com.example.personal_studio.feature.settings.ui.SettingsScreen
 import com.example.personal_studio.ui.navigation.NavRoutes
+import com.example.personal_studio.ui.theme.TgMotion
 import java.io.File
 
+/** Switching between bottom-bar tabs crossfades; everything else slides like a page. */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boolean =
+    initialState.destination.route in NavRoutes.TAB_ROUTES && targetState.destination.route in NavRoutes.TAB_ROUTES
+
 @Composable
-fun AppNavHost(navController: NavHostController, startDestination: String = NavRoutes.CHAT) {
+fun AppNavHost(navController: NavHostController, startDestination: String = NavRoutes.TIMELINE) {
     val context = LocalContext.current
     NavHost(
         navController = navController,
         startDestination = startDestination,
+        // Pages enter from the right with the standard spring and leave faster; back reverses
+        // it. On Android 14+ the system back gesture scrubs these pop transitions (predictive back).
+        enterTransition = {
+            if (isTabSwitch()) fadeIn(tween(220, delayMillis = 60))
+            else slideInHorizontally(TgMotion.standard<IntOffset>()) { it / 4 } + fadeIn(tween(220))
+        },
+        exitTransition = {
+            if (isTabSwitch()) fadeOut(tween(120))
+            else slideOutHorizontally(TgMotion.standard<IntOffset>()) { -it / 10 } + fadeOut(tween(200))
+        },
+        popEnterTransition = {
+            if (isTabSwitch()) fadeIn(tween(220, delayMillis = 60))
+            else slideInHorizontally(TgMotion.standard<IntOffset>()) { -it / 10 } + fadeIn(tween(220))
+        },
+        popExitTransition = {
+            if (isTabSwitch()) fadeOut(tween(120))
+            else slideOutHorizontally(TgMotion.exit<IntOffset>()) { it / 4 } + fadeOut(tween(200))
+        },
     ) {
         composable(NavRoutes.CHAT) {
             ChatListScreen(
@@ -42,18 +73,27 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
         }
         composable(
             route = NavRoutes.CHAT_DETAIL,
-            arguments = listOf(navArgument("sessionId") { type = NavType.LongType }),
+            arguments = listOf(
+                navArgument("sessionId") { type = NavType.LongType },
+                navArgument("capture") { type = NavType.BoolType; defaultValue = false },
+            ),
         ) { backStack ->
             val sessionId = backStack.arguments?.getLong("sessionId") ?: 0L
             ChatDetailScreen(
                 sessionId = sessionId,
                 onBack = { navController.popBackStack() },
                 onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
+                startWithQuickCapture = backStack.arguments?.getBoolean("capture") ?: false,
             )
         }
 
-        composable(NavRoutes.SCANNER) {
-            ScanLibraryScreen(
+        composable(
+            route = NavRoutes.LIBRARY,
+            arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = NavRoutes.LIBRARY_TAB_KB }),
+        ) { backStack ->
+            LibraryScreen(
+                initialTab = backStack.arguments?.getString("tab") ?: NavRoutes.LIBRARY_TAB_KB,
+                onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
                 onNewDoc = { navController.navigate(NavRoutes.scannerDetail(0L)) },
                 onOpenDoc = { docId -> navController.navigate(NavRoutes.scannerDetail(docId)) },
             )
@@ -81,11 +121,6 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                 onNavigateToKbEntry = { entryId -> navController.navigate(NavRoutes.kbDetail(entryId)) },
             )
         }
-        composable(NavRoutes.KNOWLEDGE) {
-            com.example.personal_studio.feature.knowledge.ui.KbHomeScreen(
-                onOpenEntry = { id -> navController.navigate(NavRoutes.kbDetail(id)) },
-            )
-        }
         composable(
             route = NavRoutes.KB_DETAIL,
             arguments = listOf(navArgument("entryId") { type = NavType.LongType }),
@@ -101,9 +136,9 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                                 navController.navigate(NavRoutes.chatDetail(sid))
                             }
                         com.example.personal_studio.domain.model.KbSource.SCAN ->
-                            // Phase 5 (Task 35) wires real scan-page-from-id navigation.
-                            // For now jump to scanner library so user has a destination.
-                            navController.navigate(NavRoutes.SCANNER)
+                            // Page-level navigation comes with the batch-3 library redesign;
+                            // until then open the scanned documents list.
+                            navController.navigate(NavRoutes.library(NavRoutes.LIBRARY_TAB_SCANS))
                     }
                 },
                 onOpenRelated = { relId -> navController.navigate(NavRoutes.kbDetail(relId)) },
@@ -285,7 +320,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             EnhanceReviewScreen(
                 capturedFilePath = tmp,
                 cornersBitmapPx = corners,
-                onConfirm = { _, _ -> navController.popBackStack(NavRoutes.SCANNER, inclusive = false) },
+                onConfirm = { _, _ -> navController.popBackStack() },
                 onCancel = { navController.popBackStack() },
             )
         }
@@ -301,7 +336,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                     val dest = when {
                         next != null -> next
                         firstSyncPending -> NavRoutes.syncAll(first = true)
-                        else -> NavRoutes.PROFILE
+                        else -> NavRoutes.TIMELINE
                     }
                     navController.navigate(dest) {
                         popUpTo(NavRoutes.LOGIN) { inclusive = true }
@@ -309,7 +344,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                     }
                 },
                 onSkipped = {
-                    navController.navigate(NavRoutes.PROFILE) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
+                    navController.navigate(NavRoutes.TIMELINE) { popUpTo(NavRoutes.LOGIN) { inclusive = true } }
                 },
             )
         }
@@ -321,7 +356,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
             val first = backStack.arguments?.getBoolean("first") ?: false
             com.example.personal_studio.feature.bitimport.ui.SyncAllScreen(
                 onFinish = {
-                    if (first) navController.navigate(NavRoutes.PROFILE) {
+                    if (first) navController.navigate(NavRoutes.TIMELINE) {
                         popUpTo(NavRoutes.SYNC_ALL) { inclusive = true }
                         launchSingleTop = true
                     } else navController.popBackStack()
