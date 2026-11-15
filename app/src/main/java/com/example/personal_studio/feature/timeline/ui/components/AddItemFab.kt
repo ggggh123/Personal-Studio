@@ -44,8 +44,8 @@ fun AddItemFab(
     }
     if (showSheet) {
         TerminalBottomSheet(onDismiss = { showSheet = false }, header = "新建") {
-            FabActionLine("▸ 加 DDL/事件") { showSheet = false; onAddTask() }
-            FabActionLine("▸ 录入课程") { showSheet = false; onAddCourse() }
+            FabActionLine("添加待办或日程") { showSheet = false; onAddTask() }
+            FabActionLine("添加课程") { showSheet = false; onAddCourse() }
         }
     }
 }

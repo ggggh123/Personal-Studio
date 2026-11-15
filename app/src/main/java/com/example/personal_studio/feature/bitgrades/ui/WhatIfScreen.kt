@@ -43,7 +43,7 @@ fun WhatIfScreen(onBack: () -> Unit, vm: WhatIfViewModel = hiltViewModel()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("← 返回", color = FoamMute) }
             Spacer(Modifier.width(4.dp))
-            Text("$ gpa-planner", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("目标绩点", color = Phosphor, style = MaterialTheme.typography.titleMedium)
         }
         Spacer(Modifier.height(8.dp))
         Text(

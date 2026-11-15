@@ -18,6 +18,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.example.personal_studio.ui.theme.daylight.CoursePalette
+import com.example.personal_studio.ui.theme.Tg
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -26,7 +29,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.core.util.CourseColorPalette
 import com.example.personal_studio.domain.model.BubbleState
 import com.example.personal_studio.domain.model.TimelineItem
 import com.example.personal_studio.domain.model.TimelineType
@@ -107,9 +109,11 @@ fun TimelineBubble(
     }
 }
 
+@Composable
+@ReadOnlyComposable
 private fun bubbleBaseColor(item: TimelineItem, state: BubbleState): Color = when (state) {
     BubbleState.CourseUpcoming, BubbleState.CourseImminent,
-    BubbleState.CourseInProgress, BubbleState.CoursePast -> CourseColorPalette.colorFor(item.title)
+    BubbleState.CourseInProgress, BubbleState.CoursePast -> CoursePalette.forKey(item.title, Tg.colors.family).content
 
     BubbleState.TaskUpcoming, BubbleState.TaskImminent -> Amber
     BubbleState.TaskOverdue -> Carmine

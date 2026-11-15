@@ -209,7 +209,7 @@ private fun EditorView(
                 (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
             trailing = {
                 Text(
-                    "[< 返回]",
+                    "返回",
                     color = FoamMute,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onBack),

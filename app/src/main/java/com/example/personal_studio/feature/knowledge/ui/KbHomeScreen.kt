@@ -102,7 +102,7 @@ fun KbHomeScreen(
             )
 
             Text(
-                "─────────── ${if (state.isSearching) "匹配" else "最近"} ───────────",
+                "${if (state.isSearching) "匹配" else "最近"}",
                 color = FoamDim,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 16.dp),
@@ -131,9 +131,9 @@ private fun KbEmptyState() {
                 buildAnnotatedString {
                     withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("从 ") }
-                    withStyle(SpanStyle(color = Cyan)) { append("[聊天]") }
+                    withStyle(SpanStyle(color = Cyan)) { append("聊天") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 或 ") }
-                    withStyle(SpanStyle(color = Cyan)) { append("[扫描]") }
+                    withStyle(SpanStyle(color = Cyan)) { append("扫描") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 归档生成") }
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -148,7 +148,7 @@ private fun StatChip(label: String, count: Int, selected: Boolean, onClick: () -
     val color = if (selected) Phosphor else Foam
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(color = color)) { append("[$label] ") }
+            withStyle(SpanStyle(color = color)) { append("$label · ") }
             withStyle(SpanStyle(color = if (selected) Phosphor else FoamDim)) { append(count.toString()) }
         },
         style = MaterialTheme.typography.bodyMedium,

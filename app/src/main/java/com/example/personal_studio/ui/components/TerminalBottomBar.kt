@@ -44,6 +44,8 @@ fun TerminalBottomBar(
     onTabClick: (TerminalTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val ruleColor = Rule
+    val accent = Phosphor
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -55,7 +57,7 @@ fun TerminalBottomBar(
                 .height(58.dp)
                 .drawBehind {
                     drawLine(
-                        color = Rule,
+                        color = ruleColor,
                         start = Offset(0f, 0.5f),
                         end = Offset(size.width, 0.5f),
                         strokeWidth = 1f,
@@ -116,7 +118,7 @@ fun TerminalBottomBar(
                             modifier = Modifier
                                 .width(if (selected) 14.dp else 0.dp)
                                 .height(2.dp)
-                                .drawBehind { if (selected) drawRect(Phosphor) },
+                                .drawBehind { if (selected) drawRect(accent) },
                         )
                     }
                 }

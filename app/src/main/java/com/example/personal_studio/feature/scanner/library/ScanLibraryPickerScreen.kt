@@ -103,7 +103,7 @@ private fun DocList(
             subtitle = "# 选一个文档，再选一页",
             trailing = {
                 Text(
-                    "[x 取消]",
+                    "取消",
                     color = Carmine,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
@@ -141,7 +141,7 @@ private fun PickerDocRow(doc: ScanDocumentSummary, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = FoamDim)) { append("drwx── ") }
+                    withStyle(SpanStyle(color = FoamDim)) { append("") }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -178,7 +178,7 @@ private fun PageGrid(
             subtitle = "# 点一页以附加",
             trailing = {
                 Text(
-                    "[< 返回]",
+                    "返回",
                     color = FoamMute,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier

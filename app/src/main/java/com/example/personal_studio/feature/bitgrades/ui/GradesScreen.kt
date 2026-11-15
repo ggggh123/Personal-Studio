@@ -57,7 +57,7 @@ fun GradesScreen(
         .verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("←", color = FoamMute) }
-            Text("$ transcript", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("成绩单", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { if (st.loggedIn) vm.onSyncNow() else onNeedLogin() }) {
                 Text(if (st.syncing) "同步中…" else "↻ 同步")

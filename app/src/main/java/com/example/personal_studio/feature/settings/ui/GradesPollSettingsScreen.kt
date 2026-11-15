@@ -44,7 +44,7 @@ fun GradesPollSettingsScreen(onBack: () -> Unit, vm: GradesPollSettingsViewModel
     Column(Modifier.fillMaxSize().background(Void).systemBarsPadding().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("←", color = FoamMute) }
-            Text("$ grades-poll", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("出分提醒", color = Phosphor, style = MaterialTheme.typography.titleMedium)
         }
         Spacer(Modifier.height(16.dp))
 

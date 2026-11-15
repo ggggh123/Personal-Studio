@@ -45,7 +45,7 @@ fun AiAnalysisSheet(
         Column(Modifier.fillMaxWidth()) {
             // 标题行 + 时间戳
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("$ ai-analysis", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+                Text("AI 学情", color = Phosphor, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))
                 if (generatedAt != null && !analyzing) {
                     Text(

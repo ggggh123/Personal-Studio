@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -28,7 +30,8 @@ import com.example.personal_studio.ui.theme.Phosphor
  * phosphor divider so the bordered box reads as grouping, not as a loud bright outline
  * (an earlier version at full `Phosphor` made the box feel like a button).
  */
-private val FrameStroke = Phosphor.copy(alpha = 0.45f)
+private val FrameStroke: Color
+    @Composable @ReadOnlyComposable get() = Phosphor.copy(alpha = 0.45f)
 
 /**
  * Visual container for an AI response. Renders the content inside a softly phosphor-bordered
@@ -43,6 +46,7 @@ fun AiFrame(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val frameStroke = FrameStroke
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -52,14 +56,14 @@ fun AiFrame(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Phosphor.copy(alpha = 0.04f))
-                .border(1.dp, FrameStroke)
+                .border(1.dp, frameStroke)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "── ",
+                    text = "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = FrameStroke,
+                    color = frameStroke,
                     maxLines = 1,
                 )
                 Text(
@@ -79,7 +83,7 @@ fun AiFrame(
                         .height(1.dp)
                         .drawBehind {
                             drawLine(
-                                color = FrameStroke,
+                                color = frameStroke,
                                 start = Offset(0f, 0f),
                                 end = Offset(size.width, 0f),
                                 strokeWidth = 1f,

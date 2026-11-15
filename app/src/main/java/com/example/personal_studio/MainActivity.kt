@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.personal_studio.data.local.datastore.ThemePreferences
 import com.example.personal_studio.domain.timeline.RescheduleAllUpcomingUseCase
 import com.example.personal_studio.ui.MainScreen
 import com.example.personal_studio.ui.theme.AppTheme
@@ -14,13 +15,14 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var rescheduleAllUpcoming: RescheduleAllUpcomingUseCase
+    @Inject lateinit var themePreferences: ThemePreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         rescheduleAllUpcoming()
         setContent {
-            AppTheme {
+            AppTheme(preferences = themePreferences) {
                 MainScreen()
             }
         }

@@ -25,7 +25,7 @@ fun TimetableEditorScreen(
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TerminalTopBar(route = "timetable", subtitle = "$ ls timetable/", trailing = {
+        TerminalTopBar(route = "timetable", subtitle = "作息表", trailing = {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back") }
         })
 

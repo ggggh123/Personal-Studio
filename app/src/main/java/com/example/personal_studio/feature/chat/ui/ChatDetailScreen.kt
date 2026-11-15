@@ -228,7 +228,7 @@ fun ChatDetailScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                "[+ 归档]",
+                                "归档",
                                 color = Phosphor,
                                 style = MaterialTheme.typography.bodySmall,
                                 modifier = Modifier
@@ -278,10 +278,10 @@ fun ChatDetailScreen(
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = Carmine)) { append("[错误] ") }
+                        withStyle(SpanStyle(color = Carmine)) { append("出错了：") }
                         withStyle(SpanStyle(color = Foam)) { append(state.errorBanner ?: "") }
                         append("  ")
-                        withStyle(SpanStyle(color = Cyan)) { append("[关闭]") }
+                        withStyle(SpanStyle(color = Cyan)) { append("关闭") }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.clickableNoRipple { vm.onDismissError() }
@@ -303,7 +303,7 @@ fun ChatDetailScreen(
                     Box {
                         ChatImageThumbnailSmall(path = p)
                         Text(
-                            "[x]",
+                            "×",
                             style = MaterialTheme.typography.labelSmall,
                             color = Carmine,
                             modifier = Modifier
@@ -377,7 +377,7 @@ fun ChatDetailScreen(
             Spacer(Modifier.width(8.dp))
             val canAttach = state.attachedImagePaths.size < ChatDetailViewModel.MAX_IMAGES
             Text(
-                "[+]",
+                "＋",
                 color = if (canAttach) Cyan else FoamDim,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickableNoRipple { if (canAttach) showAttachmentSheet = true },
@@ -466,14 +466,15 @@ private fun buildSubtitle(title: String?, model: String): String {
 private fun formatDoneLine(message: ChatMessage): String {
     val duration = message.generationMs
     val tokens = message.tokenCount
-    if (duration == null || tokens == null) return "── 完成 ──"
+    if (duration == null || tokens == null) return "完成"
     val secs = duration / 1000.0
     val formatted = if (secs < 10) "%.1fs".format(secs) else "%.0fs".format(secs)
-    return "── 完成 · $formatted · $tokens tokens ──"
+    return "完成 · $formatted · 约 $tokens tokens"
 }
 
 @Composable
 private fun DashedPhosphorRule() {
+    val ruleColor = Phosphor
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -481,7 +482,7 @@ private fun DashedPhosphorRule() {
             .padding(horizontal = 20.dp)
             .drawBehind {
                 drawLine(
-                    color = Phosphor,
+                    color = ruleColor,
                     start = Offset(0f, 0f),
                     end = Offset(size.width, 0f),
                     strokeWidth = 1f,

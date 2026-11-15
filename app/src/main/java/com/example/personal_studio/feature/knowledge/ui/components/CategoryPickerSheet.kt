@@ -50,7 +50,7 @@ fun CategoryPickerSheet(
             )
         }
         Text(
-            "$ + 新建分类",
+            "新建分类",
             color = FoamDim,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
@@ -65,7 +65,7 @@ fun CategoryPickerSheet(
                 modifier = Modifier.weight(1f).padding(8.dp),
             )
             Text(
-                "[新建]",
+                "新建",
                 color = if (newName.isBlank()) FoamDim else Phosphor,
                 modifier = Modifier
                     .clickable(enabled = newName.isNotBlank()) {

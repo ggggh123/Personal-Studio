@@ -99,7 +99,7 @@ fun EnhanceReviewScreen(
                 )
             }
             Text(
-                "[↻ 旋转]",
+                "旋转",
                 style = MaterialTheme.typography.bodyMedium,
                 color = FoamDim,
                 modifier = Modifier.clickable { vm.rotateClockwise() },
@@ -112,7 +112,7 @@ fun EnhanceReviewScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (saveToLib) "[x]" else "[ ]",
+                    text = if (saveToLib) "☑" else "☐",
                     color = if (saveToLib) Phosphor else FoamDim,
                     modifier = Modifier.clickable { saveToLib = !saveToLib },
                 )
@@ -128,9 +128,9 @@ fun EnhanceReviewScreen(
                 .padding(horizontal = 24.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("[取消]", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
+            Text("取消", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
             Text(
-                "[确认 ↵]",
+                "确认",
                 color = if (state.isLoading) FoamDim else Phosphor,
                 modifier = Modifier.clickable(enabled = !state.isLoading) {
                     onConfirm(state.currentFilter, saveToLib)

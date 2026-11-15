@@ -183,13 +183,13 @@ private fun ReviewView(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "[↻ 重拍]",
+                        "重拍",
                         color = Amber,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable(onClick = onRetake),
                     )
                     Text(
-                        "[+ 归档]",
+                        "归档",
                         color = Phosphor,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.clickable(onClick = onArchive),
@@ -239,12 +239,12 @@ private fun ReviewView(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "[取消]",
+                "取消",
                 color = FoamDim,
                 modifier = Modifier.clickable(onClick = onCancel),
             )
             Text(
-                "[确认 ↵]",
+                "确认",
                 color = if (state.isLoading) FoamDim else Phosphor,
                 modifier = Modifier.clickable(enabled = !state.isLoading, onClick = onConfirm),
             )

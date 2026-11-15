@@ -138,7 +138,7 @@ fun EdgeDetectAndCropScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("[↻ 重拍]", color = FoamDim, modifier = Modifier.clickable(onClick = onRetake))
+            Text("重拍", color = FoamDim, modifier = Modifier.clickable(onClick = onRetake))
             val info = if (state.detectedAutomatically) "✓ 已自动识别边角" else "! 拖动四角对齐"
             Text(
                 info,
@@ -146,7 +146,7 @@ fun EdgeDetectAndCropScreen(
                 color = if (state.detectedAutomatically) Phosphor else Amber,
             )
             Text(
-                "[确认 ↵]",
+                "确认",
                 color = Phosphor,
                 modifier = Modifier.clickable { state.corners?.let(onConfirm) },
             )

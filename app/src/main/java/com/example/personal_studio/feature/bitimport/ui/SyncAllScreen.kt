@@ -55,7 +55,7 @@ fun SyncAllScreen(
             .navigationBarsPadding()
             .padding(24.dp),
     ) {
-        Text("$ 初始化教务数据", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+        Text("初始化教务数据", color = Phosphor, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(20.dp))
 
         if (ui.noCredentials) {
@@ -75,7 +75,7 @@ fun SyncAllScreen(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             if (!ui.done) {
                 Text(
-                    "[跳过]", color = FoamDim, style = MaterialTheme.typography.bodyMedium,
+                    "跳过", color = FoamDim, style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.clickable { vm.skip(); onFinish() }.padding(8.dp),
                 )
             } else {
@@ -87,7 +87,7 @@ fun SyncAllScreen(
                     Spacer(Modifier.width(12.dp))
                 }
                 Text(
-                    "[进入]", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
+                    "进入", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.clickable { onFinish() }.padding(8.dp),
                 )
             }
@@ -103,7 +103,7 @@ private fun SourceRow(label: String, state: SyncSourceState?) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "[$label]", color = Foam, style = MaterialTheme.typography.bodyMedium,
+            "$label", color = Foam, style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.width(64.dp),
         )
         Spacer(Modifier.width(12.dp))
@@ -111,7 +111,7 @@ private fun SourceRow(label: String, state: SyncSourceState?) {
             SyncSourceStatus.PENDING ->
                 Text("○ 待拉取", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
             SyncSourceStatus.RUNNING -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("▸ 拉取中…", color = Cyan, style = MaterialTheme.typography.bodyMedium)
+                Text("拉取中…", color = Cyan, style = MaterialTheme.typography.bodyMedium)
                 BlinkingCursor()
             }
             SyncSourceStatus.OK ->

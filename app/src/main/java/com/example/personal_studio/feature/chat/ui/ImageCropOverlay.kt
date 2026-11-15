@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect as UiRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
@@ -40,6 +41,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
+import com.example.personal_studio.ui.theme.DarkCanvas
 import com.example.personal_studio.ui.theme.Phosphor
 import com.example.personal_studio.ui.theme.Void
 
@@ -65,6 +67,7 @@ fun ImageCropOverlay(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
+        DarkCanvas {
         Box(Modifier.fillMaxSize().background(Void)) {
             val bitmap = remember(imagePath) { BitmapFactory.decodeFile(imagePath) }
             if (bitmap == null) {
@@ -72,7 +75,7 @@ fun ImageCropOverlay(
                     "无法解码图片", color = Foam,
                     modifier = Modifier.align(Alignment.Center),
                 )
-                return@Dialog
+                return@DarkCanvas
             }
 
             val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
@@ -167,10 +170,10 @@ fun ImageCropOverlay(
                                 addRect(rect)
                                 fillType = PathFillType.EvenOdd
                             }
-                            drawPath(dimPath, color = Void.copy(alpha = 0.65f))
+                            drawPath(dimPath, color = Color.Black.copy(alpha = 0.6f))
                             // Crop border
                             drawRect(
-                                color = Phosphor,
+                                color = Color.White,
                                 topLeft = Offset(rect.left, rect.top),
                                 size = Size(rect.width, rect.height),
                                 style = Stroke(width = 2f),
@@ -184,7 +187,7 @@ fun ImageCropOverlay(
                                 Offset(rect.right, rect.bottom),
                             ).forEach { c ->
                                 drawRect(
-                                    color = Phosphor,
+                                    color = Color.White,
                                     topLeft = Offset(c.x - half, c.y - half),
                                     size = Size(handleSizePx, handleSizePx),
                                 )
@@ -209,14 +212,14 @@ fun ImageCropOverlay(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = "[取消]",
+                        text = "取消",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Foam,
                         modifier = Modifier.clickable { onDismiss() },
                     )
                     Spacer(Modifier)
                     Text(
-                        text = "[确认 ↵]",
+                        text = "确认",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Phosphor,
                         modifier = Modifier.clickable {
@@ -236,6 +239,7 @@ fun ImageCropOverlay(
                     )
                 }
             }
+        }
         }
     }
 }

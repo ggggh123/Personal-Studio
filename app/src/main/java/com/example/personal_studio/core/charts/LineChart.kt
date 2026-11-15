@@ -28,9 +28,11 @@ data class LinePoint(val label: String, val value: Double)
 @Composable
 fun GpaLineChart(points: List<LinePoint>, modifier: Modifier = Modifier, maxPoint: Double = 4.0) {
     val measurer = rememberTextMeasurer()
-    val axisStyle = TextStyle(color = FoamDim, fontSize = 9.sp)
-    val valStyle = TextStyle(color = Phosphor, fontSize = 9.sp)
-    val xStyle = TextStyle(color = FoamMute, fontSize = 9.sp)
+    val axisStyle = TextStyle(color = FoamDim, fontSize = 11.sp)
+    val valStyle = TextStyle(color = Phosphor, fontSize = 11.sp)
+    val xStyle = TextStyle(color = FoamMute, fontSize = 11.sp)
+    val ruleColor = Rule
+    val accent = Phosphor
     Canvas(modifier.fillMaxWidth().height(150.dp)) {
         if (points.isEmpty()) return@Canvas
         val (lo, hi) = ChartMath.gpaBounds(points.map { it.value }, maxPoint)
@@ -47,7 +49,7 @@ fun GpaLineChart(points: List<LinePoint>, modifier: Modifier = Modifier, maxPoin
         // gridlines + y-axis value labels at lo / mid / hi
         listOf(lo, (lo + hi) / 2.0, hi).forEach { gv ->
             val gy = y(gv)
-            drawLine(Rule, Offset(leftPad, gy), Offset(size.width, gy), strokeWidth = 1f)
+            drawLine(ruleColor, Offset(leftPad, gy), Offset(size.width, gy), strokeWidth = 1f)
             val lay = measurer.measure(String.format(Locale.US, "%.1f", gv), axisStyle)
             drawText(lay, topLeft = Offset(0f, gy - lay.size.height / 2f))
         }
@@ -60,18 +62,18 @@ fun GpaLineChart(points: List<LinePoint>, modifier: Modifier = Modifier, maxPoin
         }
         drawPath(
             area,
-            Brush.verticalGradient(listOf(Phosphor.copy(alpha = 0.22f), Color.Transparent), startY = topPad, endY = baseY),
+            Brush.verticalGradient(listOf(accent.copy(alpha = 0.22f), Color.Transparent), startY = topPad, endY = baseY),
         )
         // line: glow then solid
         val line = Path().apply {
             points.forEachIndexed { i, p -> if (i == 0) moveTo(x(i), y(p.value)) else lineTo(x(i), y(p.value)) }
         }
-        drawPath(line, Phosphor.copy(alpha = 0.25f), style = Stroke(width = 6f))
-        drawPath(line, Phosphor, style = Stroke(width = 2f))
+        drawPath(line, accent.copy(alpha = 0.25f), style = Stroke(width = 6f))
+        drawPath(line, accent, style = Stroke(width = 2f))
         // points + per-point value labels + x-axis labels
         points.forEachIndexed { i, p ->
             val px = x(i); val py = y(p.value)
-            drawCircle(Phosphor, radius = 4f, center = Offset(px, py))
+            drawCircle(accent, radius = 4f, center = Offset(px, py))
             val v = measurer.measure(String.format(Locale.US, "%.2f", p.value), valStyle)
             drawText(v, topLeft = Offset((px - v.size.width / 2f).coerceIn(leftPad, size.width - v.size.width), py - 15f))
             val xl = measurer.measure(p.label, xStyle)

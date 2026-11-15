@@ -52,7 +52,7 @@ fun TermGradeSection(
             Spacer(Modifier.width(4.dp))
             Row(Modifier.weight(1f).clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (expanded) "▾ ${term.termName}" else "▸ ${term.termName}",
+                    if (expanded) "▾ ${term.termName}" else "${term.termName}",
                     color = Phosphor, maxLines = 1,
                 )
                 Text(

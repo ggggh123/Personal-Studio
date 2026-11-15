@@ -71,7 +71,7 @@ fun ChatListScreen(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "[+ 新建]", color = Cyan, style = MaterialTheme.typography.bodyMedium,
+                "新建", color = Cyan, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable { vm.createNewSession(onCreated = onOpenSession) }.padding(4.dp),
             )
         }
@@ -102,8 +102,8 @@ fun ChatListScreen(
 
     menuFor?.let { s ->
         TerminalBottomSheet(onDismiss = { menuFor = null }, header = "会话「${s.title}」") {
-            ActionLine("▸ 重命名", Foam) { renameFor = s; menuFor = null }
-            ActionLine("▸ 删除", Carmine) { deleteFor = s; menuFor = null }
+            ActionLine("重命名", Foam) { renameFor = s; menuFor = null }
+            ActionLine("删除", Carmine) { deleteFor = s; menuFor = null }
         }
     }
     renameFor?.let { s ->
@@ -130,7 +130,7 @@ fun ChatListScreen(
     ) {
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(color = FoamDim)) { append("── ") }
+                withStyle(SpanStyle(color = FoamDim)) { append("") }
                 withStyle(SpanStyle(color = FoamMute)) { append(label) }
                 withStyle(SpanStyle(color = FoamDim)) { append(" ") }
             },
@@ -152,7 +152,7 @@ fun ChatListScreen(
             .padding(vertical = 6.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("▸ ${s.title}", color = Foam, style = MaterialTheme.typography.bodyMedium,
+            Text("${s.title}", color = Foam, style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Text(ChatListGrouping.rowTime(s.updatedAt, now), color = FoamMute,
                 style = MaterialTheme.typography.bodySmall)
@@ -180,7 +180,7 @@ fun ChatListScreen(
                 text = buildAnnotatedString {
                     withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
-                    withStyle(SpanStyle(color = Cyan)) { append("[新建]") }
+                    withStyle(SpanStyle(color = Cyan)) { append("新建") }
                     withStyle(SpanStyle(color = FoamDim)) { append(" 开始第一个会话") }
                 },
                 style = MaterialTheme.typography.bodyMedium,

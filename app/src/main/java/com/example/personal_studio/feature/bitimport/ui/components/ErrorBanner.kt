@@ -28,14 +28,14 @@ fun ErrorBanner(
         is ImportError.CaptchaRequired  -> ErrorContent(Amber, "需要验证码",
             "请到个人中心重新登录，并在应用内完成学校网页或短信验证后重试。",
             "[重新验证]", BannerAction.Reauthenticate)
-        is ImportError.NetworkFail      -> ErrorContent(Carmine, "网络异常", "请检查网络后重试。", "[重试]", BannerAction.Retry)
+        is ImportError.NetworkFail      -> ErrorContent(Carmine, "网络异常", "请检查网络后重试。", "重试", BannerAction.Retry)
         is ImportError.ParseFail        -> ErrorContent(Carmine, "数据解析失败",
             "教务系统返回了未预期的数据：${error.message}。可能是接口改版。",
-            "[反馈]", BannerAction.OpenIssueTracker)
+            "反馈", BannerAction.OpenIssueTracker)
         is ImportError.NoCurrentTerm    -> ErrorContent(Amber, "未返回当前学期", "请手动选择学期。", null, null)
         is ImportError.EmptySchedule    -> ErrorContent(Amber, "课表为空", "该学期教务系统中无课程数据。", null, null)
         is ImportError.Unexpected       -> ErrorContent(Carmine, "未知错误",
-            error.cause.message ?: "请重试或联系开发者", "[反馈]", BannerAction.OpenIssueTracker)
+            error.cause.message ?: "请重试或联系开发者", "反馈", BannerAction.OpenIssueTracker)
     }
     Column(
         Modifier.fillMaxWidth().border(1.dp, content.color, RoundedCornerShape(4.dp))
@@ -51,7 +51,7 @@ fun ErrorBanner(
                 }
             }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onDismiss) { Text("[关闭]", color = content.color) }
+            TextButton(onClick = onDismiss) { Text("关闭", color = content.color) }
         }
     }
 }

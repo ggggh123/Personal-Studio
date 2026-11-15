@@ -51,7 +51,7 @@ fun KbSearchBar(
     ) {
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(color = FoamDim)) { append("$ grep -r ") }
+                withStyle(SpanStyle(color = FoamDim)) { append("") }
                 withStyle(SpanStyle(color = Phosphor)) { append("\"") }
             },
             style = MaterialTheme.typography.bodyMedium,

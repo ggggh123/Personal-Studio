@@ -63,7 +63,7 @@ fun ExamsScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: ExamsViewModel 
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onBack) { Text("←", color = FoamMute) }
-                Text("$ exams", color = Cyan, style = MaterialTheme.typography.titleMedium)
+                Text("考试", color = Cyan, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = vm::onRefresh, enabled = !st.syncing) {
                     Text(if (st.syncing) "同步中…" else "↻ 刷新", color = if (st.syncing) FoamDim else Phosphor)
@@ -90,7 +90,7 @@ fun ExamsScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: ExamsViewModel 
                 if (st.past.isNotEmpty()) {
                     item {
                         TextButton(onClick = { showPast = !showPast }) {
-                            Text((if (showPast) "▾ 收起" else "▸ 已考") + " (${st.past.size})", color = FoamMute)
+                            Text((if (showPast) "▾ 收起" else "已考") + " (${st.past.size})", color = FoamMute)
                         }
                     }
                     if (showPast) items(st.past, key = { it.id }) { row -> ExamCard(row, past = true) }

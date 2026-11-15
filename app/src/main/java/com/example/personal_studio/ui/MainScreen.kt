@@ -33,6 +33,8 @@ import com.example.personal_studio.ui.components.TerminalSplash
 import com.example.personal_studio.ui.components.TerminalTab
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.navigation.NavRoutes
+import com.example.personal_studio.ui.theme.DarkCanvas
+import com.example.personal_studio.ui.theme.LocalThemeSafePoint
 import com.example.personal_studio.ui.theme.Void
 import com.example.personal_studio.ui.theme.scanLines
 import com.example.personal_studio.ui.theme.vignette
@@ -85,6 +87,13 @@ private fun MainShell(navController: NavHostController, startDestination: String
     // the CRT phosphor glow or dimmed by the vignette — the scanlines overlay
     // was painting a greenish film on top of the preview and looked hazy.
     val isScannerSubRoute = currentRoute?.startsWith("scanner/") == true
+    val isPhotoRoute = currentRoute?.let {
+        it.startsWith("scanner/camera") || it.startsWith("scanner/edge") || it.startsWith("scanner/enhance")
+    } == true
+
+    // Navigating is a safe moment to apply a pending light/dark switch of the 天光 theme.
+    val themeSafePoint = LocalThemeSafePoint.current
+    LaunchedEffect(currentRoute) { themeSafePoint() }
 
     // Sub-routes (chat detail, settings) render their own top bar — we only show
     // the shell's chrome on tab destinations. `contentWindowInsets = WindowInsets(0)`
@@ -134,7 +143,10 @@ private fun MainShell(navController: NavHostController, startDestination: String
                 .background(Void)
                 .let { if (isScannerSubRoute) it else it.scanLines().vignette() },
         ) {
-            AppNavHost(navController = navController, startDestination = startDestination)
+            // Camera and photo screens keep a dark palette regardless of the time of day.
+            DarkCanvas(enabled = isPhotoRoute) {
+                AppNavHost(navController = navController, startDestination = startDestination)
+            }
         }
     }
 }

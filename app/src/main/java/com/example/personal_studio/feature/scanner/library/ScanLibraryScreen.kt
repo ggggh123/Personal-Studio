@@ -188,7 +188,7 @@ private fun SortToolbar(current: SortMode, onSelect: (SortMode) -> Unit) {
         ).forEach { (mode, label) ->
             val active = mode == current
             Text(
-                text = if (active) "[$label]" else label,
+                text = if (active) "$label" else label,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (active) Phosphor else FoamDim,
                 modifier = Modifier.clickable { onSelect(mode) },
@@ -216,7 +216,7 @@ private fun DocRow(
         Column(Modifier.weight(1f)) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = FoamDim)) { append("drwx── ") }
+                    withStyle(SpanStyle(color = FoamDim)) { append("") }
                     withStyle(SpanStyle(color = Foam)) { append(doc.title) }
                 },
                 style = MaterialTheme.typography.bodyMedium,
@@ -238,8 +238,8 @@ private fun DocActionsDialog(
     onDelete: () -> Unit,
 ) {
     TerminalBottomSheet(onDismiss = onDismiss, header = "「${doc.title}」") {
-        ActionLine("▸ 重命名", Foam, onRename)
-        ActionLine("▸ 删除", Carmine, onDelete)
+        ActionLine("重命名", Foam, onRename)
+        ActionLine("删除", Carmine, onDelete)
     }
 }
 

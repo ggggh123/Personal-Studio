@@ -77,7 +77,7 @@ private fun Option(line: String, onClick: () -> Unit, disabled: Boolean = false)
 
     Text(
         text = buildAnnotatedString {
-            withStyle(SpanStyle(color = FoamDim)) { append("▸ ") }
+            withStyle(SpanStyle(color = FoamDim)) { append("") }
             withStyle(SpanStyle(color = color)) { append(line) }
         },
         style = MaterialTheme.typography.bodyMedium,

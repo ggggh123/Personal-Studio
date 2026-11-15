@@ -157,7 +157,7 @@ private fun StatusLine(ok: Boolean, body: String) {
     val tagColor = if (ok) Olive else Carmine
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(color = tagColor)) { append("[$tag] ") }
+            withStyle(SpanStyle(color = tagColor)) { append("$tag · ") }
             withStyle(SpanStyle(color = Foam)) { append(body) }
         },
         style = MaterialTheme.typography.bodyMedium,

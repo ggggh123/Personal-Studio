@@ -130,7 +130,7 @@ fun BitLoginScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         Spacer(Modifier.height(40.dp))
-        Text("PERSONAL // STUDIO", color = Phosphor, style = MaterialTheme.typography.displayMedium)
+        Text("Personal Studio", color = Phosphor, style = MaterialTheme.typography.displayMedium)
         Text("> 统一身份认证", color = FoamMute, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(28.dp))
 
@@ -169,7 +169,7 @@ fun BitLoginScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        "── AUTH ──────────────",
+                        "学校账户",
                         color = Phosphor.copy(alpha = 0.45f),
                         style = MaterialTheme.typography.labelSmall,
                     )

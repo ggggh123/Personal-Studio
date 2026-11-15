@@ -48,9 +48,9 @@ fun TerminalDialog(onDismiss: () -> Unit, title: String? = null, content: @Compo
             if (title != null) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = FoamDim)) { append("── ") }
+                        withStyle(SpanStyle(color = FoamDim)) { append("") }
                         withStyle(SpanStyle(color = Phosphor)) { append(title) }
-                        withStyle(SpanStyle(color = FoamDim)) { append(" ──") }
+                        withStyle(SpanStyle(color = FoamDim)) { append("") }
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -74,7 +74,7 @@ fun TerminalConfirmDialog(
         Text(message, color = Foam, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.padding(top = 16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text("[取消]", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
+            Text("取消", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
             Spacer(Modifier.width(12.dp))
             Text("[$confirmLabel]", color = Carmine, style = MaterialTheme.typography.bodyMedium,
@@ -112,10 +112,10 @@ fun TerminalInputDialog(
         }
         Spacer(Modifier.padding(top = 16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text("[取消]", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
+            Text("取消", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
             Spacer(Modifier.width(12.dp))
-            Text("[确认]", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
+            Text("确认", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable { onConfirm(text) }.padding(8.dp))
         }
     }

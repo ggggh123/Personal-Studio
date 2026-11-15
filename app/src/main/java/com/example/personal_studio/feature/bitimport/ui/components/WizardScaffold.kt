@@ -29,7 +29,7 @@ fun WizardScaffold(
         // Header
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Text("$ $title", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("$title", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             Text("[$stepNumber/$totalSteps]", color = FoamDim, style = MaterialTheme.typography.labelMedium)
         }

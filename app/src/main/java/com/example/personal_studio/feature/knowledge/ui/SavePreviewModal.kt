@@ -90,10 +90,10 @@ fun SavePreviewModal(
 }
 
 @Composable private fun Loading(onCancel: () -> Unit) =
-    InflightSpinner(label = "$ 思考中…", onCancel = onCancel)
+    InflightSpinner(label = "思考中…", onCancel = onCancel)
 
 @Composable private fun Saving(onCancel: () -> Unit) =
-    InflightSpinner(label = "$ 写入条目中…", onCancel = onCancel)
+    InflightSpinner(label = "写入条目中…", onCancel = onCancel)
 
 @Composable private fun InflightSpinner(label: String, onCancel: () -> Unit) {
     Column(
@@ -108,7 +108,7 @@ fun SavePreviewModal(
         // Visible escape from a slow LLM call. Without this the only way out is the
         // back gesture, which Android 14 predictive-back hides for non-opt-in apps.
         Text(
-            "[取消]",
+            "取消",
             color = FoamDim,
             modifier = Modifier.clickable { onCancel() }.padding(8.dp),
         )
@@ -124,12 +124,12 @@ fun SavePreviewModal(
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                "[重试]",
+                "重试",
                 color = Phosphor,
                 modifier = Modifier.clickable { onRetry() }.padding(8.dp),
             )
             Text(
-                "[取消]",
+                "取消",
                 color = FoamDim,
                 modifier = Modifier.clickable { onCancel() }.padding(8.dp),
             )
@@ -164,7 +164,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "[保存]",
+                "保存",
                 color = Phosphor,
                 modifier = Modifier
                     .clickable {
@@ -212,7 +212,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         FieldLabel("标准化题目", Modifier.weight(1f))
                         Text(
-                            if (editingStandardizedQuestionRaw) "[预览]" else "[编辑源码]",
+                            if (editingStandardizedQuestionRaw) "预览" else "[编辑源码]",
                             color = FoamDim,
                             modifier = Modifier
                                 .clickable { editingStandardizedQuestionRaw = !editingStandardizedQuestionRaw }
@@ -230,7 +230,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FieldLabel("摘要", Modifier.weight(1f))
                     Text(
-                        if (editingSummaryRaw) "[预览]" else "[编辑源码]",
+                        if (editingSummaryRaw) "预览" else "[编辑源码]",
                         color = FoamDim,
                         modifier = Modifier
                             .clickable { editingSummaryRaw = !editingSummaryRaw }
@@ -268,7 +268,7 @@ private fun PreviewBody(initial: KbEntryDraft, onCancel: () -> Unit, onConfirm: 
 
 @Composable private fun FieldLabel(text: String, modifier: Modifier = Modifier) {
     Text(
-        "$ $text",
+        "$text",
         color = FoamDim,
         style = MaterialTheme.typography.bodySmall,
         modifier = modifier.padding(top = 12.dp, bottom = 4.dp),

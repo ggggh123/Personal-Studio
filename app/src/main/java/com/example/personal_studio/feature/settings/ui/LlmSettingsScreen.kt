@@ -90,7 +90,7 @@ fun LlmSettingsScreen(
                 onValueChange = vm::onApiKeyDraftChanged,
                 placeholder = {
                     Text(
-                        if (state.savedApiKey != null) "**** [已设置] — 输入以替换" else "粘贴 API 密钥 (sk-...)",
+                        if (state.savedApiKey != null) "已设置，输入新值以替换" else "粘贴 API 密钥 (sk-...)",
                         color = FoamDim, style = MaterialTheme.typography.bodyMedium,
                     )
                 },
@@ -219,10 +219,11 @@ private fun SectionHeader(text: String) {
 
 @Composable
 private fun DashedDivider() {
+    val ruleColor = Rule
     Spacer(
         Modifier.fillMaxWidth().height(1.dp).drawBehind {
             drawLine(
-                color = Rule, start = Offset(0f, 0f), end = Offset(size.width, 0f),
+                color = ruleColor, start = Offset(0f, 0f), end = Offset(size.width, 0f),
                 strokeWidth = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f)),
             )
         }
@@ -248,7 +249,7 @@ private fun StatusLine(ok: Boolean, body: String) {
     val tagColor = if (ok) Olive else Carmine
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(color = tagColor)) { append("[$tag] ") }
+            withStyle(SpanStyle(color = tagColor)) { append("$tag · ") }
             withStyle(SpanStyle(color = Foam)) { append(body) }
         },
         style = MaterialTheme.typography.bodyMedium,

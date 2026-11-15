@@ -4,99 +4,52 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.example.personal_studio.R
 
-// Bundled fonts in res/font/.
-//
-// Maple Mono CN is a JetBrains Mono-derived typeface that adds full CJK coverage
-// (20k+ glyphs) in matching monospace proportions. Using it as the single UI family
-// gives us consistent rendering for mixed Latin + Chinese content without CJK
-// fallback seams. Cost: +54 MB to the APK for 3 weights (Regular, SemiBold, Bold).
-// Tradeoff explicitly accepted per project preferences (no Play Services, no
-// first-launch font downloads on Chinese OEMs).
+/**
+ * 天光 type families. Headings and large numerals use a serif; body text uses the system
+ * sans-serif (zero APK cost, best CJK coverage). Every style turns on tabular figures so
+ * countdowns and scores never jitter where the font supports it.
+ *
+ * The serif is a bundled Noto Serif SC subset (SIL OFL 1.1, licence in
+ * assets/licenses): every GB2312 character, printable ASCII, and the other characters
+ * used in the app's sources. Lighter weights resolve to SemiBold.
+ */
+val SerifFamily: FontFamily = FontFamily(
+    Font(R.font.noto_serif_sc_semibold, FontWeight.SemiBold),
+    Font(R.font.noto_serif_sc_bold, FontWeight.Bold),
+)
+val SansFamily: FontFamily = FontFamily.Default
 
-val MapleMonoCnFamily = FontFamily(
-    Font(R.font.maple_mono_cn_regular, FontWeight.Normal),
-    Font(R.font.maple_mono_cn_regular, FontWeight.Medium),    // synthesize from Regular
-    Font(R.font.maple_mono_cn_semibold, FontWeight.SemiBold),
-    Font(R.font.maple_mono_cn_bold, FontWeight.Bold),
+private const val TABULAR = "tnum"
+
+private fun serif(weight: FontWeight, size: Int, line: Int) = TextStyle(
+    fontFamily = SerifFamily, fontWeight = weight, fontSize = size.sp, lineHeight = line.sp,
+    fontFeatureSettings = TABULAR,
 )
 
-val Vt323Family = FontFamily(
-    Font(R.font.vt323, FontWeight.Normal),
+private fun sans(weight: FontWeight, size: Int, line: Int) = TextStyle(
+    fontFamily = SansFamily, fontWeight = weight, fontSize = size.sp, lineHeight = line.sp,
+    fontFeatureSettings = TABULAR,
 )
 
-val FrauncesFamily = FontFamily(
-    Font(R.font.fraunces_italic, FontWeight.Normal, FontStyle.Italic),
-    Font(R.font.fraunces_italic, FontWeight.Medium, FontStyle.Italic),
-)
-
-// Canonical UI family for everything except hero display titles and math formulas.
-val PrimaryFamily = MapleMonoCnFamily
-
-val TerminalTypography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = Vt323Family, fontWeight = FontWeight.Normal,
-        fontSize = 40.sp, lineHeight = 44.sp, letterSpacing = 0.sp,
-    ),
-    displayMedium = TextStyle(
-        fontFamily = Vt323Family, fontWeight = FontWeight.Normal,
-        fontSize = 32.sp, lineHeight = 36.sp,
-    ),
-    displaySmall = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Bold,
-        fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.01).em,
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp, lineHeight = 26.sp,
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp, lineHeight = 24.sp,
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp, lineHeight = 22.sp,
-    ),
-    titleLarge = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp, lineHeight = 22.sp,
-    ),
-    titleMedium = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Medium,
-        fontSize = 14.sp, lineHeight = 20.sp,
-    ),
-    titleSmall = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Medium,
-        fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.1.em,
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Normal,
-        fontSize = 14.sp, lineHeight = 22.sp,
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Normal,
-        fontSize = 13.sp, lineHeight = 20.sp,
-    ),
-    bodySmall = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Normal,
-        fontSize = 11.sp, lineHeight = 16.sp,
-    ),
-    labelLarge = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Medium,
-        fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.15.em,
-    ),
-    labelMedium = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Medium,
-        fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.18.em,
-    ),
-    labelSmall = TextStyle(
-        fontFamily = PrimaryFamily, fontWeight = FontWeight.Medium,
-        fontSize = 10.sp, lineHeight = 14.sp, letterSpacing = 0.2.em,
-    ),
+/** Material slots mapped onto the 天光 scale (display 34/40 … label 11/14; nothing below 11 sp). */
+val TgTypography = Typography(
+    displayLarge = serif(FontWeight.Bold, 64, 68),
+    displayMedium = serif(FontWeight.SemiBold, 34, 40),
+    displaySmall = serif(FontWeight.SemiBold, 28, 34),
+    headlineLarge = serif(FontWeight.SemiBold, 24, 32),
+    headlineMedium = serif(FontWeight.SemiBold, 21, 28),
+    headlineSmall = serif(FontWeight.SemiBold, 18, 26),
+    titleLarge = sans(FontWeight.Medium, 17, 24),
+    titleMedium = sans(FontWeight.Medium, 15, 22),
+    titleSmall = sans(FontWeight.Medium, 13, 18),
+    bodyLarge = sans(FontWeight.Normal, 15, 22),
+    bodyMedium = sans(FontWeight.Normal, 14, 21),
+    bodySmall = sans(FontWeight.Normal, 12, 18),
+    labelLarge = sans(FontWeight.Medium, 13, 18),
+    labelMedium = sans(FontWeight.Medium, 12, 16),
+    labelSmall = sans(FontWeight.Medium, 11, 14),
 )

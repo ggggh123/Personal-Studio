@@ -25,6 +25,7 @@ object TimelineAxisSpec {
 
 @Composable
 fun TimelineAxis(modifier: Modifier = Modifier) {
+    val ruleColor = Rule
     Box(
         modifier
             .fillMaxWidth()
@@ -36,7 +37,7 @@ fun TimelineAxis(modifier: Modifier = Modifier) {
             for (h in TimelineAxisSpec.START_HOUR..TimelineAxisSpec.END_HOUR) {
                 val y = (h - TimelineAxisSpec.START_HOUR) * pxPerHour
                 drawLine(
-                    color = Rule,
+                    color = ruleColor,
                     start = Offset(48.dp.toPx(), y),
                     end = Offset(size.width, y),
                     strokeWidth = 1.dp.toPx(),

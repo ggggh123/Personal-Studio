@@ -4,11 +4,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
-// Terminal has no rounded corners. Every surface is a rectangle.
-val TerminalShapes = Shapes(
-    extraSmall = RoundedCornerShape(0.dp),
-    small = RoundedCornerShape(0.dp),
-    medium = RoundedCornerShape(0.dp),
-    large = RoundedCornerShape(0.dp),
-    extraLarge = RoundedCornerShape(0.dp),
+/** 天光 corner radii: 9 timetable block · 14 small card · 20 card · 28 sheet. */
+val TgShapes = Shapes(
+    extraSmall = RoundedCornerShape(9.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(20.dp),
+    // Material derives the top-only sheet shape from this; dialogs use it whole.
+    extraLarge = RoundedCornerShape(28.dp),
 )

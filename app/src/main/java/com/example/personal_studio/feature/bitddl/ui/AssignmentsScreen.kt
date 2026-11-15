@@ -70,7 +70,7 @@ fun AssignmentsScreen(
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onBack) { Text("←", color = FoamMute) }
-                Text("$ assignments", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+                Text("作业", color = Phosphor, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = vm::onRefresh, enabled = !st.syncing) {
                     Text(if (st.syncing) "同步中…" else "↻ 刷新", color = if (st.syncing) FoamDim else Phosphor)
@@ -98,7 +98,7 @@ fun AssignmentsScreen(
                     item {
                         TextButton(onClick = { showFolded = !showFolded }) {
                             Text(
-                                (if (showFolded) "▾ 收起" else "▸ 已完成 / 已过期") + " (${st.doneOrOverdue.size})",
+                                (if (showFolded) "▾ 收起" else "已完成 / 已过期") + " (${st.doneOrOverdue.size})",
                                 color = FoamMute,
                             )
                         }

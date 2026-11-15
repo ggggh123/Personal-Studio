@@ -47,6 +47,7 @@ fun MarkdownText(
     headerColor: Color = Phosphor,
     accentColor: Color = FoamMute,
 ) {
+    val codeStyle = SpanStyle(background = Hull, color = Phosphor, fontFamily = FontFamily.Monospace)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         val lines = text.split('\n')
         var pendingPara = ""
@@ -54,7 +55,7 @@ fun MarkdownText(
         fun flushPara() {
             if (pendingPara.isNotBlank()) {
                 Text(
-                    parseInline(pendingPara.trimEnd()),
+                    parseInline(pendingPara.trimEnd(), codeStyle),
                     color = bodyColor,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -92,7 +93,7 @@ fun MarkdownText(
                 line.startsWith("- ") || line.startsWith("* ") -> {
                     flushPara()
                     BulletRow(
-                        marker = "• ", content = parseInline(line.drop(2)),
+                        marker = "• ", content = parseInline(line.drop(2), codeStyle),
                         bodyColor = bodyColor, accentColor = accentColor,
                     )
                 }
@@ -101,7 +102,7 @@ fun MarkdownText(
                     val m = ORDERED.matchEntire(line)!!
                     BulletRow(
                         marker = "${m.groupValues[1]}. ",
-                        content = parseInline(m.groupValues[2]),
+                        content = parseInline(m.groupValues[2], codeStyle),
                         bodyColor = bodyColor, accentColor = accentColor,
                     )
                 }
@@ -111,7 +112,7 @@ fun MarkdownText(
                         Box(Modifier.width(2.dp).height(20.dp).background(Rule))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            parseInline(line.removePrefix("> ")),
+                            parseInline(line.removePrefix("> "), codeStyle),
                             color = accentColor, style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -145,7 +146,7 @@ private fun BulletRow(
 
 private val ORDERED = Regex("""^(\d+)\.\s+(.+)$""")
 
-private fun parseInline(text: String): AnnotatedString = buildAnnotatedString {
+private fun parseInline(text: String, codeStyle: SpanStyle): AnnotatedString = buildAnnotatedString {
     var i = 0
     val n = text.length
     while (i < n) {
@@ -190,11 +191,7 @@ private fun parseInline(text: String): AnnotatedString = buildAnnotatedString {
             rest.startsWith("`") -> {
                 val end = text.indexOf("`", i + 1)
                 if (end > i + 1) {
-                    withStyle(SpanStyle(
-                        background = Hull,
-                        color = Phosphor,
-                        fontFamily = FontFamily.Monospace,
-                    )) {
+                    withStyle(codeStyle) {
                         append(text.substring(i + 1, end))
                     }
                     i = end + 1

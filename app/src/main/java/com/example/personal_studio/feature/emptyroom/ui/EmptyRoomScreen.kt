@@ -74,7 +74,7 @@ fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomVi
         Column(Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onBack) { Text("←", color = FoamMute) }
-                Text("$ empty-room", color = Cyan, style = MaterialTheme.typography.titleMedium)
+                Text("空教室", color = Cyan, style = MaterialTheme.typography.titleMedium)
             }
 
             LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {

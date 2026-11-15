@@ -54,7 +54,7 @@ fun TerminalDropdownMenu(
 @Composable
 fun TerminalDropdownItem(label: String, color: Color = Foam, onClick: () -> Unit) {
     Text(
-        "▸ $label",
+        "$label",
         color = color,
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),

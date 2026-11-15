@@ -55,7 +55,7 @@ fun NowIndicator(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "$ now: %02d:%02d".format(nowLocal.hour, nowLocal.minute),
+                text = "现在 %02d:%02d".format(nowLocal.hour, nowLocal.minute),
                 color = Carmine,
                 style = MaterialTheme.typography.labelSmall,
             )

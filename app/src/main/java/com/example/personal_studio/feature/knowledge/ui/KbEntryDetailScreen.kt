@@ -119,7 +119,7 @@ fun KbEntryDetailScreen(
                 },
             )
             when (val s = state) {
-                is KbEntryDetailUiState.Loading -> Centered { Text("$ 加载中…", color = FoamDim) }
+                is KbEntryDetailUiState.Loading -> Centered { Text("加载中…", color = FoamDim) }
                 is KbEntryDetailUiState.NotFound -> Centered {
                     Text("! 条目未找到", color = Carmine)
                 }
@@ -180,7 +180,7 @@ fun KbEntryDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$ 处理中…", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
+                    Text("处理中…", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
                     BlinkingCursor()
                 }
             }
@@ -243,7 +243,7 @@ private fun MetadataRow(e: KbEntry, onOpenSource: (KbEntry) -> Unit) {
             modifier = Modifier.weight(1f),
         )
         Text(
-            "[↗]",
+            "↗",
             color = Phosphor,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier

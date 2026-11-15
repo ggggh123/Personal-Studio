@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.theme.Foam
 import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.Phosphor
+import com.example.personal_studio.ui.theme.Rule
 
 /**
  * Terminal-style top bar. Renders `studio:~/<route> $` on the top row, a bright
@@ -71,8 +72,8 @@ fun TerminalTopBar(
             )
             Box { trailing?.invoke() }
         }
-        // Phosphor dashed divider with side gutters — deliberately inset from the
-        // screen edges so it reads as a terminal rule, not a Material app-bar edge.
+        // Inset hairline under the bar (天光: line colour, solid).
+        val dividerColor = Rule
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -80,11 +81,10 @@ fun TerminalTopBar(
                 .padding(horizontal = 20.dp)
                 .drawBehind {
                     drawLine(
-                        color = Phosphor,
+                        color = dividerColor,
                         start = Offset(0f, 0f),
                         end = Offset(size.width, 0f),
                         strokeWidth = 1f,
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f)),
                     )
                 }
         )

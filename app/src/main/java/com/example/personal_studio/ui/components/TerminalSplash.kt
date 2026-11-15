@@ -26,7 +26,7 @@ import com.example.personal_studio.ui.theme.scanLines
 import com.example.personal_studio.ui.theme.vignette
 import kotlin.math.abs
 
-private const val LOGO = "PERSONAL // STUDIO"
+private const val LOGO = "Personal Studio"
 
 /** 字符波浪扫过的窗口宽度(以字符为单位)与放大幅度。 */
 private const val WAVE_SPREAD = 2.2f

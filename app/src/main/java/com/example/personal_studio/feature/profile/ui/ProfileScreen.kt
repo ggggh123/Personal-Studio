@@ -78,14 +78,14 @@ fun ProfileScreen(
                 Modifier.fillMaxWidth().clickable { onSyncAll() }.padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("⟳ 一键全部同步", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
+                Text("一键同步全部", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f))
                 Text("课表·作业·考试·成绩", color = FoamDim, style = MaterialTheme.typography.labelSmall)
             }
         }
 
         Spacer(Modifier.height(2.dp))
-        Text("// 后台提醒", color = FoamDim, style = MaterialTheme.typography.labelMedium)
+        Text("后台提醒", color = FoamDim, style = MaterialTheme.typography.labelMedium)
         PollRow("出分提醒", if (st.gradesPollEnabled) "已开 ${st.gradesPollInterval}h" else "已关", onOpenGradesPoll)
         PollRow("作业自动同步", if (st.ddlPollEnabled) "已开" else "已关", onOpenDdlPoll)
         Spacer(Modifier.height(12.dp))
@@ -101,7 +101,7 @@ private fun AccountCard(st: ProfileUiState, onLogin: () -> Unit, onLogout: () ->
     ) {
         if (st.loggedIn) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("◆ ", color = Phosphor, style = MaterialTheme.typography.headlineSmall)
+                Text("", color = Phosphor, style = MaterialTheme.typography.headlineSmall)
                 Text(st.username ?: "", color = Foam, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                 TextButton(onClick = onLogout) { Text("退出登录", color = FoamMute, style = MaterialTheme.typography.labelMedium) }
             }
@@ -119,7 +119,7 @@ private fun AccountCard(st: ProfileUiState, onLogin: () -> Unit, onLogout: () ->
                 Text("重新登录 / 学校网页验证", color = Phosphor, style = MaterialTheme.typography.labelMedium)
             }
         } else {
-            Text("◆ 未登录", color = FoamMute, style = MaterialTheme.typography.headlineSmall)
+            Text("未登录", color = FoamMute, style = MaterialTheme.typography.headlineSmall)
             Text("点此登录 — 成绩 / 课表 / 作业 / 考试免再输密码", color = FoamDim,
                 style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 3.dp))
         }
@@ -145,7 +145,7 @@ private fun PollRow(name: String, status: String, onClick: () -> Unit) {
         Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("▸ $name", color = Foam, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text("$name", color = Foam, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Text(status, color = if (status.startsWith("已开")) Phosphor else FoamMute, style = MaterialTheme.typography.labelMedium)
         Text("  ›", color = FoamMute, style = MaterialTheme.typography.bodyMedium)
     }

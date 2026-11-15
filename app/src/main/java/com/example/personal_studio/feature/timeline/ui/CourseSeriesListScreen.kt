@@ -105,7 +105,7 @@ private fun CourseRow(s: CourseSeriesSummary, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp)) {
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(color = FoamDim)) { append("▸ ") }
+                withStyle(SpanStyle(color = FoamDim)) { append("") }
                 withStyle(SpanStyle(color = Phosphor)) { append(s.title) }
             },
             style = MaterialTheme.typography.bodyMedium,
@@ -147,7 +147,7 @@ private fun CourseEmptyState(onAddCourse: () -> Unit) {
                     withStyle(SpanStyle(color = Phosphor)) { append("▓ ") }
                     withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
                     withStyle(SpanStyle(color = Cyan)) { append("[新建课程]") }
-                    withStyle(SpanStyle(color = FoamDim)) { append(" 或 day 界面的 [+] 录入") }
+                    withStyle(SpanStyle(color = FoamDim)) { append(" 或在日程页点 ＋ 添加") }
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.clickable(onClick = onAddCourse),

@@ -100,7 +100,7 @@ fun ShareCardScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("←", color = FoamMute) }
-            Text("$ share", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("分享", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             Text(
                 "包含课程明细",
@@ -185,7 +185,7 @@ private fun ShareCard(book: GradeBook, includeCourses: Boolean) {
     ) {
         // 顶部 prompt 头 + 日期
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$ transcript", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("成绩单", color = Phosphor, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             Text(date, color = FoamDim, style = MaterialTheme.typography.labelMedium)
         }
@@ -246,7 +246,7 @@ private fun ShareCard(book: GradeBook, includeCourses: Boolean) {
         if (includeCourses) {
             Spacer(Modifier.height(16.dp))
             Text(
-                "── 课程明细 ──",
+                "课程明细",
                 color = FoamDim,
                 style = MaterialTheme.typography.labelMedium,
             )

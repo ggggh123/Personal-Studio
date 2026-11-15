@@ -45,9 +45,9 @@ fun TerminalBottomSheet(
             if (header != null) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = FoamDim)) { append("── ") }
+                        withStyle(SpanStyle(color = FoamDim)) { append("") }
                         withStyle(SpanStyle(color = Phosphor)) { append(header) }
-                        withStyle(SpanStyle(color = FoamDim)) { append(" ──") }
+                        withStyle(SpanStyle(color = FoamDim)) { append("") }
                     },
                     style = MaterialTheme.typography.bodyMedium,
                 )

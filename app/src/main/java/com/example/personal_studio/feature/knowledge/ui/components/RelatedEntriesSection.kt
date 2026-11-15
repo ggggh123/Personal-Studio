@@ -18,7 +18,7 @@ import com.example.personal_studio.ui.theme.Phosphor
 
 /**
  * Renders nothing when [related] is empty. Otherwise shows a divider header
- * "─── 相关条目 ───" followed by one clickable row per related entry, each
+ * "相关条目" followed by one clickable row per related entry, each
  * with a Phosphor leader/arrow and the entry title.
  */
 @Composable
@@ -29,7 +29,7 @@ fun RelatedEntriesSection(
 ) {
     if (related.isEmpty()) return
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-        Text("─────── 相关条目 ───────", color = FoamDim, style = MaterialTheme.typography.bodySmall)
+        Text("相关条目", color = FoamDim, style = MaterialTheme.typography.bodySmall)
         related.forEach { entry ->
             Row(
                 Modifier.fillMaxWidth().clickable { onOpen(entry.id) }.padding(vertical = 6.dp),

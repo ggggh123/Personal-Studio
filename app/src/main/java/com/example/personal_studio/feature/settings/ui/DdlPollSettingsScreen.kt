@@ -42,7 +42,7 @@ fun DdlPollSettingsScreen(onBack: () -> Unit, vm: DdlPollSettingsViewModel = hil
     Column(Modifier.fillMaxSize().background(Void).systemBarsPadding().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onBack) { Text("←", color = FoamMute) }
-            Text("$ ddl-poll", color = Phosphor, style = MaterialTheme.typography.titleMedium)
+            Text("作业自动同步", color = Phosphor, style = MaterialTheme.typography.titleMedium)
         }
         Spacer(Modifier.height(16.dp))
 

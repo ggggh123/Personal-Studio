@@ -211,23 +211,24 @@ fun CameraCaptureScreen(
             )
         }
 
+        val focusColor = Phosphor
         focusRingAt?.let { pos ->
             Canvas(Modifier.fillMaxSize()) {
                 val radius = FOCUS_RING_RADIUS_DP.dp.toPx()
                 drawCircle(
-                    color = Phosphor,
+                    color = focusColor,
                     radius = radius,
                     center = pos,
                     style = Stroke(width = 2f),
                 )
                 drawLine(
-                    color = Phosphor,
+                    color = focusColor,
                     start = Offset(pos.x - radius * 0.3f, pos.y),
                     end = Offset(pos.x + radius * 0.3f, pos.y),
                     strokeWidth = 1.5f,
                 )
                 drawLine(
-                    color = Phosphor,
+                    color = focusColor,
                     start = Offset(pos.x, pos.y - radius * 0.3f),
                     end = Offset(pos.x, pos.y + radius * 0.3f),
                     strokeWidth = 1.5f,
@@ -270,7 +271,7 @@ fun CameraCaptureScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "[取消]",
+                "取消",
                 style = MaterialTheme.typography.bodyMedium,
                 color = FoamDim,
                 modifier = Modifier.clickable { onCancel() },
@@ -364,6 +365,7 @@ private fun LiveCornersOverlay(
         Offset(rx, ry)
     }
 
+    val quadColor = Phosphor
     Canvas(Modifier.fillMaxSize()) {
         val path = Path().apply {
             moveTo(displayCorners[0].x, displayCorners[0].y)
@@ -372,10 +374,10 @@ private fun LiveCornersOverlay(
             lineTo(displayCorners[3].x, displayCorners[3].y)
             close()
         }
-        drawPath(path, color = Phosphor.copy(alpha = 0.85f), style = Stroke(width = 3f))
+        drawPath(path, color = quadColor.copy(alpha = 0.85f), style = Stroke(width = 3f))
         val dotR = 6.dp.toPx()
         displayCorners.forEach { c ->
-            drawCircle(color = Phosphor, radius = dotR, center = c)
+            drawCircle(color = quadColor, radius = dotR, center = c)
         }
     }
 }
@@ -390,7 +392,7 @@ private fun PermissionDeniedUi(onRequest: () -> Unit, onCancel: () -> Unit) {
         Modifier.fillMaxSize().background(Void).padding(32.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("[!] 相机权限被拒绝", color = Carmine, style = MaterialTheme.typography.bodyMedium)
+        Text("相机权限被拒绝", color = Carmine, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(12.dp))
         Text(
             "拍摄需要授予相机权限。",
@@ -398,8 +400,8 @@ private fun PermissionDeniedUi(onRequest: () -> Unit, onCancel: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(18.dp))
-        Text("[授权]", color = Phosphor, modifier = Modifier.clickable(onClick = onRequest))
+        Text("授权", color = Phosphor, modifier = Modifier.clickable(onClick = onRequest))
         Spacer(Modifier.height(8.dp))
-        Text("[取消]", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
+        Text("取消", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
     }
 }

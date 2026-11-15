@@ -7,46 +7,48 @@
 <script src="katex.min.js" defer></script>
 <script src="contrib/auto-render.min.js" defer></script>
 <style>
+  /* 天光 tokens; defaults are the noon keyframe, overwritten by setTheme() from Kotlin. */
   :root {
-    --void:     #0A0E0C;
-    --foam:     #D8E5DA;
-    --foam-dim: #5A7260;
-    --phosphor: #41FF8F;
-    --amber:    #FFB548;
-    --cyan:     #6AC3E8;
-    --rule:     #2A4A32;
+    --text:   #141311;
+    --text2:  #5F5B54;
+    --accent: #B03A22;
+    --line:   #E5E1D9;
+    --error:  #8C1D2E;
   }
   html, body {
     margin: 0; padding: 0;
     background: transparent;
-    color: var(--foam);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--text);
+    font-family: system-ui, 'Noto Sans SC', 'PingFang SC', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
     word-wrap: break-word;
   }
   body { padding: 0 2px; }
-  /* Terminal tint overrides for KaTeX output */
-  .katex { color: var(--foam); }
-  .katex .mord { color: var(--foam); }
-  .katex .mrel, .katex .mbin, .katex .mpunct { color: var(--cyan); }
-  .katex .minner, .katex .mop { color: var(--amber); }
-  /* Block math — extra vertical room, subtle left rule */
+  .katex { color: var(--text); }
+  .katex .mop { color: var(--accent); }
+  /* Block math: extra vertical room and a hairline on the left */
   .katex-display {
     margin: 10px 0;
     padding: 6px 10px;
-    border-left: 2px solid var(--rule);
+    border-left: 2px solid var(--line);
     overflow-x: auto;
     overflow-y: hidden;
   }
   p { margin: 0 0 10px 0; }
-  code { color: var(--cyan); }
+  code { color: var(--text2); }
 </style>
 </head>
 <body>
 <div id="content"></div>
 <script>
   var resizeObserver = null;
+
+  // Called by MathMarkdownView whenever the 天光 palette changes.
+  function setTheme(tokens) {
+    var root = document.documentElement.style;
+    for (var key in tokens) { root.setProperty('--' + key, tokens[key]); }
+  }
 
   function reportHeight() {
     if (window.Android) {
@@ -70,7 +72,7 @@
             { left: '\\(', right: '\\)', display: false }
           ],
           throwOnError: false,
-          errorColor: '#FF5770'
+          errorColor: getComputedStyle(document.documentElement).getPropertyValue('--error').trim() || '#8C1D2E'
         });
         reportHeight();
 
