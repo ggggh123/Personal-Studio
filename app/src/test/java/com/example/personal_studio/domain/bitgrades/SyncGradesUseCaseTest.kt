@@ -4,7 +4,6 @@ import app.cash.turbine.test
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
-import com.example.personal_studio.data.network.bit.service.BitCasService
 import com.example.personal_studio.data.network.bit.service.BitJwmsService
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
@@ -22,8 +21,41 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.Response
+import kotlinx.coroutines.flow.toList
+import com.example.personal_studio.domain.bitgrades.model.BackgroundSyncResult
 
 class SyncGradesUseCaseTest {
+
+    @Test fun `login pages and missing tables never overwrite cached grades or become empty results`() = runTest {
+        val failures = listOf(
+            "<html>gateway error</html>" to GradesSyncError.ParseFail::class,
+            "<form id='secondSmsLoginForm'>短信验证</form>" to GradesSyncError.CaptchaRequired::class,
+            "<script>alert('该帐号不存在或密码错误')</script>" to GradesSyncError.CaptchaRequired::class,
+        )
+        for ((body, expected) in failures) {
+            val jwms = mockk<BitJwmsService> { coEvery { getScoreListHtml() } answers { html(body) } }
+            val api = mockk<BitApiClient>(relaxed = true) { coEvery { this@mockk.jwms } returns jwms }
+            val replacer = mockk<ReplaceGradesUseCase>(relaxed = true)
+            val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), replacer)
+            val foreground = useCase.sync(req()).toList().last() as SyncGradesStep.Failed
+            assertEquals(expected, foreground.err::class)
+            val background = useCase.syncForBackground(req()) as BackgroundSyncResult.Stop
+            assertEquals(expected, background.reason::class)
+            coVerify(exactly = 0) { replacer.invoke(any(), any()) }
+        }
+    }
+
+    @Test fun `HTTP failure with stale grade HTML cannot overwrite grades`() = runTest {
+        val jwms = mockk<BitJwmsService> {
+            coEvery { getScoreListHtml() } answers { Response.error(503, "<table id='dataList'></table>".toResponseBody()) }
+        }
+        val api = mockk<BitApiClient>(relaxed = true) { coEvery { this@mockk.jwms } returns jwms }
+        val replacer = mockk<ReplaceGradesUseCase>(relaxed = true)
+        val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), replacer)
+        assertTrue((useCase.sync(req()).toList().last() as SyncGradesStep.Failed).err is GradesSyncError.ParseFail)
+        assertTrue(useCase.syncForBackground(req()) is BackgroundSyncResult.Stop)
+        coVerify(exactly = 0) { replacer.invoke(any(), any()) }
+    }
 
     private fun req() = GradesSyncRequest("u", "p", NetworkMode.LOCAL, false)
 
@@ -39,7 +71,7 @@ class SyncGradesUseCaseTest {
 
     private fun ssoMock(result: CasLoginDto) =
         mockk<com.example.personal_studio.domain.bitimport.SsoLoginUseCase> {
-            coEvery { this@mockk.invoke(any(), any(), any()) } returns result
+            coEvery { this@mockk.loginGrades(any(), any(), any()) } returns result
         }
 
     @Test fun `wrong password emits Failed and closes session`() = runTest {
@@ -56,14 +88,12 @@ class SyncGradesUseCaseTest {
     }
 
     @Test fun `happy path parses jsxsd html, persists and emits Done`() = runTest {
-        val cas = mockk<BitCasService>(relaxed = true)
         val jwms = mockk<BitJwmsService> {
             coEvery { getScoreListHtml() } returns scoreHtml(
                 "<tr><td>2024-2025-2</td><td>高数</td><td>5.0</td><td>92</td><td>4.0</td></tr>",
             )
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns cas
             coEvery { this@mockk.jwms } returns jwms
         }
         val replacer = mockk<ReplaceGradesUseCase>(relaxed = true)
@@ -83,7 +113,6 @@ class SyncGradesUseCaseTest {
     }
 
     @Test fun `cjfx detail fetched concurrently and merged into persisted entry`() = runTest {
-        val cas = mockk<BitCasService>(relaxed = true)
         val detailArg = slot<String>()
         val jwms = mockk<BitJwmsService> {
             coEvery { getScoreListHtml() } returns scoreHtml(
@@ -95,7 +124,6 @@ class SyncGradesUseCaseTest {
             )
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns cas
             coEvery { this@mockk.jwms } returns jwms
         }
         val replacer = mockk<ReplaceGradesUseCase>(relaxed = true)
@@ -123,10 +151,9 @@ class SyncGradesUseCaseTest {
 
     @Test fun `empty table emits Failed-EmptyGrades`() = runTest {
         val jwms = mockk<BitJwmsService> {
-            coEvery { getScoreListHtml() } returns html("<html><body>no table here</body></html>")
+            coEvery { getScoreListHtml() } returns scoreHtml("")
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns mockk(relaxed = true)
             coEvery { this@mockk.jwms } returns jwms
         }
         val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
@@ -144,7 +171,6 @@ class SyncGradesUseCaseTest {
             coEvery { getScoreListHtml() } returns html("<html><body>请先完成评教</body></html>")
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns mockk(relaxed = true)
             coEvery { this@mockk.jwms } returns jwms
         }
         val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
@@ -168,14 +194,12 @@ class SyncGradesUseCaseTest {
     }
 
     @Test fun `syncForBackground happy path returns Ok with entries`() = runTest {
-        val cas = mockk<BitCasService>(relaxed = true)
         val jwms = mockk<BitJwmsService> {
             coEvery { getScoreListHtml() } returns scoreHtml(
                 "<tr><td>2024-2025-2</td><td>高数</td><td>5.0</td><td>92</td><td>4.0</td></tr>",
             )
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns cas
             coEvery { this@mockk.jwms } returns jwms
         }
         val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))
@@ -189,7 +213,6 @@ class SyncGradesUseCaseTest {
             coEvery { getScoreListHtml() } returns html("<html><body>请先完成评教</body></html>")
         }
         val api = mockk<BitApiClient>(relaxed = true) {
-            coEvery { this@mockk.cas } returns mockk(relaxed = true)
             coEvery { this@mockk.jwms } returns jwms
         }
         val useCase = SyncGradesUseCase(api, ssoMock(CasLoginDto.Success), JsxsdGradeParser(), JsxsdDetailParser(), mockk(relaxed = true))

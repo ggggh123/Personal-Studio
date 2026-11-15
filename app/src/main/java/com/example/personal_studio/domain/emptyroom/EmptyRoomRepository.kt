@@ -39,14 +39,18 @@ class EmptyRoomRepository @Inject constructor(
         apiClient.open(mode)
         val login = ssoLogin.invoke(apiClient, username, password)
         login.toError()?.let { return EmptyRoomResult.Err(it) }
-        apiClient.jwapp.getAppConfig()   // wdkbby warm-up(空教室复用,见 spec)
+        apiClient.jwapp.getAppConfig()   // 空教室复用 wdkbby 预热,见 docs/school-integration.md。
         apiClient.jwapp.switchLang()
         val term = apiClient.jwapp.getCurrentTerm().body()?.datas?.dqxnxq?.rows?.firstOrNull()?.code
             ?: return EmptyRoomResult.Err(EmptyRoomError.Parse("无当前学期"))
         return EmptyRoomResult.Ok(term)
     }
 
-    fun close() = apiClient.close()
+    suspend fun acquireSession() = apiClient.acquireSession()
+
+    fun close() {
+        try { apiClient.close() } finally { apiClient.releaseSession() }
+    }
 
     suspend fun campuses(): List<Campus> {
         campusesCache?.let { return it }
@@ -90,7 +94,7 @@ class EmptyRoomRepository @Inject constructor(
         CasLoginDto.Success -> null
         CasLoginDto.WrongCredentials -> EmptyRoomError.WrongCredentials
         CasLoginDto.AccountLocked -> EmptyRoomError.WrongCredentials
-        CasLoginDto.CaptchaRequired -> EmptyRoomError.Parse("需验证码,请网页端登录一次")
+        CasLoginDto.CaptchaRequired -> EmptyRoomError.Parse("请到个人中心重新登录，并完成应用内的学校网页验证")
         is CasLoginDto.UnknownFailure -> EmptyRoomError.Parse("CAS: $body")
     }
 }

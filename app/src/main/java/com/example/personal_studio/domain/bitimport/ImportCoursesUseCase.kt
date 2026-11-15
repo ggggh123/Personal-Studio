@@ -10,6 +10,7 @@ import com.example.personal_studio.domain.bitimport.model.ImportRequest
 import com.example.personal_studio.domain.bitimport.model.ImportResult
 import com.example.personal_studio.domain.bitimport.model.ImportStep
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.io.IOException
@@ -21,8 +22,9 @@ import javax.inject.Inject
  * emits ImportStep events; suspends at Preview until the caller (ViewModel)
  * sends `true` (confirm) or `false` (cancel) into [confirmChannel].
  *
- * Always closes the BitApiClient session in `finally`, so cookies + Retrofit
- * are dropped regardless of success/failure/cancel.
+ * Always closes the BitApiClient session and releases its lock in `finally`.
+ * Temporary native cookies and Retrofit instances are dropped; shared browser
+ * cookies remain available for subsequent verification. See docs/school-integration.md.
  */
 class ImportCoursesUseCase @Inject constructor(
     private val apiClient: BitApiClient,
@@ -34,16 +36,14 @@ class ImportCoursesUseCase @Inject constructor(
 ) {
 
     fun import(req: ImportRequest, confirmChannel: Channel<Boolean>): Flow<ImportStep> = flow {
+        apiClient.acquireSession()
         try {
             apiClient.open(req.networkMode)
 
             emit(ImportStep.LoggingIn)
-            // SsoLoginUseCase.invoke handles the full service-bound CAS flow:
-            // GET jwapp index → triggers 302 to CAS login (with service param)
-            // → parse + AES-encrypt → POST credentials to the captured URL
-            // → CAS issues a ticket → follows back to jxzxehall's callback
-            // → cookies set for parent .bit.edu.cn / jxzxehall.bit.edu.cn.
-            // After this returns Success, jwapp endpoints are authenticated.
+            // SsoLoginUseCase obtains a dynamic service from the public preflight,
+            // requests a CAS ticket, establishes WebVPN when needed, then redeems
+            // the target ticket and initializes the teaching portal landing page.
             val loginResult = ssoLogin.invoke(
                 apiClient,
                 req.credentials.username,
@@ -80,7 +80,11 @@ class ImportCoursesUseCase @Inject constructor(
 
             emit(ImportStep.FetchingSchedule(pickedTermCode))
             val scheduleResp = apiClient.jwapp.getSchedule(pickedTermCode)
-            val rows = scheduleResp.body()?.datas?.cxxszhxqkb?.rows ?: emptyList()
+            val rows = scheduleResp.body()?.datas?.cxxszhxqkb?.rows
+            if (!scheduleResp.isSuccessful || rows == null) {
+                emit(ImportStep.Failed(ImportError.ParseFail("课表查询失败 HTTP ${scheduleResp.code()}，请重新登录后重试")))
+                return@flow
+            }
 
             emit(ImportStep.Mapping)
             val baseSeries = (timelineDao.maxSeriesId() ?: 0L) + 1L
@@ -107,10 +111,12 @@ class ImportCoursesUseCase @Inject constructor(
             emit(ImportStep.Done(ImportResult(items.size, replaced, pickedTermCode)))
         } catch (io: IOException) {
             emit(ImportStep.Failed(ImportError.NetworkFail(io)))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             emit(ImportStep.Failed(ImportError.Unexpected(e)))
         } finally {
-            apiClient.close()
+            try { apiClient.close() } finally { apiClient.releaseSession() }
         }
     }
 

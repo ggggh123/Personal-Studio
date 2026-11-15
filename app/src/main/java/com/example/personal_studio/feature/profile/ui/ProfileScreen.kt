@@ -106,9 +106,18 @@ private fun AccountCard(st: ProfileUiState, onLogin: () -> Unit, onLogout: () ->
                 TextButton(onClick = onLogout) { Text("退出登录", color = FoamMute, style = MaterialTheme.typography.labelMedium) }
             }
             Text(
-                "已登录 · " + when (st.networkMode) { NetworkMode.LOCAL -> "校园网"; null -> "—"; else -> "外网" },
+                "账户已保存 · 同步时自动验证",
                 color = FoamMute, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 22.dp),
             )
+            st.networkMode?.let { mode ->
+                Text(
+                    "上次连接：" + if (mode == NetworkMode.LOCAL) "学校直连" else "学校 WebVPN",
+                    color = FoamDim, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 22.dp),
+                )
+            }
+            TextButton(onClick = onLogin) {
+                Text("重新登录 / 学校网页验证", color = Phosphor, style = MaterialTheme.typography.labelMedium)
+            }
         } else {
             Text("◆ 未登录", color = FoamMute, style = MaterialTheme.typography.headlineSmall)
             Text("点此登录 — 成绩 / 课表 / 作业 / 考试免再输密码", color = FoamDim,

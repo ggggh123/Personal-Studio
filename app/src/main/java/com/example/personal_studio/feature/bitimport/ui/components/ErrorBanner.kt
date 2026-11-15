@@ -14,7 +14,7 @@ import com.example.personal_studio.ui.theme.Amber
 import com.example.personal_studio.ui.theme.Carmine
 import com.example.personal_studio.ui.theme.Foam
 
-enum class BannerAction { OpenBrowserLoginPage, Retry, OpenIssueTracker }
+enum class BannerAction { Reauthenticate, Retry, OpenIssueTracker }
 
 @Composable
 fun ErrorBanner(
@@ -26,8 +26,8 @@ fun ErrorBanner(
         is ImportError.WrongCredentials -> ErrorContent(Carmine, "密码错误", "请重新输入。", null, null)
         is ImportError.AccountLocked    -> ErrorContent(Carmine, "账号已锁定", "请稍后或修改密码后重试。", null, null)
         is ImportError.CaptchaRequired  -> ErrorContent(Amber, "需要验证码",
-            "教务系统此前多次失败，启用了验证码。访问网页端手动登录一次即可恢复。",
-            "[打开浏览器]", BannerAction.OpenBrowserLoginPage)
+            "请到个人中心重新登录，并在应用内完成学校网页或短信验证后重试。",
+            "[重新验证]", BannerAction.Reauthenticate)
         is ImportError.NetworkFail      -> ErrorContent(Carmine, "网络异常", "请检查网络后重试。", "[重试]", BannerAction.Retry)
         is ImportError.ParseFail        -> ErrorContent(Carmine, "数据解析失败",
             "教务系统返回了未预期的数据：${error.message}。可能是接口改版。",

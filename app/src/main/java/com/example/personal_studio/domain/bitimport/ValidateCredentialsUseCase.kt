@@ -3,6 +3,8 @@ package com.example.personal_studio.domain.bitimport
 import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.data.network.bit.otherMode
+import com.example.personal_studio.data.network.bit.withExclusiveSession
+import kotlinx.coroutines.CancellationException
 import com.example.personal_studio.domain.bitimport.model.AutoLoginResult
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
 import com.example.personal_studio.domain.bitimport.model.LoginRequest
@@ -14,6 +16,7 @@ class ValidateCredentialsUseCase @Inject constructor(
     private val ssoLogin: SsoLoginUseCase,
 ) {
     suspend fun invoke(req: LoginRequest): LoginOutcome {
+        apiClient.acquireSession()
         return try {
             apiClient.open(req.networkMode)
             when (val dto = ssoLogin.invoke(apiClient, req.username, req.password)) {
@@ -25,11 +28,18 @@ class ValidateCredentialsUseCase @Inject constructor(
             }
         } catch (io: java.io.IOException) {
             LoginOutcome.NetworkFail(io.message ?: "io")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Throwable) {
             LoginOutcome.Unexpected(e.message ?: e.javaClass.simpleName)
         } finally {
-            apiClient.close()
+            try { apiClient.close() } finally { apiClient.releaseSession() }
         }
+    }
+
+    suspend fun <T> withBrowserLogin(username: String, block: suspend (String) -> T): T = apiClient.withExclusiveSession {
+        apiClient.prepareAccount(username)
+        block(apiClient.browserLoginUrl())
     }
 
     /**

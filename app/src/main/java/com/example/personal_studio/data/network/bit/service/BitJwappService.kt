@@ -57,23 +57,16 @@ interface BitJwappService {
         @Field("XNXQDM") xnxqdm: String,
     ): Response<ScheduleResponse>
 
-    // ── ehall studentWdksapApp (考试安排) — same host/session, separate app warm-up ──
+    // ── ehall wdksapMobile (考试安排) — requires its own application landing page ──
 
-    @GET("jwapp/sys/funauthapp/api/getAppConfig/studentWdksapApp-{appId}.do")
-    suspend fun getExamAppConfig(
-        @Path("appId") appId: String = "4768687067472349",
-    ): Response<ResponseBody>
-
-    @GET("jwapp/i18n.do")
-    suspend fun switchLangExam(
-        @Query("appName") appName: String = "studentWdksapApp",
-        @Query("EMAP_LANG") emapLang: String = "zh",
-    ): Response<ResponseBody>
+    @GET("jwapp/sys/wdksapMobile/*default/index.do")
+    suspend fun getExamIndex(): Response<ResponseBody>
 
     @FormUrlEncoded
-    @POST("jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do")
+    @POST("jwapp/sys/wdksapMobile/modules/ksap/cxxsksap.do")
     suspend fun getExamSchedule(
-        @Field("requestParamStr") requestParamStr: String,
+        @Field("XNXQDM") term: String,
+        @Field("*order") order: String = "-KSRQ",
     ): Response<ExamResponse>
 
     // ── ehall kxjasbyMobile (空教室) — 同 host/session,复用 wdkbby warm-up ──

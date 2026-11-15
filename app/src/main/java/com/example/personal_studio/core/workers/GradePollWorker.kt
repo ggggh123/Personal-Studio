@@ -27,22 +27,24 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
 
 /**
  * 后台出分轮询 Worker。流程:
  *   1. 检查 pref enabled,关则直接 success(无副作用)。
  *   2. 读凭据,无则停轮(setEnabled(false))并 success——避免无凭据死循环。
- *   3. open(LOCAL) → syncForBackground → 按结果分支:
+ *   3. 探测首选模式 → 持有共享会话锁 → open → syncForBackground → 按结果分支:
  *      - Stop(WrongCreds|AccountLocked) → clear creds + 停轮 + 取消调度 + 通知 + success。
+ *      - Stop(NeedReview)                 → 记录状态,保持启用。
  *      - Stop(其他)                       → 停轮 + 取消调度 + 通知 + success。
- *      - Transient                        → retry(WorkManager 按指数回退重试)。
+ *      - Transient                        → 换另一模式一次,仍失败则由 WorkManager 退避重试。
  *      - Ok                               → 比对签名,非首次则对新增条目并发拉 cjfx 详情,
  *                                            落库+通知;更新 lastSeenSignature 和 lastSyncAt。
- *   4. finally close()。
+ *   4. finally close() 并释放共享会话锁。
  *
- * 设计要点(见 docs/superpowers/specs/2026-05-27-p6-m4-grade-poll-design.md):
- *   - 后台不并发拉所有课的 cjfx 详情(M1 那条路径仅 UI 触发用),只对"本次新增"增量拉。
- *   - 凭据存的 lastMode 不一定可达,Worker 固定走 LOCAL(校园网/Wi-Fi 触发居多)。
+ * 设计要点(见 docs/school-integration.md):
+ *   - 后台不拉所有课的 cjfx 详情,只对"本次新增"增量拉。
+ *   - 凭据存的 lastMode 只作历史记录,本次首选方式重新探测。
  *   - 异常吞 retry:WorkManager 自带退避,避免每次都走 Stop 分支误关用户。
  */
 @HiltWorker
@@ -70,11 +72,14 @@ class GradePollWorker @AssistedInject constructor(
         val first = resolveNetworkMode(creds.lastMode)
         var result: BackgroundSyncResult = BackgroundSyncResult.Transient
         var usedMode = first
+        apiClient.acquireSession()
         return try {
             for (mode in listOf(first, otherMode(first))) {
                 apiClient.open(mode)
                 result = try {
                     sync.syncForBackground(GradesSyncRequest(creds.username, creds.password, mode, true))
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Throwable) {
                     // 登录阶段 IOException 不被 syncForBackground 内部 try 捕获,在此归为 Transient。
                     BackgroundSyncResult.Transient
@@ -85,7 +90,7 @@ class GradePollWorker @AssistedInject constructor(
             }
             handle(result, creds, usedMode)
         } finally {
-            apiClient.close()
+            try { apiClient.close() } finally { apiClient.releaseSession() }
         }
     }
 

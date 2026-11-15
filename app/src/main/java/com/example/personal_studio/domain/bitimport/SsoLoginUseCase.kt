@@ -2,193 +2,149 @@ package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.core.util.CasAesCrypto
 import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.BitAuthPages
+import com.example.personal_studio.data.network.bit.BitAuthResponse
+import com.example.personal_studio.data.network.bit.BitAuthSession
+import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
-import com.example.personal_studio.data.network.bit.service.BitCasService
+import com.example.personal_studio.data.network.bit.origin
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
 
-/**
- * Drives the BIT CAS login flow.
- *
- * The naive flow (GET /cas/login → POST /cas/login) gets a 401 in production —
- * BIT's CAS is **service-bound**, meaning the POST must go to the EXACT URL
- * the redirect chain landed at, including a `service=<callback>?sessionToken=<nonce>`
- * query parameter that's unique per redirect. So the real flow is:
- *
- *   1. GET the protected resource (jwapp's index endpoint). OkHttp follows the
- *      302 chain → final URL is `sso.bit.edu.cn/cas/login?service=<encoded callback>`
- *      and the response body is the CAS login HTML.
- *   2. Parse execution + croypto from the HTML.
- *   3. AES-encrypt the password and the empty-JSON captcha payload.
- *   4. POST to the captured final URL (via Retrofit `@Url`), preserving the
- *      service param.
- *   5. CAS validates and 302s to the callback URL (with a `ticket=ST-...` param).
- *      OkHttp follows it; the callback validates the ticket and sets a session
- *      cookie scoped to .bit.edu.cn / jxzxehall.bit.edu.cn.
- *   6. Subsequent jwapp calls are now authenticated.
- *
- * Returns a [CasLoginDto] sealed instance so callers can pattern-match without
- * throwing on user-facing failures.
- *
- * **HTML shape**: BIT's CAS page does NOT use the conventional Spring form of
- * `<input name="execution" value="..."/>`. Instead the values live in elements
- * keyed by id:
- *
- *     <p id="login-croypto">SALT_VALUE</p>
- *     <p id="login-page-flowkey">EXECUTION_VALUE</p>
- *
- * The exact tag varies (observed `<p>`, `<span>`, `<input value="...">`).
- * [extractById] handles all three layouts.
- */
+/** CAS and WebVPN need separate service tickets. Keep the target ticket unconsumed
+ * until the gateway session is ready, then redeem it through the selected route. */
 class SsoLoginUseCase @Inject constructor() {
+    private enum class Target { JWAPP, JWMS, LEXUE }
+    private class Rejected(val result: CasLoginDto) : Exception()
 
-    /** Public for unit-test access; production code goes through [invoke]. */
-    fun parseLoginPage(html: String): CasInitDto {
-        val execution = extractById(html, "login-page-flowkey")
-            ?: error(
-                "CAS init: '#login-page-flowkey' not found in HTML. " +
-                    "Body head: ${html.take(400)}"
-            )
-        val salt = extractById(html, "login-croypto")
-            ?: error(
-                "CAS init: '#login-croypto' not found in HTML. " +
-                    "Body head: ${html.take(400)}"
-            )
-        return CasInitDto(execution = execution, salt = salt)
+    suspend operator fun invoke(api: BitApiClient, username: String, password: String): CasLoginDto =
+        login(api, username, password, Target.JWAPP)
+
+    suspend fun loginGrades(api: BitApiClient, username: String, password: String): CasLoginDto =
+        login(api, username, password, Target.JWMS)
+
+    suspend fun loginLexue(api: BitApiClient, username: String, password: String): CasLoginDto =
+        login(api, username, password, Target.LEXUE)
+
+    private suspend fun login(api: BitApiClient, username: String, password: String, target: Target): CasLoginDto {
+        api.prepareAccount(username)
+        val session = api.auth
+        val urls = session.urls
+        return try {
+            val service = when (target) {
+                Target.JWAPP -> {
+                    // This public preflight supplies a service URL with a per-login nonce.
+                    val preflight = session.request(urls.jwappAuth.toHttpUrl(), publicPreflight = true)
+                    val cas = preflight.redirect()
+                    if (preflight.code !in 300..399 || cas == null || !urls.isCas(cas)) {
+                        reject(preflight, "教学中心未返回认证入口")
+                    }
+                    cas.queryParameter("service")?.toHttpUrlOrNull()
+                        ?.takeIf { urls.trusted(it) && !urls.isCas(it) }
+                        ?: reject(preflight, "教学中心缺少服务回调")
+                }
+                Target.JWMS -> urls.jwms.toHttpUrl()
+                Target.LEXUE -> urls.lexue.toHttpUrl()
+            }
+            val callback = requestTicket(session, service, username, password)
+            val mode = if (target == Target.LEXUE) NetworkMode.LOCAL else api.networkMode
+            if (mode == NetworkMode.WEBVPN) {
+                val gatewayTicket = requestTicket(session, urls.gatewayCallback.toHttpUrl(), username, password)
+                follow(session, gatewayTicket, NetworkMode.LOCAL, "WebVPN 登录")
+            }
+            if (target == Target.JWMS) {
+                // jwms needs its root-session cookie before redeeming the CAS ticket.
+                val root = session.request(urls.route(service, mode))
+                if (root.code >= 400) reject(root, "教务系统初始化失败")
+            }
+            follow(session, callback, mode, "教务服务登录")
+            if (target == Target.JWAPP) {
+                follow(session, urls.jwappLanding.toHttpUrl(), mode, "教学中心初始化")
+            }
+            CasLoginDto.Success
+        } catch (e: Rejected) {
+            e.result
+        }
     }
 
-    /** Pulls a value from `<tag id="ID">...</tag>` (text-node form) OR
-     *  `<tag id="ID" value="..." ...>` (input-attribute form). */
+    private suspend fun requestTicket(
+        session: BitAuthSession, service: HttpUrl, username: String, password: String,
+    ): HttpUrl {
+        val loginUrl = session.urls.casLogin.toHttpUrl().newBuilder()
+            .addQueryParameter("service", service.toString()).build()
+        val initResponse = session.request(loginUrl)
+        ticket(initResponse, service)?.let { return it }
+        if (initResponse.code !in 200..299) reject(initResponse, "统一身份认证初始化失败")
+        // Modern CAS may render an SMS/risk page instead of the password form.
+        val init = try { parseLoginPage(initResponse.body) } catch (_: IllegalStateException) {
+            throw Rejected(BitAuthPages.loginFailure(initResponse.body) ?: CasLoginDto.CaptchaRequired)
+        }
+        val response = session.request(loginUrl, fields = linkedMapOf(
+            "username" to username,
+            "password" to CasAesCrypto.encryptPassword(password, init.salt),
+            "execution" to init.execution,
+            "croypto" to init.salt,
+            "captcha_payload" to CasAesCrypto.encryptPassword("{}", init.salt),
+            "captcha_code" to "",
+            "type" to "UsernamePassword",
+            "geolocation" to "",
+            "_eventId" to "submit",
+        ), referer = loginUrl)
+        ticket(response, service)?.let { return it }
+        BitAuthPages.loginFailure(response.body)?.let { throw Rejected(it) }
+        // A blank body, HTTP error, or 200 without a ticket never means success.
+        reject(response, "统一身份认证未签发服务凭证")
+    }
+
+    private fun ticket(response: BitAuthResponse, service: HttpUrl): HttpUrl? {
+        if (response.code !in 300..399) return null
+        val callback = response.redirect() ?: return null
+        if (callback.queryParameter("ticket").isNullOrBlank()) return null
+        if (callback.origin() != service.origin() ||
+            callback.encodedPath.trimEnd('/') != service.encodedPath.trimEnd('/')) {
+            reject(response, "统一身份认证返回了不匹配的服务回调")
+        }
+        return callback
+    }
+
+    private suspend fun follow(session: BitAuthSession, start: HttpUrl, mode: NetworkMode, stage: String) {
+        var next = session.urls.route(start, mode)
+        var previous: HttpUrl? = null
+        repeat(10) {
+            val response = session.request(next, referer = previous)
+            val redirect = if (response.code in 300..399) response.redirect() else null
+            if (redirect != null) {
+                previous = response.url
+                next = session.urls.route(redirect, mode)
+            } else {
+                if (response.code !in 200..299) reject(response, stage)
+                if (session.urls.isCas(response.url) || BitAuthPages.isSessionFailure(response.body)) {
+                    throw Rejected(BitAuthPages.loginFailure(response.body) ?: CasLoginDto.CaptchaRequired)
+                }
+                val script = BitAuthPages.scriptRedirect(response.body)?.let { response.url.resolve(it) }
+                if (script == null) return
+                previous = response.url
+                next = session.urls.route(script, mode)
+            }
+        }
+        throw Rejected(CasLoginDto.UnknownFailure("$stage：重定向次数过多，请重新完成网页验证"))
+    }
+
+    private fun reject(response: BitAuthResponse, stage: String): Nothing =
+        throw Rejected(CasLoginDto.UnknownFailure(response.diagnostic(stage)))
+
+    fun parseLoginPage(html: String): CasInitDto = CasInitDto(
+        execution = extractById(html, "login-page-flowkey") ?: error("统一身份认证页面缺少 flowkey"),
+        salt = extractById(html, "login-croypto") ?: error("统一身份认证页面缺少加密参数"),
+    )
+
     private fun extractById(html: String, id: String): String? {
-        // Match `<…id="ID"…>TEXT<` first
-        val textPattern = Regex(
-            """<[a-zA-Z][^>]*\bid=["']${Regex.escape(id)}["'][^>]*>([^<]+)<"""
-        )
-        textPattern.find(html)?.groupValues?.getOrNull(1)
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { return it }
-
-        // Fall back to `<input … id="ID" … value="VALUE" …>` (attribute order
-        // either way — match id-then-value AND value-then-id)
-        val idThenValue = Regex(
-            """<[a-zA-Z][^>]*\bid=["']${Regex.escape(id)}["'][^>]*\bvalue=["']([^"']+)["']"""
-        )
-        idThenValue.find(html)?.groupValues?.getOrNull(1)
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { return it }
-
-        val valueThenId = Regex(
-            """<[a-zA-Z][^>]*\bvalue=["']([^"']+)["'][^>]*\bid=["']${Regex.escape(id)}["']"""
-        )
-        return valueThenId.find(html)?.groupValues?.getOrNull(1)
-            ?.takeIf { it.isNotEmpty() }
-    }
-
-    /**
-     * Production entry point — drives the full service-bound CAS flow.
-     *
-     * Takes the whole [BitApiClient] (not just [BitCasService]) because step 1
-     * needs jwapp's index endpoint to trigger the redirect, and step 4 needs
-     * to POST to a dynamically-captured URL.
-     */
-    suspend operator fun invoke(
-        api: BitApiClient,
-        username: String,
-        password: String,
-    ): CasLoginDto {
-        // Step 1: GET protected resource. OkHttp follows the 302 chain;
-        // we land on the CAS login HTML with `?service=...` in the URL.
-        val triggerResp = api.jwapp.getIndex()
-        if (!triggerResp.isSuccessful) {
-            return CasLoginDto.UnknownFailure("jwapp trigger HTTP ${triggerResp.code()}")
-        }
-        val landedUrl = triggerResp.raw().request.url.toString()
-        val html = triggerResp.body()?.string().orEmpty()
-
-        if ("/cas/login" !in landedUrl) {
-            // Cookie jar somehow already has an authenticated session — proceed.
-            return CasLoginDto.Success
-        }
-
-        val init = parseLoginPage(html)
-        val encrypted = CasAesCrypto.encryptPassword(password, salt = init.salt)
-        // BIT's CAS form expects `captcha_payload` to be the encrypted empty
-        // JSON object `{}`, not an empty string.
-        val encryptedCaptchaPayload = CasAesCrypto.encryptPassword("{}", salt = init.salt)
-
-        // Step 2-4: POST to the captured `cas/login?service=...` URL.
-        val postResp = api.cas.postLoginAt(
-            url = landedUrl,
-            username = username,
-            encryptedPassword = encrypted,
-            execution = init.execution,
-            salt = init.salt,
-            captchaPayload = encryptedCaptchaPayload,
-        )
-        // For non-2xx responses (BIT returns 401 on bad credentials), Retrofit
-        // routes the body through errorBody(); body() returns null. Read either.
-        val postBody = (postResp.body() ?: postResp.errorBody())?.string().orEmpty()
-        return classify(postResp.code(), postBody)
-    }
-
-    /** Test-only entry point that exercises ONLY the bare CAS init+post pair
-     *  against a MockWebServer-served fake login page. Kept for the existing
-     *  unit-test suite which does not stand up a fake jwapp endpoint. */
-    suspend fun invokeForTests(
-        service: BitCasService,
-        username: String,
-        password: String,
-    ): CasLoginDto {
-        val initResp = service.getInitLogin()
-        if (!initResp.isSuccessful) {
-            return CasLoginDto.UnknownFailure("CAS init HTTP ${initResp.code()}")
-        }
-        val landedUrl = initResp.raw().request.url.toString()
-        val init = parseLoginPage(initResp.body()!!.string())
-        val encrypted = CasAesCrypto.encryptPassword(password, salt = init.salt)
-        val encryptedCaptchaPayload = CasAesCrypto.encryptPassword("{}", salt = init.salt)
-        val postResp = service.postLoginAt(
-            url = landedUrl,
-            username = username,
-            encryptedPassword = encrypted,
-            execution = init.execution,
-            salt = init.salt,
-            captchaPayload = encryptedCaptchaPayload,
-        )
-        val postBody = (postResp.body() ?: postResp.errorBody())?.string().orEmpty()
-        return classify(postResp.code(), postBody)
-    }
-
-    /**
-     * Classify the CAS POST response.
-     *
-     * **Success heuristic** (mirroring BIT101's reference behaviour): the
-     * string "用户名密码" appears ONLY in BIT's login-form re-render — i.e. when
-     * the server is asking us to log in again. So:
-     *
-     *   - body contains "用户名密码"  → login failed; check sub-reason
-     *   - body does NOT contain it   → success (we landed on the post-login
-     *                                  service page after the followed 302)
-     *
-     * The previous "see the word 验证码 ⇒ CaptchaRequired" rule was too broad —
-     * BIT's nav / help text can contain "验证码" even on successful pages,
-     * which caused false positives.
-     */
-    private fun classify(code: Int, body: String): CasLoginDto {
-        if ("用户名密码" !in body) return CasLoginDto.Success
-
-        // Login form is being re-rendered — read the sub-reason from the page.
-        return when {
-            "用户名或密码错误" in body -> CasLoginDto.WrongCredentials
-            "账号已锁定" in body -> CasLoginDto.AccountLocked
-            // Captcha-required is signalled by the form's captcha-input section
-            // being expanded; look for phrases unique to that state.
-            "请输入验证码" in body ||
-                "验证码不能为空" in body ||
-                "id=\"captcha-img\"" in body ||
-                "name=\"captcha_code\"" in body -> CasLoginDto.CaptchaRequired
-            else -> CasLoginDto.UnknownFailure("HTTP $code: ${body.take(1000)}")
-        }
+        val tag = Regex("""<[a-zA-Z][^>]*\bid\s*=\s*["']${Regex.escape(id)}["'][^>]*>""",
+            RegexOption.IGNORE_CASE).find(html) ?: return null
+        Regex("""\bvalue\s*=\s*["']([^"']+)["']""").find(tag.value)?.groupValues?.get(1)?.let { return it }
+        return html.substring(tag.range.last + 1).substringBefore('<').trim().takeIf { it.isNotEmpty() }
     }
 }

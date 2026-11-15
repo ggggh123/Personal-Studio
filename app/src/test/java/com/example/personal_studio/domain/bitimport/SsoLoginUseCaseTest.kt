@@ -1,122 +1,254 @@
 package com.example.personal_studio.domain.bitimport
 
+import com.example.personal_studio.data.network.bit.BitApiClient
+import com.example.personal_studio.data.network.bit.BitAuthUrls
+import com.example.personal_studio.data.network.bit.BitBrowserHeaders
+import com.example.personal_studio.data.network.bit.BitCookieJar
+import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
-import com.example.personal_studio.data.network.bit.service.BitCasService
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.example.personal_studio.data.network.bit.origin
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Cookie
+import okhttp3.Dns
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import retrofit2.Retrofit
-import retrofit2.create
+import java.net.InetAddress
+import java.util.concurrent.TimeUnit
 
+/** Exercises the production login entry points and real redirects/cookies. Each
+ * school host has its own server; no authenticated requests leave localhost. */
 class SsoLoginUseCaseTest {
-
-    private lateinit var server: MockWebServer
-    private lateinit var service: BitCasService
-    private lateinit var useCase: SsoLoginUseCase
-
-    private fun fixtureHtml() = javaClass.getResourceAsStream("/bit-fixtures/cas-login-page.html")!!
-        .bufferedReader().readText()
+    private val cas = MockWebServer()
+    private val vpn = MockWebServer()
+    private val portal = MockWebServer()
+    private val jar = BitCookieJar()
+    private val sso = SsoLoginUseCase()
+    private lateinit var urls: BitAuthUrls
+    private lateinit var api: BitApiClient
+    private fun MockWebServer.at(host: String, path: String): HttpUrl = url(path).newBuilder().host(host).build()
+    private fun casUrl(path: String) = cas.at("sso.test", path)
+    private fun vpnUrl(path: String) = vpn.at("vpn.test", path)
+    private fun portalUrl(path: String) = portal.at("portal.test", path)
+    private fun fixture() = javaClass.getResourceAsStream("/bit-fixtures/cas-login-page.html")!!
+        .bufferedReader().use { it.readText() }
+    private fun redirect(url: Any) = MockResponse().setResponseCode(302).setHeader("Location", url)
+    private fun success() = MockResponse().setBody("<html>教学服务主页</html>")
 
     @Before fun setUp() {
-        server = MockWebServer().apply { start() }
-        val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
-        // followRedirects(false) so the 302 success response doesn't trigger a
-        // real network hop to the unreachable BIT service URL during tests.
-        val client = OkHttpClient.Builder().followRedirects(false).build()
-        service = Retrofit.Builder()
-            .baseUrl(server.url("/"))
-            .client(client)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-            .build()
-            .create()
-        useCase = SsoLoginUseCase()
-    }
-
-    @After fun tearDown() { server.shutdown() }
-
-    @Test fun `parseLoginPage extracts execution and salt`() {
-        val dto = useCase.parseLoginPage(fixtureHtml())
-        assertEquals(
-            CasInitDto(execution = "EXEC_TOKEN_42", salt = "MDEyMzQ1Njc4OWFiY2RlZg=="),
-            dto,
+        listOf(cas, vpn, portal).forEach { it.start() }
+        urls = BitAuthUrls(
+            casLogin = casUrl("/cas/login").toString(),
+            gatewayCallback = vpnUrl("/login?cas_login=true").toString(),
+            jwappAuth = portalUrl("/auth?service=app").toString(),
+            jwappLanding = portalUrl("/jwapp/sys/wdkbby/*default/index.do").toString(),
+            jwms = portalUrl("/").toString(),
+            lexue = portalUrl("/login/index.php").toString(),
+            proxyBases = mapOf(portalUrl("/").origin() to vpnUrl("/https/campus/").toString()),
         )
+        val client = OkHttpClient.Builder().cookieJar(jar)
+            .dns(object : Dns {
+                override fun lookup(hostname: String) = listOf(InetAddress.getByName("127.0.0.1"))
+            })
+            .callTimeout(5, TimeUnit.SECONDS).build()
+        api = BitApiClient(client, jar, urls)
+        api.open(NetworkMode.WEBVPN)
     }
 
-    @Test fun `successful login returns Success`() = runBlocking {
-        server.enqueue(MockResponse().setBody(fixtureHtml()))
-        server.enqueue(MockResponse().setResponseCode(302).setHeader("Location",
-            "https://app.bit.edu.cn/?ticket=ST-12345"))
-
-        val result = useCase.invokeForTests(service, username = "20210000", password = "pw")
-        assertTrue(result is CasLoginDto.Success)
+    @After fun tearDown() {
+        api.close()
+        listOf(cas, vpn, portal).forEach { it.shutdown() }
     }
 
-    // Failure responses must include the login-form marker "用户名密码" — that's
-    // BIT's only reliable signal that the login form is being re-rendered.
-    private fun failureBody(extraInner: String) = """
-        <html><body>
-        <form><span>请输入用户名密码</span>$extraInner</form>
-        </body></html>
-    """.trimIndent()
-
-    @Test fun `wrong password returns WrongCredentials`() = runBlocking {
-        server.enqueue(MockResponse().setBody(fixtureHtml()))
-        server.enqueue(MockResponse().setResponseCode(200).setBody(
-            failureBody("""<div class="login-error">用户名或密码错误</div>""")
-        ))
-        val result = useCase.invokeForTests(service, "20210000", "pw")
-        assertEquals(CasLoginDto.WrongCredentials, result)
+    private fun passwordTicket(service: HttpUrl = portalUrl("/")) {
+        cas.enqueue(MockResponse().setBody(fixture()).addHeader("Set-Cookie", "SESSION=cas; Path=/cas"))
+        cas.enqueue(redirect(service.newBuilder().addQueryParameter("ticket", "ST-target").build())
+            .addHeader("Set-Cookie", "TGC=trusted; Path=/cas"))
     }
 
-    @Test fun `captcha-required returns CaptchaRequired`() = runBlocking {
-        server.enqueue(MockResponse().setBody(fixtureHtml()))
-        server.enqueue(MockResponse().setResponseCode(200).setBody(
-            failureBody("""<input id="captcha-img"/><div>请输入验证码</div>""")
-        ))
-        val result = useCase.invokeForTests(service, "20210000", "pw")
-        assertEquals(CasLoginDto.CaptchaRequired, result)
+    private fun gatewayTicket() {
+        cas.enqueue(redirect(vpnUrl("/login?cas_login=true&ticket=ST-gateway")))
+        vpn.enqueue(redirect("/home").addHeader("Set-Cookie", "SESSION=gateway; Path=/"))
+        vpn.enqueue(success())
     }
 
-    @Test fun `account-locked returns AccountLocked`() = runBlocking {
-        server.enqueue(MockResponse().setBody(fixtureHtml()))
-        server.enqueue(MockResponse().setResponseCode(200).setBody(
-            failureBody("""<div class="login-error">账号已锁定</div>""")
-        ))
-        val result = useCase.invokeForTests(service, "20210000", "pw")
-        assertEquals(CasLoginDto.AccountLocked, result)
+    @Test fun `parses BIT text and input forms`() {
+        assertEquals(CasInitDto("EXEC_TOKEN_42", "MDEyMzQ1Njc4OWFiY2RlZg=="), sso.parseLoginPage(fixture()))
+        assertEquals(CasInitDto("flow", "salt"), sso.parseLoginPage(
+            """<input value='flow' id='login-page-flowkey'><input id="login-croypto" value="salt">"""))
     }
 
-    @Test fun `wrong password with HTTP 401 status still classifies as WrongCredentials`() = runBlocking {
-        // Regression test: BIT's CAS returns 401 (not 200) on bad credentials,
-        // with the failure HTML in the response body. Retrofit routes the body
-        // of non-2xx responses through errorBody() rather than body(); reading
-        // only body() yields null → empty string → false Success.
-        server.enqueue(MockResponse().setBody(fixtureHtml()))
-        server.enqueue(MockResponse().setResponseCode(401).setBody(
-            failureBody("""<div class="login-error">用户名或密码错误</div>""")
-        ))
-        val result = useCase.invokeForTests(service, "20210000", "wrongpw")
-        assertEquals(CasLoginDto.WrongCredentials, result)
+    @Test fun `off campus grades establish gateway before consuming target ticket`() = runBlocking {
+        passwordTicket()
+        gatewayTicket()
+        vpn.enqueue(success().addHeader("Set-Cookie", "SESSION=jwms; Path=/https/campus/"))
+        // An absolute campus Location must stay inside the VPN, too.
+        vpn.enqueue(redirect(portalUrl("/jsxsd/framework/xsMain.jsp")))
+        vpn.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.loginGrades(api, "student", "password"))
+        assertEquals(0, portal.requestCount)
+        val requests = (1..5).map { vpn.takeRequest() }
+        assertEquals("ST-gateway", requests[0].requestUrl!!.queryParameter("ticket"))
+        assertEquals("/https/campus/", requests[2].requestUrl!!.encodedPath)
+        assertNull(requests[2].requestUrl!!.queryParameter("ticket"))
+        assertEquals("ST-target", requests[3].requestUrl!!.queryParameter("ticket"))
+        assertEquals("SESSION=jwms; SESSION=gateway", requests[3].getHeader("Cookie"))
+        assertEquals("/https/campus/jsxsd/framework/xsMain.jsp", requests[4].path)
+        val init = cas.takeRequest()
+        val post = cas.takeRequest()
+        val gateway = cas.takeRequest()
+        assertEquals(portalUrl("/").toString(), init.requestUrl!!.queryParameter("service"))
+        assertEquals(init.path, post.path)
+        assertEquals("POST", post.method)
+        assertEquals(casUrl("/").origin(), post.getHeader("Origin"))
+        assertEquals(BitBrowserHeaders.USER_AGENT, post.getHeader("User-Agent"))
+        assertTrue(post.body.readUtf8().contains("captcha_payload="))
+        assertTrue(gateway.getHeader("Cookie").orEmpty().contains("TGC=trusted"))
     }
 
-    @Test fun `success page WITHOUT login-form marker is Success even if it mentions 验证码 elsewhere`() = runBlocking {
-        server.enqueue(MockResponse().setBody(fixtureHtml()))
-        // Post-login service page that happens to contain "验证码" in a nav link or help text —
-        // must NOT be misclassified as CaptchaRequired.
-        server.enqueue(MockResponse().setResponseCode(200).setBody(
-            """<html><body>Welcome! <a href="/captcha-management">验证码管理</a></body></html>"""
-        ))
-        val result = useCase.invokeForTests(service, "20210000", "pw")
-        assertEquals(CasLoginDto.Success, result)
+    @Test fun `campus login uses target directly without contacting VPN`() = runBlocking {
+        api.open(NetworkMode.LOCAL)
+        passwordTicket()
+        portal.enqueue(success())
+        portal.enqueue(redirect("/jsxsd/main"))
+        portal.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.loginGrades(api, "student", "pw"))
+        assertEquals(0, vpn.requestCount)
+        assertEquals(2, cas.requestCount)
+        assertEquals(3, portal.requestCount)
+    }
+
+    @Test fun `dashboard logout handler must not be executed while following login`() = runBlocking {
+        passwordTicket()
+        gatewayTicket()
+        vpn.enqueue(success())
+        vpn.enqueue(MockResponse().setBody("""
+            <html><body>教学服务主页
+              <script>function logout() { window.location.href = '/jsxsd'; }</script>
+              <button onclick="location.href='/cas/login'">退出</button>
+            </body></html>
+        """.trimIndent()))
+        assertEquals(CasLoginDto.Success, sso.loginGrades(api, "student", "pw"))
+        assertEquals(4, vpn.requestCount)
+    }
+
+    @Test fun `standalone script redirect still reaches service landing page`() = runBlocking {
+        api.open(NetworkMode.LOCAL)
+        passwordTicket()
+        portal.enqueue(success())
+        portal.enqueue(MockResponse().setBody("<script>window.location.href = '/jsxsd/main';</script>"))
+        portal.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.loginGrades(api, "student", "pw"))
+        assertEquals(3, portal.requestCount)
+        portal.takeRequest(); portal.takeRequest()
+        assertEquals("/jsxsd/main", portal.takeRequest().path)
+    }
+
+    @Test fun `teaching portal nonce and ticket survive proxy rewriting`() = runBlocking {
+        val service = portalUrl("/auth/callback?sessionToken=nonce%2B1&service=app%26query")
+        portal.enqueue(redirect(casUrl("/cas/login").newBuilder().addQueryParameter("service", service.toString()).build()))
+        passwordTicket(service)
+        gatewayTicket()
+        vpn.enqueue(redirect(urls.jwappLanding))
+        vpn.enqueue(success())
+        vpn.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.invoke(api, "student", "pw"))
+        assertEquals(1, portal.requestCount) // public auth preflight only
+        assertNull(portal.takeRequest().getHeader("Cookie"))
+        vpn.takeRequest(); vpn.takeRequest()
+        val callback = vpn.takeRequest().requestUrl!!
+        assertEquals("/https/campus/auth/callback", callback.encodedPath)
+        assertEquals("nonce+1", callback.queryParameter("sessionToken"))
+        assertEquals("app&query", callback.queryParameter("service"))
+        assertEquals("ST-target", callback.queryParameter("ticket"))
+    }
+
+    @Test fun `existing verified TGC is reused without another password submission`() = runBlocking {
+        jar.saveFromResponse(casUrl("/cas/login"), listOf(
+            Cookie.Builder().name("TGC").value("verified").hostOnlyDomain("sso.test").path("/cas").build()))
+        cas.enqueue(redirect(portalUrl("/?ticket=ST-target")))
+        gatewayTicket()
+        vpn.enqueue(success()); vpn.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.loginGrades(api, "student", "pw"))
+        assertEquals(2, cas.requestCount)
+        repeat(2) { assertEquals("GET", cas.takeRequest().method) }
+    }
+
+    private fun failedPost(code: Int, body: String): CasLoginDto = runBlocking {
+        cas.enqueue(MockResponse().setBody(fixture()))
+        cas.enqueue(MockResponse().setResponseCode(code).setBody(body))
+        sso.loginGrades(api, "student", "pw").also {
+            assertEquals(0, vpn.requestCount)
+            assertEquals(0, portal.requestCount)
+        }
+    }
+
+    @Test fun `HTTP 401 wrong password is not success`() {
+        assertEquals(CasLoginDto.WrongCredentials, failedPost(401, "用户名或密码错误"))
+    }
+    @Test fun `modern CAS hidden credential error takes precedence over login and SMS markup`() {
+        assertEquals(CasLoginDto.WrongCredentials, failedPost(401,
+            "<span id='login-error-msg'> </span><span id='login-error-code'>1030027</span>" +
+                "<form id='normalLoginForm'></form><form id='smsLoginForm'>短信验证</form>"))
+    }
+    @Test fun `modern CAS hidden lock code does not ask for repeated password submission`() {
+        assertEquals(CasLoginDto.AccountLocked, failedPost(401,
+            "<span id='login-error-msg'>1030028</span><form id='normalLoginForm'></form>"))
+    }
+    @Test fun `generic authentication rejection is not misreported as an SMS challenge`() {
+        val result = failedPost(401,
+            "<span id='login-error-msg'>认证信息无效。</span><form id='normalLoginForm'></form>")
+        assertTrue(result is CasLoginDto.UnknownFailure)
+        assertTrue((result as CasLoginDto.UnknownFailure).body.contains("认证信息无效"))
+    }
+    @Test fun `locked account is reported before optional SMS form markup`() {
+        assertEquals(CasLoginDto.AccountLocked, failedPost(200, "账号已锁定 <form id='secondSmsLoginForm'>"))
+    }
+    @Test fun `SMS form without old username password marker requires verification`() {
+        assertEquals(CasLoginDto.CaptchaRequired, failedPost(200, "<form id='secondSmsLoginForm'>短信验证</form>"))
+    }
+    @Test fun `captcha page requires verification`() {
+        assertEquals(CasLoginDto.CaptchaRequired, failedPost(200, "请输入验证码"))
+    }
+    @Test fun `HTTP 500 empty body is never success`() {
+        assertTrue(failedPost(500, "") is CasLoginDto.UnknownFailure)
+    }
+    @Test fun `HTTP 200 without service ticket is never success`() {
+        assertTrue(failedPost(200, "<html>Welcome 验证码管理</html>") is CasLoginDto.UnknownFailure)
+    }
+    @Test fun `ticket for an unexpected host is rejected without following it`() = runBlocking {
+        cas.enqueue(MockResponse().setBody(fixture()))
+        cas.enqueue(redirect("https://untrusted.invalid/?ticket=ST-secret"))
+        val result = sso.loginGrades(api, "student", "pw")
+        assertTrue(result is CasLoginDto.UnknownFailure)
+        assertFalse((result as CasLoginDto.UnknownFailure).body.contains("ST-secret"))
+    }
+    @Test fun `gateway failure cannot be mistaken for target success`() = runBlocking {
+        passwordTicket()
+        cas.enqueue(redirect(vpnUrl("/login?cas_login=true&ticket=ST-gateway")))
+        vpn.enqueue(MockResponse().setResponseCode(502))
+        assertTrue(sso.loginGrades(api, "student", "pw") is CasLoginDto.UnknownFailure)
+        assertEquals(1, vpn.requestCount)
+        assertEquals(0, portal.requestCount)
+    }
+    @Test fun `target callback landing on expired session is not success`() = runBlocking {
+        passwordTicket(); gatewayTicket()
+        vpn.enqueue(success())
+        vpn.enqueue(MockResponse().setBody("<script>alert('该帐号不存在或密码错误')</script>"))
+        assertEquals(CasLoginDto.CaptchaRequired, sso.loginGrades(api, "student", "pw"))
+    }
+    @Test fun `public lexue service does not depend on teaching portal or VPN`() = runBlocking {
+        passwordTicket(portalUrl("/login/index.php"))
+        portal.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.loginLexue(api, "student", "pw"))
+        assertEquals(0, vpn.requestCount)
+        assertEquals(1, portal.requestCount)
+        assertEquals("/login/index.php", portal.takeRequest().requestUrl!!.encodedPath)
     }
 }

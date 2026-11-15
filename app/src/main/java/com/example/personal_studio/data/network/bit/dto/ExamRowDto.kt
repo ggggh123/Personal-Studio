@@ -20,5 +20,5 @@ data class ExamRowDto(
 @Serializable
 data class ExamResponse(val datas: Datas) {
     @Serializable data class Datas(@SerialName("cxxsksap") val cxxsksap: Rows)
-    @Serializable data class Rows(val rows: List<ExamRowDto> = emptyList())
+    @Serializable data class Rows(val rows: List<ExamRowDto>)
 }
