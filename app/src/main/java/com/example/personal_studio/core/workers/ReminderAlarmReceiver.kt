@@ -19,7 +19,7 @@ import javax.inject.Inject
  * Receives the AlarmManager.setExactAndAllowWhileIdle alarms that replaced
  * the old WorkManager-based ReminderWorker (Doze + Chinese OEM aggressive
  * background-kill made the WM path batch up notifications until the user
- * re-opened the app — see spec 2026-05-01-p4-timeline-design §3.5 / §8).
+ * re-opened the app — see docs/decisions.md and docs/timeline.md).
  *
  * Hilt populates the @Inject fields *before* onReceive runs, so we can use
  * them inside the goAsync()-protected coroutine without races.

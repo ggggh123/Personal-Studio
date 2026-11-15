@@ -9,7 +9,7 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
-/** 把 ehall studentWdksapApp cxxsksap 的一行映射成 ExamItem。
+/** 把 ehall wdksapMobile cxxsksap 的一行映射成 ExamItem。
  *  KCM 取方括号内中文名;KSSJMS `yyyy-MM-dd HH:mm-HH:mm(星期X)` 拆起止(+08:00)。 */
 class ExamRowMapper @Inject constructor() {
     fun invoke(row: ExamRowDto, term: String): ExamItem? {

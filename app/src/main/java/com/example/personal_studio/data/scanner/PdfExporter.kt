@@ -15,7 +15,7 @@ class PdfExporter @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     /** Writes a PDF with one page per entry in [imagePaths] (in order). Page size
-     *  = bitmap pixel size (no A4 forcing; spec §3.4). Returns the output file. */
+     *  = bitmap pixel size (no A4 forcing). See docs/learning-tools.md. */
     suspend fun export(docId: Long, safeTitle: String, imagePaths: List<String>): File =
         withContext(Dispatchers.IO) {
             require(imagePaths.isNotEmpty()) { "need at least one page to export" }

@@ -105,8 +105,8 @@ data class ReminderSlot(val minBefore: Int, val isOverdue: Boolean) {
     fun requestCode(itemId: Long): Int = workName(itemId).hashCode()
 }
 
-/** Per-day activity counts split by type. CUSTOM is excluded from the strip
- *  per spec; only courses (left badge) and DDLs (right badge) are surfaced. */
+/** Per-day activity counts split by type. CUSTOM is excluded from the strip;
+ *  courses use the left badge, TASK and EXAM use the right badge. */
 data class DayActivityCount(val courses: Int, val tasks: Int) {
     val isEmpty: Boolean get() = courses == 0 && tasks == 0
 }

@@ -114,8 +114,8 @@ interface TimelineDao {
      * - title and instructor are series-level invariants (`updateSeriesAttributes`
      *   writes them uniformly across all rows); MIN is purely lexicographic and
      *   matches the canonical value.
-     * - location MAY diverge per occurrence (bubble-detail allows "改地点(本次)"
-     *   per spec §3.4), in which case MIN surfaces an arbitrary representative.
+     * - location MAY diverge per occurrence (bubble-detail allows "改地点(本次)"),
+     *   in which case MIN surfaces an arbitrary representative.
      *   The Settings list is informational; clicking through to series edit
      *   shows the most-recently-set series-level location.
      * - credits is series-level (same caveat as title/instructor); MIN is purely

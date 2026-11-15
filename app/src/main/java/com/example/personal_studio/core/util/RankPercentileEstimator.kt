@@ -13,7 +13,7 @@ data class RankPercentileEstimate(
 /**
  * 用各课「专业中占 p%」(前 p%,小=好)逐课位次,z 空间学分加权聚合出整体专业百分位。
  * 点估计取 ρ=1 一致能力模型(保守);区间合成「各课分歧标准误」+「相关性敏感度(ρ_min)」。
- * 见 spec docs/superpowers/specs/2026-06-11-rank-percentile-estimator-design.md。
+ * 区间是模型参考范围,不是校准后的置信区间。见 docs/decisions.md。
  */
 object RankPercentileEstimator {
     private const val RHO_MIN = 0.5    // 相关性结构带下界

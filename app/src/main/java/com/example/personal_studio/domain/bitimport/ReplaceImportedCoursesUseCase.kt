@@ -7,7 +7,7 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 /**
- * Conflict strategy B (per spec §5.4): wipe all IMPORTED_PORTAL rows whose
+ * Replacement strategy (see docs/timeline.md): wipe all IMPORTED_PORTAL rows whose
  * startAt lies in [semesterStart, semesterStart + 25 weeks), then insert the
  * new rows. MANUAL rows in the same range are untouched.
  *

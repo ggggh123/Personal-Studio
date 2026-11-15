@@ -15,8 +15,8 @@ class RecalculateCoursesAfterTimetableChangeUseCase @Inject constructor(
 ) {
     /**
      * Recompute startAt / endAt for every COURSE row whose endAt > now using [newTimetable].
-     * Appends touched item ids to [outRescheduleIds] so the caller can re-schedule reminders
-     * (Phase 5 wires that up; Phase 4 just leaves the buffer for it).
+     * Appends touched item ids to [outRescheduleIds] so TimetableEditorViewModel
+     * can cancel old reminders and schedule the updated course times.
      */
     suspend operator fun invoke(newTimetable: List<TimetablePeriod>, outRescheduleIds: MutableList<Long>) {
         val now = nowProvider()
