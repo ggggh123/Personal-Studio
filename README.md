@@ -56,5 +56,6 @@ DEFAULT_LLM_MODEL=YOUR_MODEL_ID
 | [日程与提醒](docs/timeline.md) | 课程展开、学期锚点、导入覆盖规则与提醒调度 |
 | [学校系统接入](docs/school-integration.md) | CAS／WebVPN、Cookie、业务数据源、轮询及排障 |
 | [重要决策与经验](docs/decisions.md) | 方案变更原因、曾经踩过的坑、历史验证边界 |
+| [界面改版：天光](docs/ui-redesign.md) | 新设计系统、迁移策略与分阶段实施计划（进行中） |
 
 维护时直接更新对应专题，保留影响后续实现的原因和证据即可。已执行的施工计划、任务清单、整段源码副本及未采用的视觉原型不再作为常驻文档；已提交版本可从 Git 历史追溯。

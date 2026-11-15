@@ -40,9 +40,9 @@ Room schema 快照在 [`app/schemas`](../app/schemas)，表关系以 Entity／DA
 
 ## 界面约定
 
-当前采用 Terminal 深色主题，以等宽字体、绿色主色、琥珀提示、青色辅助信息、红色错误和方形边框构成界面。配色、字号和组件参数直接查 [`ui/theme`](../app/src/main/java/com/example/personal_studio/ui/theme) 与 [`ui/components`](../app/src/main/java/com/example/personal_studio/ui/components)，不另维护像素规格副本。
+界面正在从 Terminal 主题迁移到“天光”主题：配色随北京的真实太阳高度变化，白天为纸本浅色、夜里为灯下深色，深浅只在拂晓和日落后、且在回到前台或切换页面时切换。令牌、动效与迁移进度见 [界面改版](ui-redesign.md)；实现入口为 [`ui/theme`](../app/src/main/java/com/example/personal_studio/ui/theme)，新界面通过 `Tg.colors` 取色。
 
-交互文案以中文为主；路由、模型代号等技术值保留原样。弹窗、底部面板、下拉菜单沿用共享 Terminal 组件。相机、扫描预览和裁切区域不铺 CRT 扫描线，以免影响看图；外部学校页面保留网页自身样式。当前主题没有完整的浅色方案。
+迁移期间，旧页面中的 `Phosphor`、`Foam` 等颜色名只是读取天光令牌的过渡别名，新代码不要再使用；`ui/components` 里的 Terminal 组件仍在使用，会随各页改版被替换。相机、裁边、增强预览和图片裁切始终使用深色（`DarkCanvas`），外部学校页面保留网页自身样式。交互文案以中文为主；路由、模型代号等技术值保留原样。
 
 ## 验证入口
 
