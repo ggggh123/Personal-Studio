@@ -69,7 +69,16 @@ fun ImageCropOverlay(
     ) {
         DarkCanvas {
         Box(Modifier.fillMaxSize().background(Void)) {
-            val bitmap = remember(imagePath) { BitmapFactory.decodeFile(imagePath) }
+            // Display copy sampled to ~2000 px (camera photos can exceed what a canvas may draw);
+            // crop maths below maps back to the original pixel width.
+            val decoded = remember(imagePath) {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(imagePath, bounds)
+                val sample = com.example.personal_studio.ui.components.sampleSizeFor(bounds.outWidth, bounds.outHeight, 2000)
+                BitmapFactory.decodeFile(imagePath, BitmapFactory.Options().apply { inSampleSize = sample })?.let { it to bounds.outWidth }
+            }
+            val bitmap = decoded?.first
+            val originalWidth = decoded?.second ?: 0
             if (bitmap == null) {
                 Text(
                     "无法解码图片", color = Foam,
@@ -201,43 +210,31 @@ fun ImageCropOverlay(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Void),
             ) {
                 Text(
-                    "拖动四角裁剪",
-                    color = FoamDim,
+                    "拖动四角，只留下题目部分",
+                    color = com.example.personal_studio.ui.theme.Tg.colors.textSecondary,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(start = 24.dp, top = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = "取消",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Foam,
-                        modifier = Modifier.clickable { onDismiss() },
-                    )
-                    Spacer(Modifier)
-                    Text(
-                        text = "确认",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Phosphor,
-                        modifier = Modifier.clickable {
-                            val rect = cropRect ?: return@clickable
-                            if (imageSize == Size.Zero) return@clickable
-                            // `imageSize` is the Image's displayed size — ALREADY the
-                            // actual image area (no letterbox). Scale is uniform.
-                            val scale = bitmap.width.toFloat() / imageSize.width
-                            val imageRect = Rect(
-                                (rect.left * scale).toInt(),
-                                (rect.top * scale).toInt(),
-                                (rect.right * scale).toInt(),
-                                (rect.bottom * scale).toInt(),
-                            )
-                            onConfirm(cropImageToFile(imagePath, imageRect))
-                        },
-                    )
-                }
+                com.example.personal_studio.ui.components.PhotoActionBar(
+                    secondary = "取消",
+                    onSecondary = onDismiss,
+                    primary = "使用这张",
+                    onPrimary = confirm@{
+                        val rect = cropRect ?: return@confirm
+                        if (imageSize == Size.Zero) return@confirm
+                        // `imageSize` is the Image's displayed size — already the image area
+                        // (no letterbox); the scale is uniform.
+                        val scale = originalWidth.toFloat() / imageSize.width
+                        val imageRect = Rect(
+                            (rect.left * scale).toInt(),
+                            (rect.top * scale).toInt(),
+                            (rect.right * scale).toInt(),
+                            (rect.bottom * scale).toInt(),
+                        )
+                        onConfirm(cropImageToFile(imagePath, imageRect))
+                    },
+                )
             }
         }
         }

@@ -25,6 +25,11 @@ class ChatListViewModel @Inject constructor(
         .map { ChatListUiState(sessions = it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, ChatListUiState())
 
+    init {
+        // Conversations that never got a message (a cancelled 拍题提问, an abandoned 新对话).
+        viewModelScope.launch { repo.deleteEmptySessions() }
+    }
+
     private var creating = false
 
     fun createNewSession(onCreated: (Long) -> Unit) {
@@ -32,8 +37,7 @@ class ChatListViewModel @Inject constructor(
         creating = true
         viewModelScope.launch {
             try {
-                val nextNumber = (repo.countSessions() + 1).toString().padStart(3, '0')
-                val id = repo.createSession(initialTitle = "session #$nextNumber")
+                val id = repo.createSession(initialTitle = com.example.personal_studio.domain.chat.ChatTitles.NEW)
                 onCreated(id)
             } finally {
                 creating = false

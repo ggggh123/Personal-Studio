@@ -106,6 +106,12 @@ class ScanDocumentDetailViewModel @AssistedInject constructor(
 
     fun deletePage(pageId: Long) = viewModelScope.launch { removePageUc(pageId) }
 
+    /** Renames the document; blank names are ignored. */
+    fun rename(title: String) = viewModelScope.launch {
+        val t = title.trim()
+        if (t.isNotEmpty() && realDocId > 0) repo.renameDocument(realDocId, t)
+    }
+
     fun exportPdf() = viewModelScope.launch {
         if (_state.value.isExporting || realDocId <= 0) return@launch
         _state.value = _state.value.copy(isExporting = true)

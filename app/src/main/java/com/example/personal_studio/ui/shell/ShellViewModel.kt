@@ -15,14 +15,13 @@ class ShellViewModel @Inject constructor(
 
     private var creating = false
 
-    /** Creates an empty chat session (same naming as the chat list) and reports its id. */
+    /** Creates an empty chat session ("新对话", titled after the first answer) and reports its id. */
     fun newChatSession(onCreated: (Long) -> Unit) {
         if (creating) return
         creating = true
         viewModelScope.launch {
             try {
-                val next = (chatRepository.countSessions() + 1).toString().padStart(3, '0')
-                onCreated(chatRepository.createSession(initialTitle = "session #$next"))
+                onCreated(chatRepository.createSession(initialTitle = com.example.personal_studio.domain.chat.ChatTitles.NEW))
             } finally {
                 creating = false
             }

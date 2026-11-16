@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.scanner.enhance
 
+import androidx.compose.material.icons.outlined.RotateRight
 import android.graphics.PointF
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -85,59 +86,34 @@ fun EnhanceReviewScreen(
             }
         }
 
-        // Filter toolbar + rotate button
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ScanFilter.entries.forEach { f ->
-                val active = state.currentFilter == f
-                Text(
-                    scanFilterLabel(f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (active) Phosphor else FoamDim,
-                    modifier = Modifier.clickable { vm.selectFilter(f) },
-                )
-            }
-            Text(
-                "旋转",
-                style = MaterialTheme.typography.bodyMedium,
-                color = FoamDim,
-                modifier = Modifier.clickable { vm.rotateClockwise() },
-            )
-        }
-
         if (showSaveToLibCheckbox) {
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (saveToLib) "☑" else "☐",
-                    color = if (saveToLib) Phosphor else FoamDim,
-                    modifier = Modifier.clickable { saveToLib = !saveToLib },
+                    "同时存入扫描文档",
+                    color = com.example.personal_studio.ui.theme.Tg.colors.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.width(8.dp))
-                Text("保存到扫描库", color = Foam, style = MaterialTheme.typography.bodySmall)
+                com.example.personal_studio.ui.components.TgSwitch(checked = saveToLib, onCheckedChange = { saveToLib = it })
             }
         }
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 24.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("取消", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
-            Text(
-                "确认",
-                color = if (state.isLoading) FoamDim else Phosphor,
-                modifier = Modifier.clickable(enabled = !state.isLoading) {
-                    onConfirm(state.currentFilter, saveToLib)
-                },
-            )
-        }
+        com.example.personal_studio.ui.components.PhotoActionBar(
+            secondary = "重拍",
+            onSecondary = onCancel,
+            primary = if (state.isLoading) "处理中…" else "完成",
+            onPrimary = { onConfirm(state.currentFilter, saveToLib) },
+            primaryEnabled = !state.isLoading,
+            above = {
+                ScanFilter.entries.forEach { f ->
+                    com.example.personal_studio.ui.components.PhotoChip(scanFilterLabel(f), selected = state.currentFilter == f, onClick = { vm.selectFilter(f) })
+                }
+                com.example.personal_studio.ui.components.PhotoIconButton(
+                    androidx.compose.material.icons.Icons.Outlined.RotateRight, "顺时针旋转", onClick = { vm.rotateClockwise() },
+                )
+            },
+        )
     }
 }

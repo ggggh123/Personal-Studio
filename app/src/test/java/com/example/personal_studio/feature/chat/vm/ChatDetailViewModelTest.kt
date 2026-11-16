@@ -63,6 +63,29 @@ class ChatDetailViewModelTest {
         }
     }
 
+    @Test fun `a new conversation is titled after the first answer`() = runTest {
+        val repo = FakeChatRepository()
+        val sid = repo.createSession(com.example.personal_studio.domain.chat.ChatTitles.NEW)
+        val llm = FakeLLMProvider(textChunks = listOf("极限的定义"))
+        val vm = ChatDetailViewModel(
+            sessionId = sid,
+            repo = repo,
+            send = SendMessageUseCase(repo, llm),
+            titleGen = GenerateTitleUseCase(repo, llm),
+            prefs = FakeUserPreferencesRepository(),
+        )
+        vm.uiState.test {
+            awaitItem()
+            vm.onInputChanged("什么是极限")
+            vm.onSend()
+            var s = awaitItem()
+            while (s.sendGeneration == 0) s = awaitItem()
+            assertEquals("极限的定义", s.session?.title)
+            assertEquals("极限的定义", repo.getSession(sid)?.title)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     @Test fun `error during streaming surfaces as errorBanner`() = runTest {
         val repo = FakeChatRepository()
         val sid = repo.createSession("x")

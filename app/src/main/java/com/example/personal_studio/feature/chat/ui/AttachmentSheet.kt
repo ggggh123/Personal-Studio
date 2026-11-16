@@ -1,5 +1,9 @@
 package com.example.personal_studio.feature.chat.ui
 
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.PhotoLibrary
+
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -58,28 +62,24 @@ fun AttachmentSheet(
         onDismiss()
     }
 
-    TerminalBottomSheet(onDismiss = onDismiss, header = "attach") {
-        Option(line = "--from-gallery     从相册选取", onClick = {
-            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        })
-        Option(line = "--from-camera      拍一张新照片(扫描)", onClick = { onRequestQuickCapture(); onDismiss() })
-        Option(line = "--from-scans       从扫描库选取", onClick = { onRequestPickFromScans(); onDismiss() })
+    TerminalBottomSheet(onDismiss = onDismiss, header = "添加图片") {
+        com.example.personal_studio.ui.components.SheetAction(
+            label = "从相册选取",
+            hint = "选好后可以裁剪",
+            icon = androidx.compose.material.icons.Icons.Outlined.PhotoLibrary,
+            onClick = { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        )
+        com.example.personal_studio.ui.components.SheetAction(
+            label = "拍一张",
+            hint = "用扫描相机拍，自动识别纸张并矫正",
+            icon = androidx.compose.material.icons.Icons.Outlined.PhotoCamera,
+            onClick = { onRequestQuickCapture(); onDismiss() },
+        )
+        com.example.personal_studio.ui.components.SheetAction(
+            label = "从扫描文档选取",
+            hint = "用已经扫描过的页面",
+            icon = androidx.compose.material.icons.Icons.Outlined.DocumentScanner,
+            onClick = { onRequestPickFromScans(); onDismiss() },
+        )
     }
-}
-
-@Composable
-private fun Option(line: String, onClick: () -> Unit, disabled: Boolean = false) {
-    val color = if (disabled) FoamMute else Cyan
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .then(if (disabled) Modifier else Modifier.clickable(onClick = onClick))
-        .padding(vertical = 10.dp)
-
-    Text(
-        text = buildAnnotatedString {
-            withStyle(SpanStyle(color = color)) { append(line) }
-        },
-        style = MaterialTheme.typography.bodyMedium,
-        modifier = rowModifier,
-    )
 }

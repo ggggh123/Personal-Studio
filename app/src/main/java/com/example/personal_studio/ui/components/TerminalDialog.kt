@@ -2,64 +2,65 @@ package com.example.personal_studio.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Deep
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Rule
+import com.example.personal_studio.ui.theme.Tg
 
-/** 终端风弹窗骨架:0dp 直角 + Deep 背景 + Rule 边框 + 可选 `── TITLE ──` 头。 */
+/*
+ * The historical names stay (they are used across many screens); since the 天光 redesign
+ * these render as rounded raised cards with a serif title and pill buttons.
+ */
+
+/** Dialog card: raised surface, 24 dp corners, optional serif title. */
 @Composable
 fun TerminalDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable () -> Unit) {
+    val c = Tg.colors
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Deep, RectangleShape)
-                .border(1.dp, Rule, RectangleShape)
-                .padding(16.dp),
+                .clip(RoundedCornerShape(24.dp))
+                .background(c.surfaceRaised)
+                .padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 18.dp),
         ) {
             if (title != null) {
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = Phosphor)) { append(title) }
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.padding(top = 10.dp))
+                Text(title, style = MaterialTheme.typography.headlineMedium, color = c.text)
+                Box(Modifier.padding(top = 8.dp))
             }
             content()
         }
     }
 }
 
-/** 确认弹窗:`[取消] [confirmLabel]`。 */
+/** A "删除" style confirm gets the destructive button; anything else the primary one. */
 @Composable
 fun TerminalConfirmDialog(
     title: String,
@@ -68,20 +69,22 @@ fun TerminalConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val c = Tg.colors
     TerminalDialog(onDismiss = onDismiss, title = title) {
-        Text(message, color = Foam, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.padding(top = 16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text("取消", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(confirmLabel, color = Carmine, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable { onConfirm() }.padding(8.dp))
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+            TgPillButton(
+                confirmLabel,
+                onClick = onConfirm,
+                style = if (confirmLabel.contains("删除") || confirmLabel.contains("清除")) PillStyle.DESTRUCTIVE else PillStyle.PRIMARY,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
 
-/** 输入弹窗:终端风单行输入 + `[取消] [确认]`。 */
+/** Single-line input with the text selected, ready to replace. */
 @Composable
 fun TerminalInputDialog(
     title: String,
@@ -89,31 +92,32 @@ fun TerminalInputDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var text by remember { mutableStateOf(initial) }
+    val c = Tg.colors
+    var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length))) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     TerminalDialog(onDismiss = onDismiss, title = title) {
-        Row(Modifier.fillMaxWidth()) {
-            BasicTextField(
-                value = text,
-                onValueChange = { text = it },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                cursorBrush = SolidColor(Phosphor),
-                singleLine = true,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
-                ),
-                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                    onDone = { onConfirm(text) },
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Spacer(Modifier.padding(top = 16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text("取消", color = FoamMute, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable { onDismiss() }.padding(8.dp))
-            Spacer(Modifier.width(12.dp))
-            Text("确认", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable { onConfirm(text) }.padding(8.dp))
+        val shape = RoundedCornerShape(14.dp)
+        BasicTextField(
+            value = value,
+            onValueChange = { value = it },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = c.text),
+            cursorBrush = SolidColor(c.accent),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onConfirm(value.text) }),
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .focusRequester(focus)
+                .background(c.bg, shape)
+                .border(1.dp, c.line, shape)
+                .padding(horizontal = 14.dp, vertical = 13.dp),
+        )
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+            TgPillButton("确认", onClick = { onConfirm(value.text) }, modifier = Modifier.weight(1f))
         }
     }
 }

@@ -53,6 +53,12 @@ class FakeChatRepository : ChatRepository {
 
     override suspend fun countSessions(): Int = sessions.value.size
 
+    override suspend fun deleteEmptySessions(): Int {
+        val empty = sessions.value.filter { messagesBySession.value[it.id].isNullOrEmpty() }.map { it.id }
+        empty.forEach { deleteSession(it) }
+        return empty.size
+    }
+
     override fun observeMessages(sessionId: Long): Flow<List<ChatMessage>> =
         messagesBySession.map { it[sessionId].orEmpty() }
 

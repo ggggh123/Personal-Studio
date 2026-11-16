@@ -70,9 +70,8 @@ fun AppNavHost(
     ) {
         composable(NavRoutes.CHAT) {
             ChatListScreen(
-                onOpenSession = { sessionId ->
-                    navController.navigate(NavRoutes.chatDetail(sessionId))
-                }
+                onOpenSession = { sessionId -> navController.navigate(NavRoutes.chatDetail(sessionId)) },
+                onPhotoQuestion = { sessionId -> navController.navigate(NavRoutes.chatDetail(sessionId, capture = true)) },
             )
         }
         composable(

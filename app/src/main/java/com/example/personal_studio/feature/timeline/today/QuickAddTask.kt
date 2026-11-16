@@ -1,9 +1,5 @@
 package com.example.personal_studio.feature.timeline.today
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -40,7 +36,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -52,7 +47,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -173,7 +167,7 @@ fun QuickAddTaskSheet(
 ) {
     val c = Tg.colors
     BackHandler(enabled = visible, onBack = onDismiss)
-    KeyboardOnlyByInsets(visible)
+    com.example.personal_studio.ui.components.KeyboardHandledByInsets(visible)
     AnimatedVisibility(visible = visible, enter = fadeIn(tween(300)), exit = fadeOut(tween(250))) {
         Box(
             Modifier
@@ -260,32 +254,6 @@ fun QuickAddTaskSheet(
             }
         }
     }
-}
-
-/**
- * While the sheet is open the window must neither pan nor shrink for the keyboard (what the
- * system does by default, and differently per ROM); the sheet lifts itself by the IME insets.
- * The previous mode is restored when the sheet closes, so other screens keep their behaviour.
- */
-@Composable
-private fun KeyboardOnlyByInsets(active: Boolean) {
-    val view = LocalView.current
-    DisposableEffect(active) {
-        val window = view.context.findActivity()?.window
-        if (!active || window == null) return@DisposableEffect onDispose {}
-        val previous = window.attributes.softInputMode
-        window.setSoftInputMode(
-            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
-                (previous and WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE),
-        )
-        onDispose { window.setSoftInputMode(previous) }
-    }
-}
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
 
 @Composable

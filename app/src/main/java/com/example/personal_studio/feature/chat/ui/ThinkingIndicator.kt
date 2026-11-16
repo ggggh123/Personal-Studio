@@ -1,21 +1,12 @@
 package com.example.personal_studio.feature.chat.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.components.BlinkingCursor
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -52,9 +43,8 @@ fun thinkingPhraseAt(elapsedSeconds: Int, offset: Int): String =
     THINKING_PHRASES[(offset + elapsedSeconds / 3) % THINKING_PHRASES.size]
 
 /**
- * 思考态指示:一行「轮播提示句 + 已思考秒数 + 闪烁块」。
- * 放在流式 AiFrame 里、`streamingText` 还为空时显示;一旦出真实 token 即由调用方切回正文。
- * 每次进入(每次发送)都是新实例,故 elapsed 从 0 起。
+ * 思考态指示:轮播提示句 + 已等待秒数 + 呼吸圆点。放在流式回答位置、`streamingText` 还为空时显示;
+ * 一旦出真实 token 即由调用方切回正文。每次发送都是新实例,故 elapsed 从 0 起。
  */
 @Composable
 fun ThinkingIndicator(modifier: Modifier = Modifier) {
@@ -66,21 +56,5 @@ fun ThinkingIndicator(modifier: Modifier = Modifier) {
             elapsed += 1
         }
     }
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            thinkingPhraseAt(elapsed, offset),
-            color = Phosphor,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            "${elapsed}s",
-            color = FoamDim,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        BlinkingCursor()
-    }
+    ThinkingLine(phrase = thinkingPhraseAt(elapsed, offset), seconds = elapsed, modifier = modifier)
 }

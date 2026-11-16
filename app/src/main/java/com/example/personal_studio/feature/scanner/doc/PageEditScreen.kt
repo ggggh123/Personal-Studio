@@ -1,5 +1,8 @@
 package com.example.personal_studio.feature.scanner.doc
 
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.PhotoCamera
 import android.graphics.PointF
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -102,6 +105,10 @@ fun PageEditScreen(
                 onBack()
             },
             onCancel = onBack,
+            onDelete = {
+                vm.deletePage()
+                onBack()
+            },
             onRetake = { step = EditStep.Capturing(System.identityHashCode(step)) },
             onArchive = {
                 // Only archive once the page has loaded; docId + pageId both
@@ -161,43 +168,23 @@ private fun ReviewView(
     onCancel: () -> Unit,
     onRetake: () -> Unit,
     onArchive: () -> Unit,
-) {
+    onDelete: () -> Unit,
+) = com.example.personal_studio.ui.theme.DarkCanvas {
+    val c = com.example.personal_studio.ui.theme.Tg.colors
     val zoom = rememberZoomableBoxState()
-    // Filter switches reset zoom so a lingering pan/scale from the previous
-    // filter doesn't feel glued to the wrong image.
+    var confirmDelete by remember { mutableStateOf(false) }
+    // Filter switches reset zoom so a lingering pan/scale doesn't stick to the new image.
     remember(state.currentFilter) {
         zoom.reset()
         state.currentFilter
     }
 
-    Column(Modifier.fillMaxSize().background(Void)) {
-        // Secondary actions (retake / archive / delete) live in the topbar's
-        // trailing slot so the area below the image stays focused on the
-        // filter chips + primary [cancel]/[confirm] pair.
+    Column(Modifier.fillMaxSize().background(c.bg)) {
         TerminalTopBar(
             route = "scans/edit",
-            subtitle = state.page?.let { "# 第 ${it.ordinal + 1} 页" },
-            trailing = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "重拍",
-                        color = Amber,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.clickable(onClick = onRetake),
-                    )
-                    Text(
-                        "归档",
-                        color = Phosphor,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.clickable(onClick = onArchive),
-                    )
-                }
-            },
+            subtitle = state.page?.let { "第 ${it.ordinal + 1} 页\n${scanFilterLabel(state.currentFilter)}" },
+            onBack = onCancel,
         )
-
         Box(
             Modifier
                 .weight(1f)
@@ -208,46 +195,46 @@ private fun ReviewView(
             state.displayedBitmap?.let {
                 Image(
                     bitmap = it.asImageBitmap(),
-                    contentDescription = null,
+                    contentDescription = "第 ${(state.page?.ordinal ?: 0) + 1} 页",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize().zoomTransform(zoom),
                 )
             }
         }
-
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         ) {
-            ScanFilter.entries.forEach { f ->
-                val active = state.currentFilter == f
-                Text(
-                    scanFilterLabel(f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (active) Phosphor else FoamDim,
-                    modifier = Modifier.clickable { onSelectFilter(f) },
-                )
-            }
+            com.example.personal_studio.ui.components.PhotoChip("重拍", selected = false, onClick = onRetake,
+                icon = androidx.compose.material.icons.Icons.Outlined.PhotoCamera, role = androidx.compose.ui.semantics.Role.Button)
+            com.example.personal_studio.ui.components.PhotoChip("存入知识库", selected = false, onClick = onArchive,
+                icon = androidx.compose.material.icons.Icons.Outlined.BookmarkAdd, role = androidx.compose.ui.semantics.Role.Button)
+            com.example.personal_studio.ui.components.PhotoChip("删除此页", selected = false, onClick = { confirmDelete = true },
+                icon = androidx.compose.material.icons.Icons.Outlined.DeleteOutline, role = androidx.compose.ui.semantics.Role.Button)
         }
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 24.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                "取消",
-                color = FoamDim,
-                modifier = Modifier.clickable(onClick = onCancel),
-            )
-            Text(
-                "确认",
-                color = if (state.isLoading) FoamDim else Phosphor,
-                modifier = Modifier.clickable(enabled = !state.isLoading, onClick = onConfirm),
-            )
-        }
+        com.example.personal_studio.ui.components.PhotoActionBar(
+            secondary = "取消",
+            onSecondary = onCancel,
+            primary = if (state.isLoading) "处理中…" else "保存",
+            onPrimary = onConfirm,
+            primaryEnabled = !state.isLoading,
+            above = {
+                ScanFilter.entries.forEach { f ->
+                    com.example.personal_studio.ui.components.PhotoChip(scanFilterLabel(f), selected = state.currentFilter == f, onClick = { onSelectFilter(f) })
+                }
+            },
+        )
+    }
+    if (confirmDelete) {
+        com.example.personal_studio.ui.components.TerminalConfirmDialog(
+            title = "删除这一页？",
+            message = "这页的原图和处理后的图片都会被删除，其余页面会顺移。",
+            confirmLabel = "删除",
+            onConfirm = {
+                confirmDelete = false
+                onDelete()
+            },
+            onDismiss = { confirmDelete = false },
+        )
     }
 }

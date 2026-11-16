@@ -259,26 +259,13 @@ fun ItemDetailContent(
 
 @Composable
 fun PillButton(action: DetailAction, modifier: Modifier = Modifier) {
-    val c = Tg.colors
-    val shape = RoundedCornerShape(24.dp)
-    val interaction = remember { MutableInteractionSource() }
-    Box(
-        modifier
-            .height(48.dp)
-            .pressScale(interaction, 0.97f)
-            .clip(shape)
-            .background(if (action.primary) c.text else Color.Transparent)
-            .border(1.dp, if (action.primary) c.text else c.textTertiary, shape)
-            .clickable(interaction, indication = null, role = Role.Button, onClick = action.onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            action.label,
-            style = if (action.primary) MaterialTheme.typography.titleSmall.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize)
-            else MaterialTheme.typography.bodyMedium,
-            color = if (action.primary) c.bg else c.text,
-        )
-    }
+    com.example.personal_studio.ui.components.TgPillButton(
+        label = action.label,
+        onClick = action.onClick,
+        modifier = modifier,
+        style = if (action.primary) com.example.personal_studio.ui.components.PillStyle.PRIMARY
+        else com.example.personal_studio.ui.components.PillStyle.SECONDARY,
+    )
 }
 
 /** Controls a [MorphSheet] from its content: [close] plays the reverse transform first. */

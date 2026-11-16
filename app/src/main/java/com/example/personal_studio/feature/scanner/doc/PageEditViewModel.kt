@@ -122,7 +122,8 @@ class PageEditViewModel @AssistedInject constructor(
         repo.updatePageFilter(pageId, newEnhancedPath, filter)
     }
 
-    fun deletePage() = viewModelScope.launch { removePageUc(pageId) }
+    /** NonCancellable: the screen closes right after, which clears this VM. */
+    fun deletePage() = viewModelScope.launch(kotlinx.coroutines.NonCancellable) { removePageUc(pageId) }
 
     /**
      * Completes the retake sub-flow: warps+filters the new tmp capture and

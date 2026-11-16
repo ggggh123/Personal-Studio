@@ -1,5 +1,33 @@
 package com.example.personal_studio.feature.scanner.library
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TerminalInputDialog
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.theme.Tg
+import com.example.personal_studio.ui.theme.TgMotion
 import android.content.Intent
 import android.graphics.PointF
 import androidx.activity.compose.BackHandler
@@ -56,13 +84,6 @@ import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Rule
-import com.example.personal_studio.ui.theme.Void
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
 import java.io.File
@@ -146,6 +167,7 @@ fun ScanDocumentDetailScreen(
             onReorder = { ids -> vm.reorderPages(ids) },
             onDelete = { deletePageTarget = it },
             onExport = { vm.exportPdf() },
+            onRename = vm::rename,
             onBack = exit,
         )
         is EditorStep.Capturing -> CameraCaptureScreen(
@@ -195,83 +217,64 @@ private fun EditorView(
     onReorder: (orderedIds: List<Long>) -> Unit,
     onDelete: (pageId: Long) -> Unit,
     onExport: () -> Unit,
+    onRename: (String) -> Unit,
     onBack: () -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Void)
-            .navigationBarsPadding(),
-    ) {
+    val c = Tg.colors
+    var renaming by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
         TerminalTopBar(
             route = "scans/$title",
-            subtitle = "$title\n${pages.size} 页" +
-                (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
+            subtitle = "$title\n${pages.size} 页" + (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
             onBack = onBack,
+            trailing = {
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "重命名文档") { renaming = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.DriveFileRenameOutline, contentDescription = "重命名", tint = c.text, modifier = Modifier.size(22.dp))
+                }
+            },
         )
         ReorderablePageGrid(
             pages = pages,
             onTapPage = onTapPage,
             onReorder = onReorder,
             onDelete = onDelete,
+            onAddPage = onAddPage,
             modifier = Modifier.weight(1f),
         )
-        EditorActionBar(
-            canExport = pages.isNotEmpty() && !isExporting,
-            isExporting = isExporting,
-            onAddPage = onAddPage,
-            onExport = onExport,
-        )
-    }
-}
-
-@Composable
-private fun EditorActionBar(
-    canExport: Boolean,
-    isExporting: Boolean,
-    onAddPage: () -> Unit,
-    onExport: () -> Unit,
-) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(Rule),
-    )
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "添加页面",
-            color = Phosphor,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.clickable(onClick = onAddPage),
-        )
-        val label = if (isExporting) "正在导出 PDF…" else "导出 PDF"
-        val color = when {
-            isExporting -> Amber
-            canExport -> Phosphor
-            else -> FoamDim
+        Row(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TgPillButton("添加页面", onClick = onAddPage, style = PillStyle.SECONDARY, icon = Icons.Outlined.PhotoCamera, modifier = Modifier.weight(1f))
+            TgPillButton(
+                if (isExporting) "正在导出…" else "导出 PDF",
+                onClick = onExport,
+                icon = Icons.Outlined.IosShare,
+                enabled = pages.isNotEmpty() && !isExporting,
+                modifier = Modifier.weight(1f),
+            )
         }
-        Text(
-            label,
-            color = color,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.clickable(enabled = canExport, onClick = onExport),
+    }
+    if (renaming) {
+        TerminalInputDialog(
+            title = "重命名文档",
+            initial = title,
+            onConfirm = { onRename(it); renaming = false },
+            onDismiss = { renaming = false },
         )
     }
 }
 
 /**
- * 2 列网格,每格支持长按拖动:拖到其它格=重排;拖到底部回收区松手=删除(请求确认)。
- * orderedPages 是拖动期的真值(onMove 乐观改);松手提交一次,或落在回收区时撤销乐观重排并请求删除。
+ * Two columns of page cards. Long-press a card to drag: over another card reorders, over
+ * the delete strip that rises at the bottom deletes (after confirming). A dashed card at
+ * the end adds the next page.
  *
- * 落点检测:回收区与指针都换算到窗口坐标(LayoutCoordinates.localToWindow)。重排库的拖动在 Main
- * pass 消费,本组件在 Initial pass 旁观指针位置(不消费),故拖动期可知是否悬停回收区。
+ * Drop detection: the strip and the pointer are both in window coordinates; the reorder
+ * library consumes the drag in the Main pass, this box only watches it in the Initial pass.
  */
 @Composable
 private fun ReorderablePageGrid(
@@ -279,8 +282,10 @@ private fun ReorderablePageGrid(
     onTapPage: (pageId: Long) -> Unit,
     onReorder: (orderedIds: List<Long>) -> Unit,
     onDelete: (pageId: Long) -> Unit,
+    onAddPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val c = Tg.colors
     var orderedPages by remember { mutableStateOf(pages) }
     LaunchedEffect(pages) {
         val repoIds = pages.map { it.id }
@@ -293,8 +298,9 @@ private fun ReorderablePageGrid(
 
     val gridState = rememberLazyGridState()
     val reorderableState = rememberReorderableLazyGridState(gridState) { from, to ->
-        orderedPages = orderedPages.toMutableList().apply {
-            add(to.index, removeAt(from.index))
+        // The trailing "add" card is not a page; never move pages past it.
+        if (to.index < orderedPages.size && from.index < orderedPages.size) {
+            orderedPages = orderedPages.toMutableList().apply { add(to.index, removeAt(from.index)) }
         }
     }
     val haptics = LocalHapticFeedback.current
@@ -303,9 +309,7 @@ private fun ReorderablePageGrid(
     var boxTopWindow by remember { mutableFloatStateOf(0f) }
     var trashTopWindow by remember { mutableFloatStateOf(Float.MAX_VALUE) }
     var pointerYWindow by remember { mutableFloatStateOf(0f) }
-    val overTrash by remember {
-        derivedStateOf { draggingId != null && pointerYWindow >= trashTopWindow }
-    }
+    val overTrash by remember { derivedStateOf { draggingId != null && pointerYWindow >= trashTopWindow } }
 
     Box(
         modifier
@@ -324,27 +328,21 @@ private fun ReorderablePageGrid(
             columns = GridCells.Fixed(2),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 84.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 96.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             items(orderedPages, key = { it.id }) { page ->
                 ReorderableItem(reorderableState, key = page.id) { isDragging ->
-                    val scale by animateFloatAsState(
-                        targetValue = if (isDragging) 1.06f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow,
-                        ),
-                        label = "page-cell-scale",
-                    )
+                    val scale by animateFloatAsState(if (isDragging) 1.05f else 1f, TgMotion.fast(), label = "page-cell-scale")
                     val ordinal = orderedPages.indexOfFirst { it.id == page.id }
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
+                                shadowElevation = if (isDragging) 16.dp.toPx() else 0f
+                                shape = RoundedCornerShape(12.dp)
                             }
                             .longPressDraggableHandle(
                                 onDragStarted = {
@@ -354,7 +352,7 @@ private fun ReorderablePageGrid(
                                 onDragStopped = {
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     if (draggingId != null && pointerYWindow >= trashTopWindow) {
-                                        orderedPages = pages           // 撤销拖动期乐观重排,等确认
+                                        orderedPages = pages           // undo the optimistic reorder; delete asks first
                                         onDelete(page.id)
                                     } else {
                                         onReorder(orderedPages.map { it.id })
@@ -362,41 +360,85 @@ private fun ReorderablePageGrid(
                                     draggingId = null
                                 },
                             )
-                            .clickable { if (!isDragging) onTapPage(page.id) },
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClickLabel = "打开第 ${ordinal + 1} 页") { if (!isDragging) onTapPage(page.id) },
                     ) {
-                        ScanThumbnail(
-                            path = page.enhancedImagePath,
-                            width = 140.dp,
-                            height = 180.dp,
-                        )
-                        Spacer(Modifier.height(4.dp))
+                        Box {
+                            ScanThumbnail(path = page.enhancedImagePath, width = 160.dp, height = 210.dp, corner = 12.dp)
+                            Box(
+                                Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(8.dp)
+                                    .size(26.dp)
+                                    .background(if (isDragging) c.accent else c.text, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("${ordinal + 1}", style = MaterialTheme.typography.labelSmall, color = if (isDragging) c.onAccent else c.bg)
+                            }
+                        }
                         Text(
-                            "p.${ordinal + 1} · ${scanFilterLabel(page.filter)}",
+                            scanFilterLabel(page.filter),
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (isDragging) Phosphor else FoamMute,
+                            color = c.textSecondary,
+                            modifier = Modifier.padding(top = 6.dp, start = 2.dp),
                         )
+                    }
+                }
+            }
+            item(key = "__add__") {
+                val shape = RoundedCornerShape(12.dp)
+                Column(
+                    Modifier
+                        .clip(shape)
+                        .clickable(role = Role.Button, onClick = onAddPage),
+                ) {
+                    Box(
+                        Modifier
+                            .size(160.dp, 210.dp)
+                            .drawBehind {
+                                drawRoundRect(
+                                    color = c.textTertiary,
+                                    cornerRadius = CornerRadius(12.dp.toPx()),
+                                    style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx()))),
+                                )
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Rounded.Add, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(28.dp))
+                            Text("拍下一页", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = 6.dp))
+                        }
                     }
                 }
             }
         }
 
-        // 拖动时浮出的回收区(网格底部);悬停其上时高亮 Carmine。
-        if (draggingId != null) {
+        // The delete strip rises while a page is dragged; it warms to the error colour when hovered.
+        AnimatedVisibility(
+            visible = draggingId != null,
+            enter = slideInVertically(TgMotion.standard()) { it } + fadeIn(),
+            exit = slideOutVertically(TgMotion.exit()) { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            val bg by animateColorAsState(if (overTrash) c.error else c.surfaceRaised, tween(150), label = "trashBg")
+            val fg by animateColorAsState(if (overTrash) c.bg else c.textSecondary, tween(150), label = "trashFg")
             Row(
                 Modifier
-                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
                     .fillMaxWidth()
-                    .height(72.dp)
+                    .height(64.dp)
                     .onGloballyPositioned { trashTopWindow = it.localToWindow(Offset.Zero).y }
-                    .background(if (overTrash) Carmine.copy(alpha = 0.30f) else Void.copy(alpha = 0.92f))
-                    .border(1.dp, if (overTrash) Carmine else FoamDim),
+                    .graphicsLayer { shadowElevation = 12.dp.toPx(); shape = RoundedCornerShape(32.dp); clip = true }
+                    .background(bg),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
                 Text(
-                    if (overTrash) "松手删除此页" else "🗑 拖到此处删除",
-                    color = if (overTrash) Carmine else FoamMute,
+                    if (overTrash) "松手删除这一页" else "拖到这里删除",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = fg,
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
         }

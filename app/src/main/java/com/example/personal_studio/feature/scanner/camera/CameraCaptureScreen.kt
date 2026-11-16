@@ -1,5 +1,9 @@
 package com.example.personal_studio.feature.scanner.camera
 
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.FlashOff
+import androidx.compose.material.icons.outlined.FlashOn
+import androidx.compose.ui.draw.clip
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -79,6 +83,7 @@ fun CameraCaptureScreen(
     onCaptured: (file: File, autoDetect: Boolean, liveCornersNorm: List<android.graphics.PointF>?) -> Unit,
     onCancel: () -> Unit,
 ) = DarkCanvas {
+    val toast = com.example.personal_studio.ui.shell.LocalShellToast.current
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -248,18 +253,20 @@ fun CameraCaptureScreen(
                 .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "自动识边 ${if (camState.autoDetect) "开" else "关"}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (camState.autoDetect) Phosphor else FoamDim,
-                modifier = Modifier.clickable { vm.setAutoDetect(!camState.autoDetect) },
+            com.example.personal_studio.ui.components.PhotoChip(
+                label = "自动识边",
+                selected = camState.autoDetect,
+                onClick = { vm.setAutoDetect(!camState.autoDetect) },
+                icon = androidx.compose.material.icons.Icons.Outlined.DocumentScanner,
+                role = androidx.compose.ui.semantics.Role.Switch,
             )
-            Spacer(Modifier.width(16.dp))
-            Text(
-                "闪光 ${if (camState.flashOn) "开" else "关"}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (camState.flashOn) Amber else FoamDim,
-                modifier = Modifier.clickable { vm.setFlash(!camState.flashOn) },
+            Spacer(Modifier.width(8.dp))
+            com.example.personal_studio.ui.components.PhotoChip(
+                label = "闪光",
+                selected = camState.flashOn,
+                onClick = { vm.setFlash(!camState.flashOn) },
+                icon = if (camState.flashOn) androidx.compose.material.icons.Icons.Outlined.FlashOn else androidx.compose.material.icons.Icons.Outlined.FlashOff,
+                role = androidx.compose.ui.semantics.Role.Switch,
             )
         }
 
@@ -276,9 +283,12 @@ fun CameraCaptureScreen(
         ) {
             Text(
                 "取消",
-                style = MaterialTheme.typography.bodyMedium,
-                color = FoamDim,
-                modifier = Modifier.clickable { onCancel() },
+                style = MaterialTheme.typography.bodyLarge,
+                color = com.example.personal_studio.ui.theme.Tg.colors.text,
+                modifier = Modifier
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    .clickable { onCancel() }
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
             )
             ShutterButton(
                 onClick = {
@@ -315,14 +325,14 @@ fun CameraCaptureScreen(
                             }
 
                             override fun onError(exc: ImageCaptureException) {
-                                // TODO surface as snackbar
+                                toast?.show("拍摄失败，请再试一次")
                             }
                         },
                     )
                 },
             )
             // Balances 取消 so the shutter sits centred.
-            Text("取消", style = MaterialTheme.typography.bodyMedium, color = Color.Transparent)
+            Text("取消", style = MaterialTheme.typography.bodyLarge, color = Color.Transparent, modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp))
         }
     }
 }
@@ -390,20 +400,22 @@ private const val FOCUS_AUTOCANCEL_S = 3L
 
 @Composable
 private fun PermissionDeniedUi(onRequest: () -> Unit, onCancel: () -> Unit) {
+    val c = com.example.personal_studio.ui.theme.Tg.colors
     Column(
-        Modifier.fillMaxSize().background(Void).padding(32.dp),
+        Modifier.fillMaxSize().background(c.bg).padding(32.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("相机权限被拒绝", color = Carmine, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "拍摄需要授予相机权限。",
-            color = FoamDim,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Spacer(Modifier.height(18.dp))
-        Text("授权", color = Phosphor, modifier = Modifier.clickable(onClick = onRequest))
+        Text("需要相机权限", color = c.text, style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
-        Text("取消", color = FoamDim, modifier = Modifier.clickable(onClick = onCancel))
+        Text(
+            "拍摄文档和题目需要使用相机。照片只保存在本机。",
+            color = c.textSecondary,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            com.example.personal_studio.ui.components.TgPillButton("取消", onClick = onCancel, style = com.example.personal_studio.ui.components.PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+            com.example.personal_studio.ui.components.TgPillButton("授权", onClick = onRequest, modifier = Modifier.weight(1f))
+        }
     }
 }

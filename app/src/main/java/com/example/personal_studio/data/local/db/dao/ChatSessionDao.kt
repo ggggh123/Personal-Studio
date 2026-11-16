@@ -50,4 +50,8 @@ interface ChatSessionDao {
 
     @Query("DELETE FROM chat_sessions WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** Removes conversations that never got a message (e.g. a cancelled 拍题提问); returns how many. */
+    @Query("DELETE FROM chat_sessions WHERE NOT EXISTS (SELECT 1 FROM chat_messages m WHERE m.sessionId = chat_sessions.id)")
+    suspend fun deleteEmpty(): Int
 }

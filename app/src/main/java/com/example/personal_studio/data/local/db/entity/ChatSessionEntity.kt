@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
 )
 data class ChatSessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val title: String,                  // "session #001" until AI auto-summarises
+    val title: String,                  // "新对话" (older: "session #001") until the AI titles it
     val iconHint: String? = null,       // reserved for a future emoji/icon classifier
     val createdAt: Long,
     val updatedAt: Long,

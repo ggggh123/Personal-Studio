@@ -11,13 +11,17 @@
 3. SSE 读取 `choices[0].delta.content`，收到 `[DONE]` 后保存完整助手消息。当前不展示服务商的 `reasoning_content`；等待文案是本地轮换提示，不是模型真实思考过程。
 4. 点击停止会取消生成任务，并在已有文本后追加“（已停止）”保存；没有文本则不创建空回答。界面中的 token 数是估算值。
 
+新会话默认名为“新对话”（旧数据中的 `session #NNN` 同样视为占位名，显示为“新对话”），第一轮回答保存后由 [`GenerateTitleUseCase`](../app/src/main/java/com/example/personal_studio/domain/chat/GenerateTitleUseCase.kt) 生成标题，判断规则在 [`ChatTitles`](../app/src/main/java/com/example/personal_studio/domain/chat/ChatTitles.kt)；生成标题会多一次模型调用。从未发出消息的会话在离开对话页时删除（`ChatDetailViewModel.onCleared`，旋转或换主题不触发），打开问答列表时也会清理残留的空会话。列表摘要把公式显示为“[公式]”并去掉 Markdown 标记。
+
 流式请求读超时设为无限，连接／写入超时分别为 30／120 秒，避免模型长时间首字等待被固定读超时截断。修改时应同时检查协程取消能否结束网络等待，不能只让界面退出加载态。普通聊天目前会发送完整历史，没有自动摘要或上下文长度预算；长会话仍可能超过模型限制。
 
 ### 图片与模型配置
 
 每条消息最多 6 张图片，逐张添加和裁切。旧数据库字段 `attachedImagePath` 通过 [`ChatImagePaths`](../app/src/main/java/com/example/personal_studio/data/repository/ChatImagePaths.kt) 同时兼容旧单路径和新 JSON 数组，未为多图功能升级 schema。改读取端时需保留这个兼容入口。
 
-扫描页可直接作为附件，快捷拍照复用扫描增强链路。会话保存的是本地文件路径，模型调用时才读取并编码图片。
+扫描页可直接作为附件，快捷拍照复用扫描增强链路。会话保存的是本地文件路径，模型调用时才读取并编码图片。界面中的缩略图在后台线程按显示尺寸采样解码并缓存（[`SampledImage`](../app/src/main/java/com/example/personal_studio/ui/components/SampledImage.kt)，缓存键含文件修改时间）；裁切层的显示图也按约 2000 px 采样，裁切坐标按原图宽度换算。
+
+对话页打开期间窗口不随键盘平移或缩放，由页面按键盘高度抬起输入框（[`KeyboardHandledByInsets`](../app/src/main/java/com/example/personal_studio/ui/components/KeyboardInsets.kt)），各厂商系统表现一致；若打开键盘时停在最新回答，列表在键盘动画的每一帧保持贴底。
 
 [`CuratedModels`](../app/src/main/java/com/example/personal_studio/core/llm/CuratedModels.kt) 是静态名单；[`SettingsViewModel.selectCuratedModel`](../app/src/main/java/com/example/personal_studio/feature/settings/vm/SettingsViewModel.kt) 不仅改模型代号，还会清除自定义 API Key 和 Base URL，回退到构建默认值。因此自建端点配置后再选内置模型，会改变实际请求的服务。高级配置和连接测试是自定义模型的入口，项目当前没有 Gemini 专用 SDK 实现。
 

@@ -20,6 +20,9 @@ interface ChatRepository {
     suspend fun createSession(initialTitle: String): Long
     suspend fun renameSession(id: Long, title: String)
     suspend fun deleteSession(id: Long)
+
+    /** Deletes conversations without any message; returns how many. */
+    suspend fun deleteEmptySessions(): Int
     suspend fun countSessions(): Int
 
     fun observeMessages(sessionId: Long): Flow<List<ChatMessage>>
@@ -62,6 +65,8 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteSession(id: Long) { sessionDao.delete(id) }
+
+    override suspend fun deleteEmptySessions(): Int = sessionDao.deleteEmpty()
 
     override suspend fun countSessions(): Int = sessionDao.countSessions()
 

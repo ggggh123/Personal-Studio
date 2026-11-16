@@ -132,27 +132,20 @@ fun EdgeDetectAndCropScreen(
                 }
             }
         }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("重拍", color = FoamDim, modifier = Modifier.clickable(onClick = onRetake))
-            val info = if (state.detectedAutomatically) "✓ 已自动识别边角" else "! 拖动四角对齐"
-            Text(
-                info,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (state.detectedAutomatically) Phosphor else Amber,
-            )
-            Text(
-                "确认",
-                color = Phosphor,
-                modifier = Modifier.clickable { state.corners?.let(onConfirm) },
-            )
-        }
+        Text(
+            if (state.detectedAutomatically) "已识别纸张边角，可拖动圆点微调" else "没有识别到纸张，请拖动四个圆点对齐四角",
+            style = MaterialTheme.typography.bodySmall,
+            color = com.example.personal_studio.ui.theme.Tg.colors.textSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, start = 20.dp, end = 20.dp),
+        )
+        com.example.personal_studio.ui.components.PhotoActionBar(
+            secondary = "重拍",
+            onSecondary = onRetake,
+            primary = "下一步",
+            onPrimary = { state.corners?.let(onConfirm) },
+            primaryEnabled = state.corners != null,
+        )
     }
 }
 

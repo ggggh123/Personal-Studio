@@ -101,6 +101,20 @@ class ChatDetailViewModel @AssistedInject constructor(
 
     fun onDismissError() { _uiState.update { it.copy(errorBanner = null) } }
 
+    /**
+     * Leaving a conversation in which nothing was sent removes it, so cancelling 拍题提问 or
+     * backing out of 新对话 leaves no empty entry behind. onCleared runs only when the page
+     * is really left (not on rotation or a theme change), on a scope of its own because
+     * viewModelScope is already cancelled here.
+     */
+    override fun onCleared() {
+        val repo = repo
+        val id = sessionId
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO).launch {
+            if (repo.listMessages(id).isEmpty()) repo.deleteSession(id)
+        }
+    }
+
     private var sendJob: Job? = null
 
     fun onSend() {
@@ -166,15 +180,11 @@ class ChatDetailViewModel @AssistedInject constructor(
         }
     }
 
+    /** A placeholder name ("新对话") is replaced by a generated title after the first answer. */
     private suspend fun maybeGenerateTitle() {
-        val session = _uiState.value.session ?: return
-        val isStubTitle = session.title.startsWith("session #")
-        val userMsgs = _uiState.value.messages.count {
-            it.role == com.example.personal_studio.domain.model.MessageRole.USER
-        }
-        if (isStubTitle && userMsgs >= 2) {
-            val newTitle = titleGen(sessionId) ?: return
-            _uiState.update { it.copy(session = session.copy(title = newTitle)) }
-        }
+        val session = _uiState.value.session ?: repo.getSession(sessionId) ?: return
+        if (!com.example.personal_studio.domain.chat.ChatTitles.isPlaceholder(session.title)) return
+        val newTitle = titleGen(sessionId) ?: return
+        _uiState.update { it.copy(session = session.copy(title = newTitle)) }
     }
 }
