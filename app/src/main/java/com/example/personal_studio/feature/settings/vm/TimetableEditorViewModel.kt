@@ -56,8 +56,11 @@ class TimetableEditorViewModel @Inject constructor(
 
     fun onAddRow() {
         _ui.update { st ->
-            val nextIdx = (st.periods.maxOfOrNull { it.index } ?: 0) + 1
-            st.copy(periods = st.periods + TimetablePeriod(nextIdx, "00:00", "00:00"))
+            val last = st.periods.maxByOrNull { it.index }
+            val nextIdx = (last?.index ?: 0) + 1
+            // A new period starts 10 minutes after the last one ends and lasts 45 minutes, so it is valid as added.
+            val start = (last?.let { minutesOf(it.endHHmm) } ?: (8 * 60 - 10)) + 10
+            st.copy(periods = st.periods + TimetablePeriod(nextIdx, hhmm(start), hhmm(start + 45)))
         }
     }
 
@@ -68,7 +71,7 @@ class TimetableEditorViewModel @Inject constructor(
             val toRemove = st.periods.maxByOrNull { it.index }?.index ?: return@launch
             val refs = repo.countFutureCoursesUsingPeriodRange(toRemove, toRemove, System.currentTimeMillis())
             if (refs > 0) {
-                _ui.update { it.copy(error = "节次 $toRemove 仍被 $refs 门未来课程使用，请先删除或调整这些课程") }
+                _ui.update { it.copy(error = "第 $toRemove 节还有 $refs 次课要上，先删除或调整这些课程") }
                 return@launch
             }
             _ui.update { it.copy(periods = it.periods.filter { p -> p.index != toRemove }) }
@@ -83,11 +86,11 @@ class TimetableEditorViewModel @Inject constructor(
         var prevEnd = ""
         for (p in sorted) {
             if (p.startHHmm >= p.endHHmm) {
-                _ui.update { it.copy(error = "节次 ${p.index} 起 ≥ 止：${p.startHHmm}/${p.endHHmm}") }
+                _ui.update { it.copy(error = "第 ${p.index} 节的下课时间要晚于上课时间") }
                 return
             }
             if (prevEnd.isNotEmpty() && p.startHHmm < prevEnd) {
-                _ui.update { it.copy(error = "节次 ${p.index} 起早于上一节止 $prevEnd") }
+                _ui.update { it.copy(error = "第 ${p.index} 节在上一节下课（$prevEnd）之前就开始了") }
                 return
             }
             prevEnd = p.endHHmm
@@ -120,4 +123,12 @@ class TimetableEditorViewModel @Inject constructor(
     }
 
     fun consumedError() = _ui.update { it.copy(error = null) }
+
+    private fun minutesOf(hhmm: String): Int =
+        hhmm.split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 0) * 60 + (it.getOrNull(1)?.toIntOrNull() ?: 0) }
+
+    private fun hhmm(minutes: Int): String {
+        val m = minutes.coerceIn(0, 23 * 60 + 59)
+        return "%02d:%02d".format(m / 60, m % 60)
+    }
 }

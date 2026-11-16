@@ -80,7 +80,6 @@ object NavRoutes {
 
     // Settings sub-pages (P4)
     const val SETTINGS_TIMETABLE = "settings/timetable"
-    const val SETTINGS_SEMESTER = "settings/semester"
     const val SETTINGS_NOTIF = "settings/notif"
     const val SETTINGS_LLM = "settings/llm"
     const val SETTINGS_AI_MODEL = "settings/ai-model"

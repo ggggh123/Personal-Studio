@@ -1,103 +1,205 @@
 package com.example.personal_studio.feature.settings.ui
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.TimetableEditorViewModel
+import com.example.personal_studio.ui.components.PillStyle
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
+import com.example.personal_studio.ui.components.TerminalDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.Phosphor
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.shell.LocalShellToast
+import com.example.personal_studio.ui.theme.Tg
+import kotlinx.coroutines.delay
 
+/**
+ * 作息表: one row per period with its start and end; tapping a time opens a clock picker.
+ * Saving re-times every future course and re-schedules their reminders.
+ */
 @Composable
 fun TimetableEditorScreen(
     onBack: () -> Unit,
     vm: TimetableEditorViewModel = hiltViewModel(),
 ) {
     val ui by vm.ui.collectAsStateWithLifecycle()
+    val c = Tg.colors
+    val toast = LocalShellToast.current
+    var editing by remember { mutableStateOf<Pair<Int, Boolean>?>(null) } // (period index, isStart)
+
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TerminalTopBar(route = "timetable", subtitle = "作息表", onBack = onBack)
-
-        Text(
-            "※ 当前已按照北京理工大学作息表自动设置，不建议手动更改，否则可能导致课程表等功能发生异常",
-            color = Amber,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-
-        ui.error?.let { msg ->
-            Text(msg, color = Foam, modifier = Modifier.padding(16.dp))
-            LaunchedEffect(msg) {
-                kotlinx.coroutines.delay(3000)
-                vm.consumedError()
+        TerminalTopBar(route = "作息表", subtitle = "作息表\n${ui.periods.size} 节 · 点时间修改", onBack = onBack)
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item(key = "note") {
+                Text(
+                    "已按北京理工大学的作息设置。改动会调整所有未来课程的上下课时间，一般不需要修改。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.text,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .background(c.accentSoft, RoundedCornerShape(14.dp))
+                        .padding(14.dp),
+                )
             }
-        }
-
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {
             items(ui.periods, key = { it.index }) { p ->
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text("${p.index}", color = Phosphor, modifier = Modifier.width(24.dp))
-                    OutlinedTextField(
-                        value = p.startHHmm,
-                        onValueChange = { vm.onPeriodChange(p.index, startHHmm = it, endHHmm = null) },
-                        label = { Text("起 HH:mm") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = p.endHHmm,
-                        onValueChange = { vm.onPeriodChange(p.index, startHHmm = null, endHHmm = it) },
-                        label = { Text("止 HH:mm") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                    )
+                Row(
+                    Modifier.fillMaxWidth().animateItem(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("第 ${p.index} 节", style = MaterialTheme.typography.bodyLarge, color = c.text,
+                        modifier = Modifier.padding(start = 4.dp).weight(1f))
+                    TimeBox(p.startHHmm, "第 ${p.index} 节上课") { editing = p.index to true }
+                    Text("–", style = MaterialTheme.typography.bodyLarge, color = c.textSecondary, modifier = Modifier.padding(horizontal = 8.dp))
+                    TimeBox(p.endHHmm, "第 ${p.index} 节下课") { editing = p.index to false }
+                }
+            }
+            item(key = "rows") {
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TgPillButton("加一节", onClick = vm::onAddRow, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+                    TgPillButton("删最后一节", onClick = vm::onRemoveLast, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+                    TgPillButton("恢复默认", onClick = vm::onResetDefault, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
                 }
             }
         }
-
-        Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = vm::onAddRow,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-            ) { Text("+ 添加节次", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
-            OutlinedButton(
-                onClick = vm::onRemoveLast,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-            ) { Text("- 删除最后", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
-            OutlinedButton(
-                onClick = vm::onResetDefault,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-            ) { Text("恢复默认", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+        AnimatedVisibility(ui.error != null, enter = fadeIn(tween(200)), exit = fadeOut(tween(200))) {
+            Text(
+                ui.error.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+            )
         }
-        Button(
+        ui.error?.let { msg ->
+            LaunchedEffect(msg) {
+                delay(4_000)
+                vm.consumedError()
+            }
+        }
+        TgPillButton(
+            if (ui.saving) "正在保存…" else "保存",
             onClick = vm::openConfirmDialog,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-        ) {
-            Text(if (ui.saving) "保存中…" else "保存")
-        }
+            enabled = !ui.saving,
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
+        )
     }
 
+    editing?.let { (index, isStart) ->
+        val period = ui.periods.firstOrNull { it.index == index }
+        if (period != null) {
+            TimeDialog(
+                title = "第 $index 节${if (isStart) "上课" else "下课"}",
+                initial = if (isStart) period.startHHmm else period.endHHmm,
+                onPick = { t ->
+                    vm.onPeriodChange(index, startHHmm = if (isStart) t else null, endHHmm = if (isStart) null else t)
+                    editing = null
+                },
+                onDismiss = { editing = null },
+            )
+        }
+    }
     if (ui.confirmDialogVisible) {
         TerminalConfirmDialog(
-            title = "确认更新作息表",
-            message = "将更新所有未来课程的起止时间。",
-            confirmLabel = "确认",
-            onConfirm = { vm.save(onComplete = { _ -> /* Phase 5 reschedules */ }) },
+            title = "更新作息表？",
+            message = "所有未来课程会按新的时间调整，提醒也会重新安排。",
+            confirmLabel = "更新",
+            onConfirm = {
+                vm.save(onComplete = { touched ->
+                    toast?.show(if (touched.isEmpty()) "作息表已保存" else "作息表已更新，${touched.size} 次课已调整时间")
+                })
+            },
             onDismiss = vm::closeConfirmDialog,
         )
+    }
+}
+
+@Composable
+private fun TimeBox(text: String, label: String, onClick: () -> Unit) {
+    val c = Tg.colors
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        Modifier
+            .width(76.dp)
+            .heightIn(min = 44.dp)
+            .clip(shape)
+            .background(c.surface)
+            .border(1.dp, c.line, shape)
+            .clickable(role = Role.Button, onClickLabel = "修改$label") { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = MaterialTheme.typography.titleMedium, color = c.text)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeDialog(title: String, initial: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val c = Tg.colors
+    val (h, m) = initial.split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 8) to (it.getOrNull(1)?.toIntOrNull() ?: 0) }
+    val state = rememberTimePickerState(initialHour = h, initialMinute = m, is24Hour = true)
+    TerminalDialog(onDismiss = onDismiss, title = title) {
+        Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
+            TimePicker(
+                state = state,
+                colors = TimePickerDefaults.colors(
+                    clockDialColor = c.bg,
+                    selectorColor = c.accent,
+                    clockDialSelectedContentColor = c.onAccent,
+                    clockDialUnselectedContentColor = c.text,
+                    timeSelectorSelectedContainerColor = c.accentSoft,
+                    timeSelectorSelectedContentColor = c.accent,
+                    timeSelectorUnselectedContainerColor = c.bg,
+                    timeSelectorUnselectedContentColor = c.text,
+                ),
+            )
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+            TgPillButton("确定", onClick = { onPick("%02d:%02d".format(state.hour, state.minute)) }, modifier = Modifier.weight(1f))
+        }
+        Box(Modifier.height(2.dp))
     }
 }

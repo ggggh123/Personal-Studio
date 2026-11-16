@@ -1,34 +1,58 @@
 package com.example.personal_studio.feature.settings.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -36,136 +60,277 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.BuildConfig
 import com.example.personal_studio.data.local.datastore.DebugMoment
 import com.example.personal_studio.feature.settings.vm.AppearanceViewModel
+import com.example.personal_studio.feature.settings.vm.SettingsHomeViewModel
+import com.example.personal_studio.feature.timeline.today.enterUp
+import com.example.personal_studio.feature.timeline.today.semesterWeek
+import com.example.personal_studio.ui.components.PillStyle
 import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgCard
+import com.example.personal_studio.ui.components.TgChip
+import com.example.personal_studio.ui.components.TgGroupLabel
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.components.TgRowValue
+import com.example.personal_studio.ui.components.TgSettingRow
 import com.example.personal_studio.ui.navigation.NavRoutes
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.ui.theme.daylight.ThemeMode
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
 
+/**
+ * 设置 (from the avatar): appearance first, then semester and timetable, reminders, the AI
+ * model and the version. Each row shows its current value; the semester start opens a date
+ * picker in place instead of a page of its own.
+ */
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
+    vm: SettingsHomeViewModel = hiltViewModel(),
 ) {
+    val st by vm.state.collectAsStateWithLifecycle()
+    var pickStart by remember { mutableStateOf(false) }
+    val today = remember { LocalDate.now(ZoneId.of("Asia/Shanghai")) }
+
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(
-            route = "settings",
-            subtitle = "偏好设置",
-            onBack = onBack,
-        )
+        TerminalTopBar(route = "设置", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            GroupHeader("外观")
-            AppearanceSection()
+            TgGroupLabel("外观", Modifier.enterUp(true, 0))
+            AppearanceCard(Modifier.enterUp(true, 0))
 
-            Spacer(Modifier.height(14.dp))
-            GroupHeader("教务与通用")
-            NavRow("学期起始日") { onNavigate(NavRoutes.SETTINGS_SEMESTER) }
-            NavRow("作息表（13 节）") { onNavigate(NavRoutes.SETTINGS_TIMETABLE) }
-            NavRow("通知与后台提醒") { onNavigate(NavRoutes.SETTINGS_NOTIF) }
-            NavRow("课程列表") { onNavigate(NavRoutes.TIMELINE_COURSE_LIST) }
+            TgGroupLabel("学期与课表", Modifier.enterUp(true, 60))
+            TgCard(Modifier.enterUp(true, 60)) {
+                TgSettingRow(
+                    "学期第一周", icon = Icons.Outlined.CalendarMonth, first = true,
+                    summary = st.semesterStart?.let { start ->
+                        semesterWeek(start, today)?.let { "现在是第 $it 周" } ?: if (today < start) "学期还没开始" else "本学期已结束"
+                    } ?: "导入课表时会自动设置",
+                    onClick = { pickStart = true },
+                    trailing = { TgRowValue(st.semesterStart?.let { "${it.monthValue} 月 ${it.dayOfMonth} 日" } ?: "未设置") },
+                )
+                TgSettingRow(
+                    "作息表", icon = Icons.Outlined.Schedule, summary = "每节课的上下课时间",
+                    onClick = { onNavigate(NavRoutes.SETTINGS_TIMETABLE) },
+                    trailing = { TgRowValue(if (st.periodCount > 0) "${st.periodCount} 节" else "") },
+                )
+                TgSettingRow(
+                    "课程管理", icon = Icons.AutoMirrored.Outlined.MenuBook, summary = "查看、修改或删除整门课",
+                    onClick = { onNavigate(NavRoutes.TIMELINE_COURSE_LIST) },
+                    trailing = { TgRowValue(if (st.courseCount > 0) "${st.courseCount} 门" else "无") },
+                )
+            }
 
-            Spacer(Modifier.height(14.dp))
-            GroupHeader("AI")
-            NavRow("AI 模型", hint = "切换内置模型，或高级自定义") { onNavigate(NavRoutes.SETTINGS_AI_MODEL) }
+            TgGroupLabel("提醒", Modifier.enterUp(true, 100))
+            TgCard(Modifier.enterUp(true, 100)) {
+                TgSettingRow(
+                    "通知与提醒", icon = Icons.Outlined.NotificationsNone, first = true,
+                    summary = "课程、作业与考试、日程的提醒和系统权限",
+                    onClick = { onNavigate(NavRoutes.SETTINGS_NOTIF) },
+                )
+            }
 
-            Spacer(Modifier.height(14.dp))
-            GroupHeader("关于")
-            Text(
-                "版本 ${BuildConfig.VERSION_NAME} · 天光主题",
-                color = Tg.colors.textSecondary, style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+            TgGroupLabel("AI", Modifier.enterUp(true, 140))
+            TgCard(Modifier.enterUp(true, 140)) {
+                TgSettingRow(
+                    "AI 模型", icon = Icons.Outlined.AutoAwesome, first = true,
+                    summary = if (st.customModel) "自定义接口" else "问答、整理知识和学情报告使用",
+                    onClick = { onNavigate(NavRoutes.SETTINGS_AI_MODEL) },
+                    trailing = { TgRowValue(st.modelName, accent = st.customModel) },
+                )
+            }
+
+            TgGroupLabel("关于", Modifier.enterUp(true, 180))
+            TgCard(Modifier.enterUp(true, 180)) {
+                TgSettingRow(
+                    "Personal Studio", icon = Icons.Outlined.Info, first = true,
+                    summary = "版本 ${BuildConfig.VERSION_NAME}" + if (BuildConfig.DEBUG) " · 调试版" else "",
+                )
+            }
         }
+    }
+
+    if (pickStart) {
+        SemesterStartDialog(
+            initial = st.semesterStart ?: today,
+            onPick = { vm.setSemesterStart(it); pickStart = false },
+            onDismiss = { pickStart = false },
+        )
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SemesterStartDialog(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    val c = Tg.colors
+    val state = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TgPillButton(
+                "确定",
+                onClick = { state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) } },
+                enabled = state.selectedDateMillis != null,
+                modifier = Modifier.padding(end = 8.dp, bottom = 8.dp),
+            )
+        },
+        dismissButton = {
+            TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.padding(end = 8.dp, bottom = 8.dp))
+        },
+        colors = DatePickerDefaults.colors(containerColor = c.surfaceRaised),
+    ) {
+        DatePicker(
+            state = state,
+            title = {
+                Text("学期第一周", style = MaterialTheme.typography.headlineMedium, color = c.text,
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 20.dp))
+            },
+            headline = {
+                Text("选第一周里的任意一天，会按那周的周一计算", style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, bottom = 8.dp))
+            },
+            showModeToggle = false,
+            colors = DatePickerDefaults.colors(
+                containerColor = c.surfaceRaised,
+                selectedDayContainerColor = c.accent,
+                selectedDayContentColor = c.onAccent,
+                todayDateBorderColor = c.accent,
+                todayContentColor = c.accent,
+                selectedYearContainerColor = c.accent,
+                selectedYearContentColor = c.onAccent,
+            ),
+        )
+    }
+}
+
+/** Theme mode as four small palette swatches, then a sentence on what the selected one does. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AppearanceSection(vm: AppearanceViewModel = hiltViewModel()) {
+private fun AppearanceCard(modifier: Modifier, vm: AppearanceViewModel = hiltViewModel()) {
+    val c = Tg.colors
     val mode by vm.mode.collectAsStateWithLifecycle()
     val moment by vm.debugMoment.collectAsStateWithLifecycle()
-
-    Text("主题", color = Tg.colors.text, style = MaterialTheme.typography.bodyLarge)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(
-            ThemeMode.DAYLIGHT to "天光", ThemeMode.SYSTEM to "跟随系统",
-            ThemeMode.LIGHT to "浅色", ThemeMode.DARK to "深色",
-        ).forEach { (value, label) ->
-            Chip(label, selected = mode == value) { vm.setMode(value) }
-        }
-    }
-    Text(
-        when (mode) {
-            ThemeMode.DAYLIGHT -> "配色跟随北京的真实日照：白天纸本，夜里灯下。深浅只在拂晓和日落后切换。"
-            ThemeMode.SYSTEM -> "深浅由系统决定，天光只调整同一色系内的冷暖。"
-            ThemeMode.LIGHT -> "始终使用正午配色。"
-            ThemeMode.DARK -> "始终使用深夜配色。"
-        },
-        color = Tg.colors.textSecondary, style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
-    )
-
-    if (BuildConfig.DEBUG) {
-        Text("固定时刻（仅调试版）", color = Tg.colors.text, style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = 6.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip("实时", selected = moment == null) { vm.setDebugMoment(null) }
-            DebugMoment.entries.forEach { m ->
-                Chip(m.label, selected = moment == m) { vm.setDebugMoment(m) }
+    TgCard(modifier) {
+        Column(Modifier.padding(16.dp)) {
+            Text("主题", style = MaterialTheme.typography.bodyLarge, color = c.text)
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ThemeModes.forEach { (value, label) ->
+                    ThemeSwatch(value, label, selected = mode == value, onClick = { vm.setMode(value) }, modifier = Modifier.weight(1f))
+                }
+            }
+            AnimatedContent(mode, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) }, label = "modeText") { m ->
+                Text(
+                    when (m) {
+                        ThemeMode.DAYLIGHT -> "配色跟随北京的真实日照：白天是纸面，夜里是灯下，强调色随时间变化。深浅只在日出前和日落后各换一次。"
+                        ThemeMode.SYSTEM -> "深浅由系统决定，时间只调整同一色系内的冷暖。"
+                        ThemeMode.LIGHT -> "始终使用正午的浅色配色。"
+                        ThemeMode.DARK -> "始终使用深夜的深色配色。"
+                    },
+                    style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+            if (BuildConfig.DEBUG) {
+                Text("固定时刻（仅调试版）", style = MaterialTheme.typography.bodyMedium, color = c.text, modifier = Modifier.padding(top = 18.dp))
+                FlowRow(
+                    Modifier.padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TgChip("实时", selected = moment == null, onClick = { vm.setDebugMoment(null) })
+                    DebugMoment.entries.forEach { m ->
+                        TgChip(m.label, selected = moment == m, onClick = { vm.setDebugMoment(m) })
+                    }
+                }
             }
         }
     }
 }
 
+private val ThemeModes = listOf(
+    ThemeMode.DAYLIGHT to "天光",
+    ThemeMode.SYSTEM to "跟随系统",
+    ThemeMode.LIGHT to "浅色",
+    ThemeMode.DARK to "深色",
+)
+
+// Fixed sample colours (正午, 日落, 深夜 keyframes): the swatches show the palettes themselves,
+// so they do not follow the current theme.
+private val Noon = Color(0xFFF8F7F3)
+private val NoonInk = Color(0xFF141311)
+private val NoonAccent = Color(0xFFB03A22)
+private val Sunset = Color(0xFFF2E5D6)
+private val Night = Color(0xFF13100C)
+private val NightInk = Color(0xFFEFE6D8)
+private val NightAccent = Color(0xFFE3A54E)
+
 @Composable
-private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ThemeSwatch(mode: ThemeMode, label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val c = Tg.colors
-    Box(
-        modifier = Modifier
-            .heightIn(min = 40.dp)
-            .background(if (selected) c.text else c.bg, RoundedCornerShape(20.dp))
-            .border(1.dp, if (selected) c.text else c.textTertiary, RoundedCornerShape(20.dp))
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 9.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = if (selected) c.bg else c.text, style = MaterialTheme.typography.labelLarge)
-    }
-}
-
-@Composable
-private fun GroupHeader(title: String) {
-    Text(
-        title,
-        color = Tg.colors.textSecondary,
-        style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
-    )
-}
-
-@Composable
-private fun NavRow(label: String, hint: String? = null, onClick: () -> Unit) {
+    val border by animateColorAsState(if (selected) c.accent else c.line, tween(200), label = "swatchBorder")
+    val shape = RoundedCornerShape(14.dp)
     Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable { onClick() }
-            .padding(vertical = 10.dp),
+        modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, color = Tg.colors.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Tg.colors.textSecondary)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(shape)
+                .border(if (selected) 2.dp else 1.dp, border, shape),
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                when (mode) {
+                    ThemeMode.DAYLIGHT -> drawRect(Brush.horizontalGradient(0f to Noon, 0.3f to Sunset, 0.52f to Night, 1f to Night))
+                    ThemeMode.SYSTEM -> {
+                        drawRect(Noon, size = size.copy(width = w / 2))
+                        drawRect(Night, topLeft = Offset(w / 2, 0f), size = size.copy(width = w / 2))
+                    }
+                    ThemeMode.LIGHT -> drawRect(Noon)
+                    ThemeMode.DARK -> drawRect(Night)
+                }
+                val dot = 5.dp.toPx()
+                val bar = 3.dp.toPx()
+                fun lines(x: Float, ink: Color, accent: Color) {
+                    drawCircle(accent, dot, Offset(x + dot, h * 0.32f))
+                    drawRoundRect(ink.copy(alpha = 0.75f), Offset(x, h * 0.56f), androidx.compose.ui.geometry.Size(w * 0.3f, bar),
+                        androidx.compose.ui.geometry.CornerRadius(bar / 2))
+                    drawRoundRect(ink.copy(alpha = 0.4f), Offset(x, h * 0.7f), androidx.compose.ui.geometry.Size(w * 0.2f, bar),
+                        androidx.compose.ui.geometry.CornerRadius(bar / 2))
+                }
+                val pad = 9.dp.toPx()
+                when (mode) {
+                    ThemeMode.DAYLIGHT, ThemeMode.SYSTEM -> {
+                        lines(pad, NoonInk, NoonAccent)
+                        lines(w / 2 + pad, NightInk, NightAccent)
+                    }
+                    ThemeMode.LIGHT -> lines(pad, NoonInk, NoonAccent)
+                    ThemeMode.DARK -> lines(pad, NightInk, NightAccent)
+                }
+            }
+            if (selected) {
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(5.dp).size(18.dp).background(c.accent, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, tint = c.onAccent, modifier = Modifier.size(12.dp))
+                }
+            }
         }
-        if (hint != null) {
-            Text(hint, color = Tg.colors.textSecondary, style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 2.dp))
-        }
+        Text(
+            label, style = MaterialTheme.typography.bodySmall, color = if (selected) c.text else c.textSecondary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
