@@ -146,10 +146,9 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
         }
         composable(NavRoutes.TIMELINE) {
             com.example.personal_studio.feature.timeline.ui.TimelineScreen(
-                onAddTask = { navController.navigate(NavRoutes.TIMELINE_ADD_TASK) },
-                onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
-                onOpenDetail = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
-                onOpenWeekGrid = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+                onOpenSettings = { navController.navigate(NavRoutes.SETTINGS) },
+                onOpenSync = { navController.navigate(NavRoutes.syncAll(first = false)) },
+                onOpenCourseSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
             )
         }
         composable(NavRoutes.PROFILE) {

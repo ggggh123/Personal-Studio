@@ -40,6 +40,9 @@ class SyncAllViewModel @Inject constructor(
         job = viewModelScope.launch {
             syncAll.run().collect { _ui.value = it }
             loginPrefs.setFirstSyncDone(true)
+            if (_ui.value.states.values.any { it.status == SyncSourceStatus.OK }) {
+                loginPrefs.setLastSyncAt(System.currentTimeMillis())
+            }
         }
     }
 

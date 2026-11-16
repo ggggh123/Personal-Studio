@@ -56,6 +56,10 @@ data class DaylightState(
     val hour: Double,
     val sun: SunDay,
     val mode: ThemeMode,
+    /** True while the user scrubs the 今日 horizon and [hour] is a preview, not the clock. */
+    val isPreview: Boolean = false,
+    /** The clock's hour (or the debug moment) even while [hour] is a preview. */
+    val liveHour: Double = hour,
 )
 
 val LocalTgColors = compositionLocalOf { DaylightPalette.Noon }
@@ -66,6 +70,12 @@ val LocalDaylight = compositionLocalOf<DaylightState?> { null }
  * app is handled by [AppTheme] itself.
  */
 val LocalThemeSafePoint = staticCompositionLocalOf<() -> Unit> { {} }
+
+/**
+ * Previews the palette at another hour of today (long-press scrubbing on the 今日 horizon);
+ * pass null to return to the live palette. The preview respects the chosen theme mode.
+ */
+val LocalDaylightPreview = staticCompositionLocalOf<(Double?) -> Unit> { {} }
 
 /** How many [DarkCanvas] screens are showing; while any is, the system bars stay light-on-dark. */
 private val LocalDarkCanvasCount = staticCompositionLocalOf<MutableIntState?> { null }
@@ -108,8 +118,11 @@ fun AppTheme(
 
     val sun = solar.sunDay(now.toLocalDate())
     val moment = if (BuildConfig.DEBUG) debugMoment else null
-    val hour = moment?.let { hourOf(it, sun) } ?: (now.hour + now.minute / 60.0)
-    val natural = DaylightPalette.naturalFamily(hour, sun)
+    val liveHour = moment?.let { hourOf(it, sun) } ?: (now.hour + now.minute / 60.0)
+    var previewHour by remember { mutableStateOf<Double?>(null) }
+    val setPreview: (Double?) -> Unit = remember { { previewHour = it } }
+    val hour = previewHour ?: liveHour
+    val natural = DaylightPalette.naturalFamily(liveHour, sun)
 
     val gate = remember(mode, moment) { FamilyGate() }
     var held by remember(mode, moment) { mutableStateOf<ThemeFamily?>(null) }
@@ -117,8 +130,10 @@ fun AppTheme(
     val safePoint: () -> Unit = remember(gate) { { if (gate.safePoint()) held = gate.applied } }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { safePoint() }
 
-    val target = DaylightPalette.resolve(mode, hour, sun, isSystemInDarkTheme(), if (moment != null) null else held)
-    val colors = animatedColors(target)
+    val systemDark = isSystemInDarkTheme()
+    val target = previewHour?.let { DaylightPalette.resolve(mode, it, sun, systemDark, null) }
+        ?: DaylightPalette.resolve(mode, liveHour, sun, systemDark, if (moment != null) null else held)
+    val colors = animatedColors(target, scrubbing = previewHour != null)
 
     val darkCanvases = remember { mutableIntStateOf(0) }
     val view = LocalView.current
@@ -135,8 +150,9 @@ fun AppTheme(
 
     CompositionLocalProvider(
         LocalTgColors provides colors,
-        LocalDaylight provides DaylightState(now.toLocalDate(), hour, sun, mode),
+        LocalDaylight provides DaylightState(now.toLocalDate(), hour, sun, mode, previewHour != null, liveHour),
         LocalThemeSafePoint provides safePoint,
+        LocalDaylightPreview provides setPreview,
         LocalDarkCanvasCount provides darkCanvases,
     ) {
         MaterialTheme(
@@ -187,14 +203,23 @@ private fun hourOf(moment: DebugMoment, sun: SunDay): Double = when (moment) {
 
 /**
  * Minute-by-minute drift is applied instantly (it is imperceptible and keeps recomposition
- * cheap); a light/dark switch crossfades over [TgMotion.COLOR_CHANGE_MS].
+ * cheap); a light/dark switch crossfades over [TgMotion.COLOR_CHANGE_MS]. While scrubbing,
+ * every change follows the finger over [TgMotion.COLOR_SCRUB_MS]; releasing eases back.
  */
 @Composable
-private fun animatedColors(target: TgColors): TgColors {
+private fun animatedColors(target: TgColors, scrubbing: Boolean): TgColors {
     var lastFamily by remember { mutableStateOf(target.family) }
-    val spec: AnimationSpec<Color> =
-        if (target.family != lastFamily) tween(TgMotion.COLOR_CHANGE_MS) else snap()
-    SideEffect { lastFamily = target.family }
+    var lastScrubbing by remember { mutableStateOf(scrubbing) }
+    val spec: AnimationSpec<Color> = when {
+        scrubbing -> tween(TgMotion.COLOR_SCRUB_MS)
+        lastScrubbing -> tween(TgMotion.COLOR_RELEASE_MS)
+        target.family != lastFamily -> tween(TgMotion.COLOR_CHANGE_MS)
+        else -> snap()
+    }
+    SideEffect {
+        lastFamily = target.family
+        lastScrubbing = scrubbing
+    }
 
     @Composable
     fun animate(c: Color): Color = animateColorAsState(c, spec, label = "tg").value

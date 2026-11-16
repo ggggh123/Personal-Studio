@@ -31,4 +31,7 @@ object TgMotion {
 
     /** Palette changes while the user scrubs through the day. */
     const val COLOR_SCRUB_MS = 120
+
+    /** Easing back to the live palette after a scrub. */
+    const val COLOR_RELEASE_MS = 600
 }

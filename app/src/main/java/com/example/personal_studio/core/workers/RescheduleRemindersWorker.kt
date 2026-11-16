@@ -10,6 +10,12 @@ import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
+/**
+ * Re-registers the alarms of every unfinished item starting within [WINDOW_MS] (7 days).
+ * The longest lead time is one day, so every reminder due in the next six days is covered
+ * even if the app is not opened for days. Runs on app start, after boot and after each
+ * course, DDL or exam import.
+ */
 @HiltWorker
 class RescheduleRemindersWorker @AssistedInject constructor(
     @Assisted appContext: Context,
@@ -21,7 +27,7 @@ class RescheduleRemindersWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         val now = System.currentTimeMillis()
-        val until = now + 24L * 60L * 60L * 1000L
+        val until = now + WINDOW_MS
         val items = repo.getUpcomingItems(now, until)
         for (item in items) {
             cancel(item.id)
@@ -32,5 +38,6 @@ class RescheduleRemindersWorker @AssistedInject constructor(
 
     companion object {
         const val UNIQUE_NAME = "reschedule_reminders"
+        const val WINDOW_MS = 7L * 24 * 60 * 60 * 1000
     }
 }

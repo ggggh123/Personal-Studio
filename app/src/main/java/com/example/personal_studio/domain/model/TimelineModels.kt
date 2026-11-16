@@ -70,28 +70,6 @@ data class CourseSeriesDraft(
 fun formatCredits(value: Float): String =
     if (value % 1f == 0f) value.toInt().toString() else value.toString()
 
-/** 13-state finite state machine for bubble visuals. */
-sealed class BubbleState {
-    object CourseUpcoming   : BubbleState()
-    object CourseImminent   : BubbleState()
-    object CourseInProgress : BubbleState()
-    object CoursePast       : BubbleState()
-    object TaskUpcoming     : BubbleState()
-    object TaskImminent     : BubbleState()
-    object TaskOverdue      : BubbleState()
-    object TaskDone         : BubbleState()
-    object CustomUpcoming   : BubbleState()
-    object CustomImminent   : BubbleState()
-    object CustomInProgress : BubbleState()
-    object CustomOverdue    : BubbleState()
-    object CustomDone       : BubbleState()
-    object ExamUpcoming   : BubbleState()
-    object ExamImminent   : BubbleState()
-    object ExamInProgress : BubbleState()
-    object ExamPast       : BubbleState()
-    object ExamDone       : BubbleState()
-}
-
 /** A single reminder: minBefore=0 + isOverdue=true means "DDL just hit". */
 data class ReminderSlot(val minBefore: Int, val isOverdue: Boolean) {
     val workName: (Long) -> String get() = { itemId ->

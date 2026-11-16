@@ -15,11 +15,12 @@ import java.time.ZoneId
 
 class ReplaceImportedCoursesUseCaseTest {
 
-    @Test fun `replaces 25-week window only`() = runBlocking {
+    @Test fun `replaces 25-week window only and reschedules reminders`() = runBlocking {
         val dao = mockk<TimelineDao>(relaxed = true) {
             coEvery { deleteImportedInRange(any(), any()) } returns 17
         }
-        val useCase = ReplaceImportedCoursesUseCase(dao)
+        val resched = mockk<com.example.personal_studio.domain.timeline.RescheduleAllUpcomingUseCase>(relaxed = true)
+        val useCase = ReplaceImportedCoursesUseCase(dao, resched)
         val anchor = LocalDate.of(2026, 2, 23)
         val zone = ZoneId.of("Asia/Shanghai")
         val newItems = listOf(stubItem(1L))
@@ -31,6 +32,7 @@ class ReplaceImportedCoursesUseCaseTest {
         val expectedEnd = anchor.plusWeeks(25).atStartOfDay(zone).toInstant().toEpochMilli()
         coVerify(exactly = 1) { dao.deleteImportedInRange(expectedStart, expectedEnd) }
         coVerify(exactly = 1) { dao.insertAll(newItems) }
+        io.mockk.verify(exactly = 1) { resched.invoke() }
     }
 
     private fun stubItem(id: Long) = TimelineItemEntity(

@@ -10,7 +10,13 @@
 
 手动课程由 [`AddCourseSeriesUseCase`](../app/src/main/java/com/example/personal_studio/domain/timeline/AddCourseSeriesUseCase.kt) 按连续周范围和多个星期展开；导入课程按学校 `SKZC` 位图展开，支持不连续周。课程列表可修改整组名称、教师、地点、学分和备注；修改系列上课时段需要删除后重建。具体表单和单次操作入口在 [`feature/timeline`](../app/src/main/java/com/example/personal_studio/feature/timeline)。
 
-[`ComputeBubbleStateUseCase`](../app/src/main/java/com/example/personal_studio/domain/timeline/ComputeBubbleStateUseCase.kt) 根据类型、起止时间和完成状态生成临近／进行中／已过／逾期等状态；颜色和动效属于显示层，不写入完成状态。待办的完成、考试的“已考”均是本地勾选，不等于学校系统确认提交或出席。
+“今日”页的显示规则集中在 [`TodayLogic`](../app/src/main/java/com/example/personal_studio/feature/timeline/today/TodayLogic.kt)，均为纯函数并有单元测试：
+
+- 时间线的行状态：即将开始、进行中、3 小时内截止、已过、逾期。逾期只针对未完成的待办；颜色和动效属于显示层，不写入完成状态。
+- “下一项”卡片：正在进行的事项优先，其次是今天下一个未完成的事项；今天的事项都结束后显示明天的第一项。
+- 标语：数据标语优先，依次是“明天有考试”（入夜后）、“今晚还有 N 项截止”（17 点后）、“今天的课都上完了”（午后起）；没有命中时按时段从固定句库中按日轮换。凌晨 6 点前，“明天”指当天稍后。
+
+待办的完成、考试的“已考”均是本地勾选，不等于学校系统确认提交或出席。勾选待办时立即写库并取消提醒，界面再播放勾选和折叠动画；撤销会恢复未完成并重新排提醒。
 
 ## 学期与作息表
 
@@ -51,4 +57,4 @@
 
 每个 PendingIntent 的 data URI 包含 `itemId/minBefore/isOverdue`，保证不同事项及档位互不覆盖；只改 extras 不足以建立唯一性。[ReminderAlarmReceiver](../app/src/main/java/com/example/personal_studio/core/workers/ReminderAlarmReceiver.kt) 收到闹钟后重新查数据库和开关，已删除或完成的事项不会通知。
 
-手动新增课程会逐条排提醒；完成／删除等交互负责取消相应提醒。应用 Activity 启动、开机及 DDL／考试同步会请求批量重排，但 [RescheduleRemindersWorker](../app/src/main/java/com/example/personal_studio/core/workers/RescheduleRemindersWorker.kt) **仅扫描未来 24 小时内开始、未完成的事项**，并非全学期重建。当前课表导入用例也没有逐条调度；导入后、跨天、重启以及长时间不打开应用的覆盖需要继续完善和真机验证。
+手动新增课程和待办会逐条排提醒；完成／删除等交互负责取消相应提醒，撤销完成会重新排。应用 Activity 启动、开机，以及课表、DDL、考试写入后都会请求批量重排：[RescheduleRemindersWorker](../app/src/main/java/com/example/personal_studio/core/workers/RescheduleRemindersWorker.kt) 扫描**未来 7 天内开始、未完成的事项**（2026-11 之前为 24 小时）。最长的提前量是 1 天，因此只要 7 天内打开过一次应用或重启过手机，未来 6 天内的提醒都已排好；这不是全学期重建，超过 7 天不打开应用且不重启时仍会漏提醒，需要真机验证。

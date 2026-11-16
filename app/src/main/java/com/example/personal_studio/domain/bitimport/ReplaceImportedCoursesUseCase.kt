@@ -2,6 +2,7 @@ package com.example.personal_studio.domain.bitimport
 
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
+import com.example.personal_studio.domain.timeline.RescheduleAllUpcomingUseCase
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -12,10 +13,12 @@ import javax.inject.Inject
  * new rows. MANUAL rows in the same range are untouched.
  *
  * The 25-week window comfortably covers any normal semester length (16-20
- * weeks typical, with a few weeks of buffer).
+ * weeks typical, with a few weeks of buffer). Reminders for the coming days are
+ * rescheduled right away, so the first classes after an import are not missed.
  */
 class ReplaceImportedCoursesUseCase @Inject constructor(
     private val dao: TimelineDao,
+    private val rescheduleAllUpcoming: RescheduleAllUpcomingUseCase,
 ) {
     suspend operator fun invoke(
         semesterStart: LocalDate,
@@ -26,6 +29,7 @@ class ReplaceImportedCoursesUseCase @Inject constructor(
         val endEpoch = semesterStart.plusWeeks(25).atStartOfDay(zone).toInstant().toEpochMilli()
         val deleted = dao.deleteImportedInRange(startEpoch, endEpoch)
         dao.insertAll(newItems)
+        rescheduleAllUpcoming()
         return deleted
     }
 }
