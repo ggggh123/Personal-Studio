@@ -1,5 +1,6 @@
 package com.example.personal_studio.core.charts
 
+import com.example.personal_studio.ui.theme.Tg
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -26,10 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.core.util.GradeBucket
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
 
 private val ALL_BANDS = listOf("A", "B", "C", "D", "F")
 
@@ -60,18 +57,18 @@ fun GradeBarChart(buckets: List<GradeBucket>, modifier: Modifier = Modifier) {
                     label = "bar-$label",
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, color = FoamMute, modifier = Modifier.width(20.dp),
+                    Text(label, color = Tg.colors.textSecondary, modifier = Modifier.width(20.dp),
                         style = MaterialTheme.typography.labelMedium)
                     Box(Modifier.weight(1f).padding(horizontal = 8.dp)) {
                         Box(
                             Modifier.fillMaxWidth(fraction = animFraction.coerceAtLeast(0.001f))
                                 .widthIn(min = 3.dp).height(16.dp)
-                                .background(if (label == "F") Carmine else Phosphor, RoundedCornerShape(2.dp)),
+                                .background(if (label == "F") Tg.colors.error else Tg.colors.accent, RoundedCornerShape(2.dp)),
                         )
                     }
                     Text(
                         "$count · ${count * 100 / total}%",
-                        color = Foam, modifier = Modifier.width(72.dp),
+                        color = Tg.colors.text, modifier = Modifier.width(72.dp),
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }

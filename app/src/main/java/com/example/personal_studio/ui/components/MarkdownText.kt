@@ -1,5 +1,6 @@
 package com.example.personal_studio.ui.components
 
+import com.example.personal_studio.ui.theme.Tg
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,11 +23,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Hull
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Rule
 
 /**
  * 极小 markdown 渲染器,够覆盖 AI 流式输出常用元素:
@@ -43,11 +39,11 @@ import com.example.personal_studio.ui.theme.Rule
 fun MarkdownText(
     text: String,
     modifier: Modifier = Modifier,
-    bodyColor: Color = Foam,
-    headerColor: Color = Phosphor,
-    accentColor: Color = FoamMute,
+    bodyColor: Color = Tg.colors.text,
+    headerColor: Color = Tg.colors.accent,
+    accentColor: Color = Tg.colors.textSecondary,
 ) {
-    val codeStyle = SpanStyle(background = Hull, color = Phosphor, fontFamily = FontFamily.Monospace)
+    val codeStyle = SpanStyle(background = Tg.colors.surfaceRaised, color = Tg.colors.accent, fontFamily = FontFamily.Monospace)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         val lines = text.split('\n')
         var pendingPara = ""
@@ -109,7 +105,7 @@ fun MarkdownText(
                 line.startsWith("> ") -> {
                     flushPara()
                     Row {
-                        Box(Modifier.width(2.dp).height(20.dp).background(Rule))
+                        Box(Modifier.width(2.dp).height(20.dp).background(Tg.colors.line))
                         Spacer(Modifier.width(8.dp))
                         Text(
                             parseInline(line.removePrefix("> "), codeStyle),

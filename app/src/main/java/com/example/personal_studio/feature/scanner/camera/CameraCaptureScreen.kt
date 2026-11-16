@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.scanner.camera
 
+import com.example.personal_studio.ui.theme.Tg
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.FlashOff
 import androidx.compose.material.icons.outlined.FlashOn
@@ -62,11 +63,6 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -162,7 +158,7 @@ fun CameraCaptureScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(Void)
+            .background(Tg.colors.bg)
             .onSizeChanged { boxSize = Size(it.width.toFloat(), it.height.toFloat()) }
             .pointerInput(Unit) {
                 detectTapGestures { tap ->
@@ -220,7 +216,7 @@ fun CameraCaptureScreen(
             )
         }
 
-        val focusColor = Phosphor
+        val focusColor = Tg.colors.accent
         focusRingAt?.let { pos ->
             Canvas(Modifier.fillMaxSize()) {
                 val radius = FOCUS_RING_RADIUS_DP.dp.toPx()
@@ -275,7 +271,7 @@ fun CameraCaptureScreen(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Void.copy(alpha = 0.9f))
+                .background(Tg.colors.bg.copy(alpha = 0.9f))
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(horizontal = 24.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -377,7 +373,7 @@ private fun LiveCornersOverlay(
         Offset(rx, ry)
     }
 
-    val quadColor = Phosphor
+    val quadColor = Tg.colors.accent
     Canvas(Modifier.fillMaxSize()) {
         val path = Path().apply {
             moveTo(displayCorners[0].x, displayCorners[0].y)

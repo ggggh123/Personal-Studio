@@ -35,13 +35,12 @@ import androidx.compose.ui.window.Dialog
 import com.example.personal_studio.ui.theme.Tg
 
 /*
- * The historical names stay (they are used across many screens); since the 天光 redesign
- * these render as rounded raised cards with a serif title and pill buttons.
+ * 天光 dialogs: rounded raised cards with a serif title and pill buttons.
  */
 
 /** Dialog card: raised surface, 24 dp corners, optional serif title. */
 @Composable
-fun TerminalDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable () -> Unit) {
+fun TgDialog(onDismiss: () -> Unit, title: String? = null, content: @Composable () -> Unit) {
     val c = Tg.colors
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -62,7 +61,7 @@ fun TerminalDialog(onDismiss: () -> Unit, title: String? = null, content: @Compo
 
 /** A "删除" style confirm gets the destructive button; anything else the primary one. */
 @Composable
-fun TerminalConfirmDialog(
+fun TgConfirmDialog(
     title: String,
     message: String,
     confirmLabel: String,
@@ -70,7 +69,7 @@ fun TerminalConfirmDialog(
     onDismiss: () -> Unit,
 ) {
     val c = Tg.colors
-    TerminalDialog(onDismiss = onDismiss, title = title) {
+    TgDialog(onDismiss = onDismiss, title = title) {
         Text(message, style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
         Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
@@ -86,7 +85,7 @@ fun TerminalConfirmDialog(
 
 /** Single-line input with the text selected, ready to replace. */
 @Composable
-fun TerminalInputDialog(
+fun TgInputDialog(
     title: String,
     initial: String,
     onConfirm: (String) -> Unit,
@@ -96,7 +95,7 @@ fun TerminalInputDialog(
     var value by remember { mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length))) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    TerminalDialog(onDismiss = onDismiss, title = title) {
+    TgDialog(onDismiss = onDismiss, title = title) {
         val shape = RoundedCornerShape(14.dp)
         BasicTextField(
             value = value,

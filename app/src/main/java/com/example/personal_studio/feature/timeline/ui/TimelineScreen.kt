@@ -81,7 +81,7 @@ import com.example.personal_studio.feature.timeline.ui.components.NotifPermissio
 import com.example.personal_studio.feature.timeline.vm.TimelineUiState
 import com.example.personal_studio.feature.timeline.vm.TimelineViewModel
 import com.example.personal_studio.feature.timeline.vm.TodayView
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
+import com.example.personal_studio.ui.components.TgConfirmDialog
 import com.example.personal_studio.ui.components.TgSegmented
 import com.example.personal_studio.ui.shell.InShellOverlay
 import com.example.personal_studio.ui.shell.LocalShellToast
@@ -411,7 +411,7 @@ private fun DetailSheet(
             ItemDetailContent(item = item, now = ui.now, zone = zone, actions = actions)
         }
         if (confirmDelete) {
-            TerminalConfirmDialog(
+            TgConfirmDialog(
                 title = if (item.type == TimelineType.COURSE) "删除这次课？" else "删除这一项？",
                 message = if (item.type == TimelineType.COURSE) "只删除 ${dateLabel(item, zone)} 这一次，其他周次不变。"
                 else "“${item.title}”会从日程中移除，提醒也会一并取消。",

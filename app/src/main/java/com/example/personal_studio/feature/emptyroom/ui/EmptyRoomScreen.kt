@@ -56,7 +56,7 @@ import com.example.personal_studio.feature.emptyroom.EmptyRoomViewModel
 import com.example.personal_studio.feature.timeline.today.TodayText
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgChip
 import com.example.personal_studio.ui.components.TgGroupLabel
@@ -99,7 +99,7 @@ fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomVi
     val freeNow = if (current == null) null else rooms.count { current !in it.busyPeriods }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "空教室", subtitle = "空教室\n按校区、教学楼和节次查询", onBack = onBack)
+        TgTopBar(route = "空教室", subtitle = "空教室\n按校区、教学楼和节次查询", onBack = onBack)
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth().navigationBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 32.dp),

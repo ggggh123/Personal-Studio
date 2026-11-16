@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalInputDialog
+import com.example.personal_studio.ui.components.TgInputDialog
 import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.ui.theme.TgMotion
@@ -82,8 +82,8 @@ import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgTopBar
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyGridState
 import java.io.File
@@ -196,7 +196,7 @@ fun ScanDocumentDetailScreen(
     }
 
     deletePageTarget?.let { pid ->
-        TerminalConfirmDialog(
+        TgConfirmDialog(
             title = "删除此页",
             message = "图片文件将被移除，此操作不可撤销。",
             confirmLabel = "删除",
@@ -223,7 +223,7 @@ private fun EditorView(
     val c = Tg.colors
     var renaming by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TerminalTopBar(
+        TgTopBar(
             route = "scans/$title",
             subtitle = "$title\n${pages.size} 页" + (createdAt?.let { " · ${formatTs(it)}" } ?: ""),
             onBack = onBack,
@@ -259,7 +259,7 @@ private fun EditorView(
         }
     }
     if (renaming) {
-        TerminalInputDialog(
+        TgInputDialog(
             title = "重命名文档",
             initial = title,
             onConfirm = { onRename(it); renaming = false },

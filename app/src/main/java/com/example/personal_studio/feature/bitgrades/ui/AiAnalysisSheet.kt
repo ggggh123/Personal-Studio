@@ -3,33 +3,31 @@ package com.example.personal_studio.feature.bitgrades.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.personal_studio.feature.timeline.today.TodayText
+import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.components.MarkdownText
-import com.example.personal_studio.ui.components.TerminalBottomSheet
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TgBottomSheet
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.theme.Tg
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * AI 学情报告: the model's reading of the grade book, streamed in; when it is done, ask a
+ * follow-up in 问答 or generate again. A cached report says when it was made.
+ */
 @Composable
 fun AiAnalysisSheet(
     text: String,
@@ -41,65 +39,37 @@ fun AiAnalysisSheet(
     onRegenerate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    TerminalBottomSheet(onDismiss = onDismiss, showHandle = true) {
+    val c = Tg.colors
+    TgBottomSheet(onDismiss = onDismiss, header = "AI 学情报告") {
         Column(Modifier.fillMaxWidth()) {
-            // 标题行 + 时间戳
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("AI 学情", color = Phosphor, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.weight(1f))
-                if (generatedAt != null && !analyzing) {
-                    Text(
-                        (if (fromCache) "上次生成于 " else "生成于 ") + relTime(generatedAt),
-                        color = FoamMute, style = MaterialTheme.typography.labelMedium,
-                    )
-                }
+            if (generatedAt != null && !analyzing) {
+                Text(
+                    (if (fromCache) "上次生成于 " else "生成于 ") + TodayText.ago(generatedAt, System.currentTimeMillis()),
+                    style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(bottom = 10.dp),
+                )
             }
-            Spacer(Modifier.height(8.dp))
             error?.let {
-                Text(it, color = Carmine, style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(6.dp))
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = c.error, modifier = Modifier.padding(bottom = 10.dp))
             }
             if (text.isBlank()) {
-                Text(
-                    if (analyzing) "分析中..." else "",
-                    color = FoamMute, style = MaterialTheme.typography.bodyMedium,
-                )
+                if (analyzing) {
+                    Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("正在读你的成绩", style = MaterialTheme.typography.bodyLarge, color = c.textSecondary)
+                        BlinkingCursor()
+                    }
+                }
             } else {
-                Column(
-                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-                ) {
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
                     MarkdownText(text = text)
+                    if (analyzing) BlinkingCursor(Modifier.padding(top = 6.dp))
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            // 底部按钮区:有内容且不在分析 → 显示「重新生成」+「在聊天里追问」
             if (!analyzing && text.isNotBlank()) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onRegenerate,
-                        Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
-                    ) { Text("↻ 重新生成", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
-                    Button(
-                        onAskInChat,
-                        Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
-                    ) { Text("去聊天追问 →", maxLines = 1, style = MaterialTheme.typography.labelMedium) }
+                Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TgPillButton("重新生成", onClick = onRegenerate, icon = Icons.Outlined.Refresh, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
+                    TgPillButton("去问答追问", onClick = onAskInChat, icon = Icons.Outlined.ChatBubbleOutline, modifier = Modifier.weight(1f))
                 }
             }
         }
-    }
-}
-
-/** 相对时间:刚刚 / N 分钟前 / N 小时前 / N 天前 / yyyy-MM-dd HH:mm。 */
-private fun relTime(t: Long): String {
-    val diff = System.currentTimeMillis() - t
-    val min = diff / 60_000
-    return when {
-        min < 1 -> "刚刚"
-        min < 60 -> "${min}分钟前"
-        min < 24 * 60 -> "${min / 60}小时前"
-        min < 7 * 24 * 60 -> "${min / (24 * 60)}天前"
-        else -> SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date(t))
     }
 }

@@ -21,10 +21,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.components.TerminalBottomSheet
-import com.example.personal_studio.ui.theme.Cyan
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
+import com.example.personal_studio.ui.components.TgBottomSheet
 import java.io.File
 import java.io.FileOutputStream
 
@@ -62,7 +59,7 @@ fun AttachmentSheet(
         onDismiss()
     }
 
-    TerminalBottomSheet(onDismiss = onDismiss, header = "添加图片") {
+    TgBottomSheet(onDismiss = onDismiss, header = "添加图片") {
         com.example.personal_studio.ui.components.SheetAction(
             label = "从相册选取",
             hint = "选好后可以裁剪",

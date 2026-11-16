@@ -56,10 +56,10 @@ import com.example.personal_studio.feature.knowledge.vm.KbSourceLink
 import com.example.personal_studio.feature.knowledge.vm.KbSourceTarget
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.SheetAction
-import com.example.personal_studio.ui.components.TerminalBottomSheet
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalInputDialog
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgBottomSheet
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgInputDialog
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgBusyOverlay
 import com.example.personal_studio.ui.components.TgEmptyState
 import com.example.personal_studio.ui.shell.LocalShellToast
@@ -106,7 +106,7 @@ fun KbEntryDetailScreen(
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            TerminalTopBar(
+            TgTopBar(
                 route = "知识条目",
                 subtitle = entry?.let { it.title + "\n" + KbText.detailCaption(it) },
                 onBack = onBack,
@@ -134,7 +134,7 @@ fun KbEntryDetailScreen(
         }
 
         if (showMenu && entry != null) {
-            TerminalBottomSheet(onDismiss = { showMenu = false }, header = entry.title) {
+            TgBottomSheet(onDismiss = { showMenu = false }, header = entry.title) {
                 SheetAction("重命名", icon = Icons.Outlined.DriveFileRenameOutline, onClick = { showMenu = false; showRename = true })
                 SheetAction("更改分类", icon = Icons.Outlined.FolderOpen, hint = entry.categoryName ?: "未分类",
                     onClick = { showMenu = false; showCategorySheet = true })
@@ -145,7 +145,7 @@ fun KbEntryDetailScreen(
             }
         }
         if (showRename && entry != null) {
-            TerminalInputDialog(
+            TgInputDialog(
                 title = "重命名条目",
                 initial = entry.title,
                 onConfirm = { busyLabel = "正在保存"; vm.rename(it); showRename = false },
@@ -167,7 +167,7 @@ fun KbEntryDetailScreen(
             )
         }
         if (showDeleteConfirm && entry != null) {
-            TerminalConfirmDialog(
+            TgConfirmDialog(
                 title = "删除这个条目？",
                 message = "“${entry.title}”和随它保存的图片会一并删除，无法恢复。原对话和扫描文档不受影响。",
                 confirmLabel = "删除",
@@ -176,7 +176,7 @@ fun KbEntryDetailScreen(
             )
         }
         if (showRegenerateConfirm) {
-            TerminalConfirmDialog(
+            TgConfirmDialog(
                 title = "重新生成摘要？",
                 message = "会再调用一次模型，用新的结果覆盖摘要" + (if (entry?.isMistake == true) "和题目" else "") + "；标题和分类不变。",
                 confirmLabel = "重新生成",

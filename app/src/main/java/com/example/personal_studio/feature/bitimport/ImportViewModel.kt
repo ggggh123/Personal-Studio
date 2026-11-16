@@ -161,7 +161,7 @@ class ImportViewModel @Inject constructor(
         // 凭据持久化(用生效 mode)已移到 onLogin 的 onModeSucceeded 回调,这里只切状态。
         is ImportStep.Done -> st.copy(writing = false, done = true)
         // 取消 = 退出向导(复用 done→onClose 回上级)。不要回 Credentials —— 对已登录用户
-        // 它渲染成 TerminalSplash,且推进逻辑只在 LaunchedEffect(Unit) 跑一次,会卡死在裸 logo。
+        // 它只显示等待画面,且推进逻辑只在 LaunchedEffect(Unit) 跑一次,会一直停在等待。
         is ImportStep.Cancelled -> st.copy(done = true)
         is ImportStep.Failed -> {
             if (step.err is ImportError.WrongCredentials || step.err is ImportError.AccountLocked) {

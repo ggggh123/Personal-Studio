@@ -69,7 +69,7 @@ class ImportViewModelTest {
     }
 
     /** 取消导入必须「退出向导」(done=true 触发 onClose 回上级),而不是把已登录用户
-     *  送回 Credentials 屏 —— 那对已登录用户渲染成 TerminalSplash,会卡死在裸 logo。 */
+     *  送回 Credentials 屏 —— 那对已登录用户只显示等待画面,会一直停在等待。 */
     @Test fun `cancel exits wizard via done flag, not back to Credentials splash`() = runTest {
         val importUseCase = mockk<ImportCoursesUseCase>(relaxed = true) {
             every { importAuto(any(), any(), any()) } returns

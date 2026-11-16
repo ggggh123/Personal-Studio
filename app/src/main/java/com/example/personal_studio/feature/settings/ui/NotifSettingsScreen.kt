@@ -52,7 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.NotifSettingsViewModel
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgGroupLabel
 import com.example.personal_studio.ui.components.TgPillButton
@@ -93,7 +93,7 @@ fun NotifSettingsScreen(
     val appNotifSettings = { open(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName)) }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "通知与提醒", subtitle = "通知与提醒\n提醒什么、什么时候提醒", onBack = onBack)
+        TgTopBar(route = "通知与提醒", subtitle = "通知与提醒\n提醒什么、什么时候提醒", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)

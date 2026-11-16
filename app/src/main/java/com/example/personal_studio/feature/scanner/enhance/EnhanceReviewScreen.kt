@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.scanner.enhance
 
+import com.example.personal_studio.ui.theme.Tg
 import androidx.compose.material.icons.outlined.RotateRight
 import android.graphics.PointF
 import androidx.compose.foundation.Image
@@ -37,10 +38,6 @@ import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
 
 @Composable
 fun EnhanceReviewScreen(
@@ -68,7 +65,7 @@ fun EnhanceReviewScreen(
         state.currentFilter to state.rotationQuarters
     }
 
-    Column(Modifier.fillMaxSize().background(Void)) {
+    Column(Modifier.fillMaxSize().background(Tg.colors.bg)) {
         Box(
             Modifier
                 .weight(1f)

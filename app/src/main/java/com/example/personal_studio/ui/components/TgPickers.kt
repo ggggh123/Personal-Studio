@@ -90,7 +90,7 @@ fun TgTimePickerDialog(
 ) {
     val c = Tg.colors
     val state = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = true)
-    TerminalDialog(onDismiss = onDismiss, title = title) {
+    TgDialog(onDismiss = onDismiss, title = title) {
         Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
             TimePicker(
                 state = state,

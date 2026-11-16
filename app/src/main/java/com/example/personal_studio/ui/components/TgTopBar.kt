@@ -29,13 +29,13 @@ import com.example.personal_studio.ui.theme.Tg
  * Header for pages below the tabs (天光 sub-screen bar): a back arrow when [onBack] is set,
  * a serif title, an optional caption line, the [trailing] actions, and an inset hairline.
  *
- * The signature is kept from the old terminal bar so callers did not need to change: the
- * first line of [subtitle] is the title (a leading `#` is dropped), further lines join into
- * the caption, and [route] is the title only when there is no subtitle. Status-bar padding
- * is applied here, so screens using this bar should not add their own.
+ * [subtitle] carries the title on its first line (a leading `#` is dropped) and the caption
+ * on the following lines, joined with " · "; [route] is the title when there is no
+ * subtitle. Status-bar padding is applied here, so screens using this bar should not add
+ * their own.
  */
 @Composable
-fun TerminalTopBar(
+fun TgTopBar(
     route: String,
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,

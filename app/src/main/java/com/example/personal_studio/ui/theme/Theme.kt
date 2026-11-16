@@ -192,6 +192,20 @@ fun DarkCanvas(enabled: Boolean = true, content: @Composable () -> Unit) {
     }
 }
 
+/**
+ * The fixed 正午 paper palette, for content that must look the same at any hour, such as
+ * the grades share card that is exported as an image. Does not touch the status bar.
+ */
+@Composable
+fun PaperCanvas(content: @Composable () -> Unit) {
+    val colors = DaylightPalette.Noon
+    CompositionLocalProvider(LocalTgColors provides colors) {
+        MaterialTheme(colorScheme = colors.toColorScheme(), typography = TgTypography, shapes = TgShapes) {
+            CompositionLocalProvider(LocalContentColor provides colors.text, content = content)
+        }
+    }
+}
+
 /** Debug moments relative to today's sun, matching the design canvas. */
 private fun hourOf(moment: DebugMoment, sun: SunDay): Double = when (moment) {
     DebugMoment.DAWN -> sun.sunrise + 0.33

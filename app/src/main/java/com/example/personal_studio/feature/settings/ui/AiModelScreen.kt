@@ -41,8 +41,8 @@ import com.example.personal_studio.feature.settings.vm.TestConnectionState
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.BlinkingCursor
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgGroupLabel
 import com.example.personal_studio.ui.components.TgPillButton
@@ -70,7 +70,7 @@ fun AiModelScreen(
     var showWarning by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "AI 模型", subtitle = "AI 模型\n问答、整理知识和学情报告使用", onBack = onBack)
+        TgTopBar(route = "AI 模型", subtitle = "AI 模型\n问答、整理知识和学情报告使用", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)
@@ -121,7 +121,7 @@ fun AiModelScreen(
     }
 
     if (showWarning) {
-        TerminalConfirmDialog(
+        TgConfirmDialog(
             title = "自定义接口",
             message = "适合已经熟悉通过 API 调用大模型的用户。填错地址或密钥会让问答和整理知识无法使用，随时可以回到这里选回内置模型。",
             confirmLabel = "继续",

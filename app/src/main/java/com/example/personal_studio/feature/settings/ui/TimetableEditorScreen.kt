@@ -40,8 +40,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.TimetableEditorViewModel
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.components.TgTimePickerDialog
 import com.example.personal_studio.ui.shell.LocalShellToast
@@ -63,7 +63,7 @@ fun TimetableEditorScreen(
     var editing by remember { mutableStateOf<Pair<Int, Boolean>?>(null) } // (period index, isStart)
 
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TerminalTopBar(route = "作息表", subtitle = "作息表\n${ui.periods.size} 节 · 点时间修改", onBack = onBack)
+        TgTopBar(route = "作息表", subtitle = "作息表\n${ui.periods.size} 节 · 点时间修改", onBack = onBack)
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp),
@@ -141,7 +141,7 @@ fun TimetableEditorScreen(
         }
     }
     if (ui.confirmDialogVisible) {
-        TerminalConfirmDialog(
+        TgConfirmDialog(
             title = "更新作息表？",
             message = "所有未来课程会按新的时间调整，提醒也会重新安排。",
             confirmLabel = "更新",

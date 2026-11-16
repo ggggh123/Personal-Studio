@@ -41,7 +41,7 @@ import com.example.personal_studio.domain.model.CourseSeriesSummary
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.feature.timeline.today.pressScale
 import com.example.personal_studio.feature.timeline.vm.CourseSeriesListViewModel
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgEmptyState
 import com.example.personal_studio.ui.components.TgGroupLabel
 import com.example.personal_studio.ui.theme.Tg
@@ -61,7 +61,7 @@ fun CourseSeriesListScreen(
 ) {
     val series by vm.series.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "课程管理", subtitle = "课程管理\n${series.size} 门课程", onBack = onBack)
+        TgTopBar(route = "课程管理", subtitle = "课程管理\n${series.size} 门课程", onBack = onBack)
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth().navigationBarsPadding(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),

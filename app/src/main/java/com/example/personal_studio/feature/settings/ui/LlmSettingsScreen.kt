@@ -26,7 +26,7 @@ import com.example.personal_studio.feature.settings.vm.SettingsViewModel
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.KeyboardHandledByInsets
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgGroupLabel
 import com.example.personal_studio.ui.components.TgPillButton
@@ -50,7 +50,7 @@ fun LlmSettingsScreen(
     KeyboardHandledByInsets()
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        TerminalTopBar(route = "自定义接口", subtitle = "自定义接口\nOpenAI 兼容格式，留空的项使用内置值", onBack = onBack)
+        TgTopBar(route = "自定义接口", subtitle = "自定义接口\nOpenAI 兼容格式，留空的项使用内置值", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)

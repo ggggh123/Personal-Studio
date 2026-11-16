@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.chat.ui
 
+import com.example.personal_studio.ui.theme.Tg
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import androidx.compose.foundation.Image
@@ -39,11 +40,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
 import com.example.personal_studio.ui.theme.DarkCanvas
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
 
 private enum class Corner { TL, TR, BL, BR, NONE }
 
@@ -68,7 +65,7 @@ fun ImageCropOverlay(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         DarkCanvas {
-        Box(Modifier.fillMaxSize().background(Void)) {
+        Box(Modifier.fillMaxSize().background(Tg.colors.bg)) {
             // Display copy sampled to ~2000 px (camera photos can exceed what a canvas may draw);
             // crop maths below maps back to the original pixel width.
             val decoded = remember(imagePath) {
@@ -81,7 +78,7 @@ fun ImageCropOverlay(
             val originalWidth = decoded?.second ?: 0
             if (bitmap == null) {
                 Text(
-                    "无法解码图片", color = Foam,
+                    "无法解码图片", color = Tg.colors.text,
                     modifier = Modifier.align(Alignment.Center),
                 )
                 return@DarkCanvas
@@ -207,7 +204,7 @@ fun ImageCropOverlay(
 
             // Bottom action bar
             Column(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Void),
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Tg.colors.bg),
             ) {
                 Text(
                     "拖动四角，只留下题目部分",

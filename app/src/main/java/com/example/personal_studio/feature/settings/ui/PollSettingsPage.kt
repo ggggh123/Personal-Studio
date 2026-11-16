@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.example.personal_studio.data.local.datastore.PollResult
 import com.example.personal_studio.feature.profile.ui.describeTime
 import com.example.personal_studio.feature.timeline.today.enterUp
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgChip
 import com.example.personal_studio.ui.components.TgGroupLabel
@@ -61,7 +61,7 @@ internal fun PollSettingsPage(
     val c = Tg.colors
     val now = System.currentTimeMillis()
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = title, subtitle = "$title\n后台检查", onBack = onBack)
+        TgTopBar(route = title, subtitle = "$title\n后台检查", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)

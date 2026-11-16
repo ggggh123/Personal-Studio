@@ -27,7 +27,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.domain.model.KbCategory
-import com.example.personal_studio.ui.components.TerminalBottomSheet
+import com.example.personal_studio.ui.components.TgBottomSheet
 import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.components.TgTextField
 import com.example.personal_studio.ui.theme.Tg
@@ -56,7 +56,7 @@ fun CategoryPickerSheet(
             onDismiss()
         }
     }
-    TerminalBottomSheet(onDismiss = onDismiss, header = "选择分类") {
+    TgBottomSheet(onDismiss = onDismiss, header = "选择分类") {
         categories.forEach { cat ->
             val sel = cat.id == selectedId
             Row(

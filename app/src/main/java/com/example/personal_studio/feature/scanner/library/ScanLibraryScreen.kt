@@ -46,9 +46,9 @@ import com.example.personal_studio.domain.model.SortMode
 import com.example.personal_studio.feature.chat.ui.ChatListGrouping
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.SheetAction
-import com.example.personal_studio.ui.components.TerminalBottomSheet
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalInputDialog
+import com.example.personal_studio.ui.components.TgBottomSheet
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgInputDialog
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgEmptyState
 import com.example.personal_studio.ui.theme.Tg
@@ -137,7 +137,7 @@ fun ScanLibraryScreen(
     }
 
     if (showSort) {
-        TerminalBottomSheet(onDismiss = { showSort = false }, header = "排序") {
+        TgBottomSheet(onDismiss = { showSort = false }, header = "排序") {
             ScanSorts.forEach { (mode, label) ->
                 Row(
                     Modifier
@@ -156,13 +156,13 @@ fun ScanLibraryScreen(
         }
     }
     actionTarget?.let { doc ->
-        TerminalBottomSheet(onDismiss = { actionTarget = null }, header = doc.title) {
+        TgBottomSheet(onDismiss = { actionTarget = null }, header = doc.title) {
             SheetAction("重命名", icon = Icons.Outlined.DriveFileRenameOutline, onClick = { actionTarget = null; renameTarget = doc })
             SheetAction("删除文档", icon = Icons.Outlined.DeleteOutline, destructive = true, onClick = { actionTarget = null; deleteTarget = doc })
         }
     }
     renameTarget?.let { doc ->
-        TerminalInputDialog(
+        TgInputDialog(
             title = "重命名文档",
             initial = doc.title,
             onConfirm = { newTitle -> renameTarget = null; vm.onRename(doc.id, newTitle) },
@@ -170,7 +170,7 @@ fun ScanLibraryScreen(
         )
     }
     deleteTarget?.let { doc ->
-        TerminalConfirmDialog(
+        TgConfirmDialog(
             title = "删除这份文档？",
             message = "“${doc.title}”的 ${doc.pageCount} 页会一并删除，无法恢复。已存入知识库的条目不受影响。",
             confirmLabel = "删除",

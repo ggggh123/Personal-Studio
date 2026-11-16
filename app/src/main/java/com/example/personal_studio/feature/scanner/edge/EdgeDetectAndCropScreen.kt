@@ -1,5 +1,6 @@
 package com.example.personal_studio.feature.scanner.edge
 
+import com.example.personal_studio.ui.theme.Tg
 import android.graphics.PointF
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,10 +38,6 @@ import com.example.personal_studio.ui.components.CornerDragOverlay
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
 
 @Composable
 fun EdgeDetectAndCropScreen(
@@ -83,7 +80,7 @@ fun EdgeDetectAndCropScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Void)) {
+    Column(Modifier.fillMaxSize().background(Tg.colors.bg)) {
         Box(
             Modifier
                 .weight(1f)

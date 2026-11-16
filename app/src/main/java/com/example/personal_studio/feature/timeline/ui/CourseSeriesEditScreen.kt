@@ -35,8 +35,8 @@ import com.example.personal_studio.feature.timeline.vm.CourseSeriesEditViewModel
 import com.example.personal_studio.ui.components.KeyboardHandledByInsets
 import com.example.personal_studio.ui.components.PillStyle
 import com.example.personal_studio.ui.components.SheetAction
-import com.example.personal_studio.ui.components.TerminalBottomSheet
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgBottomSheet
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.components.TgTextField
@@ -70,7 +70,7 @@ fun CourseSeriesEditScreen(
     }
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        TerminalTopBar(
+        TgTopBar(
             route = "课程",
             subtitle = ui.title.ifBlank { "课程" } + "\n${ui.occurrenceCount} 次课 · 第 ${ui.minWeek}–${ui.maxWeek} 周",
             onBack = onBack,
@@ -111,7 +111,7 @@ fun CourseSeriesEditScreen(
     }
 
     if (ui.deleteDialogVisible) {
-        TerminalBottomSheet(onDismiss = vm::closeDeleteDialog, header = "删除「${ui.title}」？") {
+        TgBottomSheet(onDismiss = vm::closeDeleteDialog, header = "删除「${ui.title}」？") {
             SheetAction(
                 "只删除以后的课", icon = Icons.Outlined.EventBusy, hint = "已经上过的课留在记录里",
                 onClick = { vm.closeDeleteDialog(); vm.confirmDelete(DeleteCourseSeriesUseCase.Scope.FUTURE_ONLY) },

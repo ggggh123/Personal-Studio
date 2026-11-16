@@ -39,7 +39,7 @@ import com.example.personal_studio.feature.timeline.ui.components.ValueBox
 import com.example.personal_studio.feature.timeline.vm.AddTaskEvent
 import com.example.personal_studio.feature.timeline.vm.AddTaskViewModel
 import com.example.personal_studio.ui.components.KeyboardHandledByInsets
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgDatePickerDialog
 import com.example.personal_studio.ui.components.TgPillButton
@@ -106,7 +106,7 @@ fun AddTaskScreen(
     fun setEnd(epoch: Long) { endTouched = true; vm.onEndChange(epoch) }
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        TerminalTopBar(route = "新建", subtitle = if (isTask) "新建待办\n到截止时间前会提醒你" else "新建日程\n开始前 30 分钟提醒", onBack = onBack)
+        TgTopBar(route = "新建", subtitle = if (isTask) "新建待办\n到截止时间前会提醒你" else "新建日程\n开始前 30 分钟提醒", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)

@@ -40,9 +40,9 @@ Room schema 快照在 [`app/schemas`](../app/schemas)，表关系以 Entity／DA
 
 ## 界面约定
 
-界面正在从 Terminal 主题迁移到“天光”主题：配色随北京的真实太阳高度变化，白天为纸本浅色、夜里为灯下深色，深浅只在拂晓和日落后、且在回到前台或切换页面时切换。令牌、动效与迁移进度见 [界面改版](ui-redesign.md)；实现入口为 [`ui/theme`](../app/src/main/java/com/example/personal_studio/ui/theme)，新界面通过 `Tg.colors` 取色。
+界面使用“天光”主题：配色随北京的真实太阳高度变化，白天为纸本浅色、夜里为灯下深色，深浅只在拂晓和日落后、且在回到前台或切换页面时切换。令牌、动效与各页设计见 [界面改版](ui-redesign.md)；实现入口为 [`ui/theme`](../app/src/main/java/com/example/personal_studio/ui/theme)，所有界面通过 `Tg.colors` 取色、`TgMotion` 取动效，不写固定色值。
 
-迁移期间，旧页面中的 `Phosphor`、`Foam` 等颜色名只是读取天光令牌的过渡别名，新代码不要再使用；`ui/components` 里的 Terminal 组件仍在使用，会随各页改版被替换。相机、裁边、增强预览和图片裁切始终使用深色（`DarkCanvas`），外部学校页面保留网页自身样式。交互文案以中文为主；路由、模型代号等技术值保留原样。
+公共组件在 [`ui/components`](../app/src/main/java/com/example/personal_studio/ui/components)：子页面标题栏 `TgTopBar`，对话框 `TgDialog` / `TgConfirmDialog` / `TgInputDialog`，底部面板 `TgBottomSheet` 与 `SheetAction`，按钮 `TgPillButton`，开关 `TgSwitch`，分段 `TgSegmented`，以及 [`TgKit`](../app/src/main/java/com/example/personal_studio/ui/components/TgKit.kt) 里的卡片、筛选胶囊、输入框、设置行、空态和处理中遮罩，[`TgPickers`](../app/src/main/java/com/example/personal_studio/ui/components/TgPickers.kt) 里的日期与时钟对话框。有输入框的整页调用 `KeyboardHandledByInsets` 并自己 `imePadding`。相机、裁边、增强预览和图片裁切始终使用深色（`DarkCanvas`）；导出为图片的成绩分享卡固定使用正午纸面配色（`PaperCanvas`）；外部学校页面保留网页自身样式。交互文案以中文为主；路由、模型代号等技术值保留原样。
 
 ## 验证入口
 

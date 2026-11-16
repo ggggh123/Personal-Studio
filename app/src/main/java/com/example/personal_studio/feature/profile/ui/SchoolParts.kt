@@ -26,7 +26,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.feature.timeline.today.TodayText
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.theme.Tg
 import java.time.Instant
 import java.time.LocalDate
@@ -91,7 +91,7 @@ fun SchoolHeader(
     val spin = rememberInfiniteTransition(label = "sync")
     val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart), label = "syncAngle")
     Column(Modifier.fillMaxWidth()) {
-        TerminalTopBar(
+        TgTopBar(
             route = title, subtitle = "$title\n$caption", onBack = onBack,
             trailing = {
                 IconButton(onClick = onSync, enabled = !syncing) {

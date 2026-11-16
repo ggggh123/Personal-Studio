@@ -42,15 +42,10 @@ import com.example.personal_studio.feature.scanner.camera.CameraCaptureScreen
 import com.example.personal_studio.feature.scanner.edge.EdgeDetectAndCropScreen
 import com.example.personal_studio.feature.scanner.enhance.EnhanceReviewScreen
 import com.example.personal_studio.feature.scanner.scanFilterLabel
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.rememberZoomableBoxState
 import com.example.personal_studio.ui.components.zoomTransform
 import com.example.personal_studio.ui.components.zoomable
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
 import java.io.File
 
 /**
@@ -180,7 +175,7 @@ private fun ReviewView(
     }
 
     Column(Modifier.fillMaxSize().background(c.bg)) {
-        TerminalTopBar(
+        TgTopBar(
             route = "scans/edit",
             subtitle = state.page?.let { "第 ${it.ordinal + 1} 页\n${scanFilterLabel(state.currentFilter)}" },
             onBack = onCancel,
@@ -226,7 +221,7 @@ private fun ReviewView(
         )
     }
     if (confirmDelete) {
-        com.example.personal_studio.ui.components.TerminalConfirmDialog(
+        com.example.personal_studio.ui.components.TgConfirmDialog(
             title = "删除这一页？",
             message = "这页的原图和处理后的图片都会被删除，其余页面会顺移。",
             confirmLabel = "删除",

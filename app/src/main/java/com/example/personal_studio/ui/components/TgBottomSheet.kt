@@ -32,11 +32,11 @@ import com.example.personal_studio.ui.theme.Tg
 
 /**
  * Bottom sheet in the 天光 style: raised surface, 28 dp top corners, a short handle and an
- * optional serif header. (Historical name kept; used by screens not yet redesigned too.)
+ * optional serif header.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TerminalBottomSheet(
+fun TgBottomSheet(
     onDismiss: () -> Unit,
     header: String? = null,
     showHandle: Boolean = true,

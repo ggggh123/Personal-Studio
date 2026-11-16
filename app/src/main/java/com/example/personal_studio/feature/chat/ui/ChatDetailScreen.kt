@@ -46,7 +46,7 @@ import com.example.personal_studio.feature.knowledge.vm.SaveToKnowledgeViewModel
 import com.example.personal_studio.feature.scanner.chat.QuickCaptureForChatScreen
 import com.example.personal_studio.feature.scanner.library.ScanLibraryPickerScreen
 import com.example.personal_studio.ui.components.MathMarkdownView
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TypewriterText
 import com.example.personal_studio.ui.shell.LocalShellToast
 import com.example.personal_studio.ui.theme.Tg
@@ -106,7 +106,7 @@ fun ChatDetailScreen(
     com.example.personal_studio.ui.components.KeyboardHandledByInsets()
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        TerminalTopBar(
+        TgTopBar(
             route = "chat",
             subtitle = displayTitle(state.session?.title) + "\n" + state.activeModel,
             onBack = onBack,

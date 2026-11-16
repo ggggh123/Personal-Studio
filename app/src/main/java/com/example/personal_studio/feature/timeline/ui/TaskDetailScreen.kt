@@ -26,8 +26,8 @@ import com.example.personal_studio.feature.timeline.today.ItemDetailContent
 import com.example.personal_studio.feature.timeline.vm.TaskDetailEvent
 import com.example.personal_studio.feature.timeline.vm.TaskDetailViewModel
 import com.example.personal_studio.ui.components.BlinkingCursor
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.theme.Tg
 import kotlinx.coroutines.flow.collectLatest
 import java.time.ZoneId
@@ -52,7 +52,7 @@ fun TaskDetailScreen(
     var confirmDelete by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "detail", subtitle = "事项详情", onBack = onBack)
+        TgTopBar(route = "detail", subtitle = "事项详情", onBack = onBack)
         if (ui.loading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { BlinkingCursor() }
             return@Column
@@ -86,7 +86,7 @@ fun TaskDetailScreen(
                 .padding(start = 22.dp, end = 22.dp, top = 16.dp, bottom = 28.dp),
         )
         if (confirmDelete) {
-            TerminalConfirmDialog(
+            TgConfirmDialog(
                 title = if (item.type == TimelineType.COURSE) "删除这次课？" else "删除这一项？",
                 message = "“${item.title}”会从日程中移除，提醒也会一并取消。",
                 confirmLabel = "删除",

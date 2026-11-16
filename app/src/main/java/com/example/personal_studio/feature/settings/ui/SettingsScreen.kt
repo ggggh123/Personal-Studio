@@ -59,7 +59,7 @@ import com.example.personal_studio.feature.settings.vm.SettingsHomeViewModel
 import com.example.personal_studio.feature.timeline.ui.components.SemesterStartModal
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.feature.timeline.today.semesterWeek
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgChip
 import com.example.personal_studio.ui.components.TgGroupLabel
@@ -87,7 +87,7 @@ fun SettingsScreen(
     val today = remember { LocalDate.now(ZoneId.of("Asia/Shanghai")) }
 
     Column(Modifier.fillMaxSize()) {
-        TerminalTopBar(route = "设置", onBack = onBack)
+        TgTopBar(route = "设置", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)

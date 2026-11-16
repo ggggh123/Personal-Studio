@@ -1,5 +1,6 @@
 package com.example.personal_studio.ui.components
 
+import com.example.personal_studio.ui.theme.Tg
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -14,7 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.theme.Phosphor
 import kotlinx.coroutines.delay
 
 /**
@@ -61,7 +61,7 @@ fun TypewriterText(
         Text(text.take(visibleCount), style = style)
         if (showCursor) {
             Spacer(Modifier.width(2.dp))
-            BlinkingCursor(color = Phosphor)
+            BlinkingCursor(color = Tg.colors.accent)
         }
     }
 }

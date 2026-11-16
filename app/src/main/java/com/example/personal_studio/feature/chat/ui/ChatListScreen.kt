@@ -48,9 +48,9 @@ import com.example.personal_studio.feature.chat.vm.ChatListViewModel
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.feature.timeline.today.pressScale
 import com.example.personal_studio.ui.components.SheetAction
-import com.example.personal_studio.ui.components.TerminalBottomSheet
-import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalInputDialog
+import com.example.personal_studio.ui.components.TgBottomSheet
+import com.example.personal_studio.ui.components.TgConfirmDialog
+import com.example.personal_studio.ui.components.TgInputDialog
 import com.example.personal_studio.ui.theme.Tg
 
 /**
@@ -113,20 +113,20 @@ fun ChatListScreen(
     }
 
     menuFor?.let { s ->
-        TerminalBottomSheet(onDismiss = { menuFor = null }, header = displayTitle(s.title)) {
+        TgBottomSheet(onDismiss = { menuFor = null }, header = displayTitle(s.title)) {
             SheetAction("重命名", icon = Icons.Outlined.DriveFileRenameOutline, onClick = { renameFor = s; menuFor = null })
             SheetAction("删除对话", icon = Icons.Outlined.DeleteOutline, destructive = true, onClick = { deleteFor = s; menuFor = null })
         }
     }
     renameFor?.let { s ->
-        TerminalInputDialog(
+        TgInputDialog(
             title = "重命名对话", initial = s.title,
             onConfirm = { vm.onRename(s.id, it); renameFor = null },
             onDismiss = { renameFor = null },
         )
     }
     deleteFor?.let { s ->
-        TerminalConfirmDialog(
+        TgConfirmDialog(
             title = "删除这段对话？", message = "“${displayTitle(s.title)}”及其中的 ${s.msgCount} 条消息会被删除，已存入知识库的条目不受影响。",
             confirmLabel = "删除",
             onConfirm = { vm.onDelete(s.id); deleteFor = null },

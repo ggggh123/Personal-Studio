@@ -14,7 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.components.PillStyle
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.components.TgProgressTrack
 import com.example.personal_studio.ui.theme.TgMotion
@@ -40,7 +40,7 @@ fun WizardScaffold(
 ) {
     val progress by animateFloatAsState(stepNumber.toFloat() / totalSteps, TgMotion.gentle(), label = "wizardStep")
     Column(Modifier.fillMaxSize().navigationBarsPadding()) {
-        TerminalTopBar(route = title, subtitle = title + (caption?.let { "\n$it" } ?: ""), onBack = onBack)
+        TgTopBar(route = title, subtitle = title + (caption?.let { "\n$it" } ?: ""), onBack = onBack)
         TgProgressTrack(progress, Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
         Column(Modifier.weight(1f).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp), content = content)
         Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

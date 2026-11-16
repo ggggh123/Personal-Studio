@@ -34,7 +34,7 @@ import com.example.personal_studio.feature.timeline.ui.components.WeekdayPicker
 import com.example.personal_studio.feature.timeline.vm.AddCourseEvent
 import com.example.personal_studio.feature.timeline.vm.AddCourseViewModel
 import com.example.personal_studio.ui.components.KeyboardHandledByInsets
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgGroupLabel
 import com.example.personal_studio.ui.components.TgPillButton
@@ -75,7 +75,7 @@ fun AddCourseScreen(
     }
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        TerminalTopBar(route = "添加课程", subtitle = "添加课程\n按星期、节次和周次生成每一次课", onBack = onBack)
+        TgTopBar(route = "添加课程", subtitle = "添加课程\n按星期、节次和周次生成每一次课", onBack = onBack)
         Column(
             Modifier
                 .weight(1f)

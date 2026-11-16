@@ -36,7 +36,7 @@ import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.ScanPage
 import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
-import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.components.TgEmptyState
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.domain.model.SortMode
@@ -98,7 +98,7 @@ private fun DocList(
             .background(Tg.colors.bg)
             .navigationBarsPadding(),
     ) {
-        TerminalTopBar(route = "从扫描文档选取", subtitle = "从扫描文档选取\n选一份文档，再点一页", onBack = onCancel)
+        TgTopBar(route = "从扫描文档选取", subtitle = "从扫描文档选取\n选一份文档，再点一页", onBack = onCancel)
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
@@ -138,7 +138,7 @@ private fun PageGrid(
             .background(c.bg)
             .navigationBarsPadding(),
     ) {
-        TerminalTopBar(route = title, subtitle = "$title\n点一页加到提问里", onBack = onBack)
+        TgTopBar(route = title, subtitle = "$title\n点一页加到提问里", onBack = onBack)
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
