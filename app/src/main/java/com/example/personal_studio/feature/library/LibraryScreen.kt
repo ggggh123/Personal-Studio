@@ -23,7 +23,6 @@ import com.example.personal_studio.ui.navigation.NavRoutes
 
 /**
  * 资料: the knowledge base and the scanned documents, one tab with a segmented header.
- * Both lists keep their existing screens until batch 3 redesigns them.
  */
 @Composable
 fun LibraryScreen(

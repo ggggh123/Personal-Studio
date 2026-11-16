@@ -36,5 +36,6 @@ class ChatFormatTest {
         )
         assertEquals("ε-N 定义 说的是", ChatListGrouping.plainSnippet("**ε-N 定义** 说的是"))
         assertEquals("标题 内容", ChatListGrouping.plainSnippet("## 标题\n> 内容"))
+        assertEquals("要点 先给误差 再找 N", ChatListGrouping.plainSnippet("要点\n- 先给误差\n2. 再找 N"))
     }
 }

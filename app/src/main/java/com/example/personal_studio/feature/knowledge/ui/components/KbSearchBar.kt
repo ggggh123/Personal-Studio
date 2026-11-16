@@ -56,7 +56,6 @@ fun KbSearchBar(
     Row(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
             .heightIn(min = 48.dp)
             .background(colors.surface, shape)
             .border(1.dp, border, shape)
@@ -66,7 +65,7 @@ fun KbSearchBar(
         Icon(
             Icons.Rounded.Search,
             contentDescription = null,
-            tint = if (focused) colors.accent else colors.textTertiary,
+            tint = if (focused) colors.accent else colors.textSecondary,
             modifier = Modifier.size(20.dp),
         )
         BasicTextField(
@@ -84,7 +83,7 @@ fun KbSearchBar(
                     if (query.isEmpty()) {
                         Text(
                             "搜索标题、题目或摘要",
-                            color = colors.textTertiary,
+                            color = colors.textSecondary.copy(alpha = 0.7f),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }

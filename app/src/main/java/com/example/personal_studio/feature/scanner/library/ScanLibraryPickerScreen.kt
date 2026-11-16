@@ -13,11 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,23 +37,23 @@ import com.example.personal_studio.domain.model.ScanPage
 import com.example.personal_studio.feature.scanner.scanFilterLabel
 import com.example.personal_studio.ui.components.ScanThumbnail
 import com.example.personal_studio.ui.components.TerminalTopBar
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Rule
-import com.example.personal_studio.ui.theme.Void
+import com.example.personal_studio.ui.components.TgEmptyState
+import com.example.personal_studio.ui.theme.Tg
+import com.example.personal_studio.domain.model.SortMode
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import java.io.File
 
 /**
- * Modal scan-library variant for chat `--from-scans`. Two internal
- * states: the doc list (tap → drills in) and the selected doc's page
- * grid (tap a page → copies its cooked JPEG to chat-attachments and
- * fires [onPagePicked]).
- *
- * Reuses [ScanLibraryViewModel] so sort state and streaming are
- * identical to the main library; the no-ops for `[+ new scan]` and
- * long-press menu keep the picker focused on the pick gesture.
+ * 问答 → 附件 → 从扫描文档选取: the documents as covers (tap → its pages), then the pages
+ * (tap → the enhanced JPEG is copied to chat-attachments and handed to [onPagePicked]).
+ * Reuses [ScanLibraryViewModel], without the new-scan card and the long-press menu.
  */
 @Composable
 fun ScanLibraryPickerScreen(
@@ -77,6 +75,7 @@ fun ScanLibraryPickerScreen(
     } else {
         PageGrid(
             docId = current,
+            title = state.docs.firstOrNull { it.id == current }?.title ?: "选择页面",
             onTapPage = { page ->
                 val path = copyCookedToChat(context, page)
                 if (path != null) onPagePicked(path)
@@ -92,64 +91,29 @@ private fun DocList(
     onTapDoc: (ScanDocumentSummary) -> Unit,
     onCancel: () -> Unit,
 ) {
+    val now = remember { System.currentTimeMillis() }
     Column(
         Modifier
             .fillMaxSize()
-            .background(Void)
+            .background(Tg.colors.bg)
             .navigationBarsPadding(),
     ) {
-        TerminalTopBar(
-            route = "scans/pick",
-            subtitle = "# 选一个文档，再选一页",
-            trailing = {
-                Text(
-                    "取消",
-                    color = Carmine,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .clickable(onClick = onCancel),
-                )
-            },
-        )
-        LazyColumn(
+        TerminalTopBar(route = "从扫描文档选取", subtitle = "从扫描文档选取\n选一份文档，再点一页", onBack = onCancel)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            items(docs, key = { it.id }) { doc ->
-                PickerDocRow(doc = doc, onClick = { onTapDoc(doc) })
-                Spacer(
-                    Modifier.fillMaxWidth().height(1.dp).background(Rule),
-                )
+            if (docs.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    TgEmptyState("还没有扫描文档", "在 资料 → 扫描文档 里新建扫描后，就能从这里选取页面。")
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun PickerDocRow(doc: ScanDocumentSummary, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ScanThumbnail(path = doc.coverPath)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Foam)) { append(doc.title) }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "${doc.pageCount} 页",
-                style = MaterialTheme.typography.bodySmall,
-                color = FoamDim,
-            )
+            items(docs, key = { it.id }) { doc ->
+                ScanDocCover(doc = doc, meta = scanDocMeta(doc, SortMode.TIME_DESC, now), onClick = { onTapDoc(doc) })
+            }
         }
     }
 }
@@ -157,9 +121,11 @@ private fun PickerDocRow(doc: ScanDocumentSummary, onClick: () -> Unit) {
 @Composable
 private fun PageGrid(
     docId: Long,
+    title: String,
     onTapPage: (ScanPage) -> Unit,
     onBack: () -> Unit,
 ) {
+    val c = Tg.colors
     val pagerVm: ScanPagePickerViewModel = hiltViewModel(
         key = "picker-$docId",
         creationCallback = { f: ScanPagePickerViewModel.Factory -> f.create(docId) },
@@ -169,36 +135,41 @@ private fun PageGrid(
     Column(
         Modifier
             .fillMaxSize()
-            .background(Void)
+            .background(c.bg)
             .navigationBarsPadding(),
     ) {
-        TerminalTopBar(
-            route = "scans/pick/$docId",
-            subtitle = "# 点一页以附加",
-            onBack = onBack,
-        )
+        TerminalTopBar(route = title, subtitle = "$title\n点一页加到提问里", onBack = onBack)
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             items(pages, key = { it.id }) { page ->
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable { onTapPage(page) },
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClickLabel = "选取第 ${page.ordinal + 1} 页") { onTapPage(page) },
                 ) {
-                    ScanThumbnail(
-                        path = page.enhancedImagePath,
-                        width = 140.dp,
-                        height = 180.dp,
-                    )
-                    Spacer(Modifier.height(4.dp))
+                    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(0.74f)) {
+                        ScanThumbnail(path = page.enhancedImagePath, width = maxWidth, height = maxHeight, corner = 12.dp)
+                        Box(
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(8.dp)
+                                .size(26.dp)
+                                .background(c.text, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("${page.ordinal + 1}", style = MaterialTheme.typography.labelSmall, color = c.bg)
+                        }
+                    }
                     Text(
-                        "p.${page.ordinal + 1} · ${scanFilterLabel(page.filter)}",
+                        scanFilterLabel(page.filter),
                         style = MaterialTheme.typography.bodySmall,
-                        color = FoamMute,
+                        color = c.textSecondary,
+                        modifier = Modifier.padding(top = 6.dp, start = 2.dp),
                     )
                 }
             }

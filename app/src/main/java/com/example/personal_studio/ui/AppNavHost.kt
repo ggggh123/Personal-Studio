@@ -131,17 +131,12 @@ fun AppNavHost(
             val id = backStack.arguments?.getLong("entryId") ?: return@composable
             com.example.personal_studio.feature.knowledge.ui.KbEntryDetailScreen(
                 onBack = { navController.popBackStack() },
-                onOpenSource = { entry ->
-                    when (entry.source) {
-                        com.example.personal_studio.domain.model.KbSource.CHAT_MESSAGE,
-                        com.example.personal_studio.domain.model.KbSource.CHAT_SESSION ->
-                            entry.sourceChatSessionId?.let { sid ->
-                                navController.navigate(NavRoutes.chatDetail(sid))
-                            }
-                        com.example.personal_studio.domain.model.KbSource.SCAN ->
-                            // Page-level navigation comes with the batch-3 library redesign;
-                            // until then open the scanned documents list.
-                            navController.navigate(NavRoutes.library(NavRoutes.LIBRARY_TAB_SCANS))
+                onOpenSource = { target ->
+                    when (target) {
+                        is com.example.personal_studio.feature.knowledge.vm.KbSourceTarget.Chat ->
+                            navController.navigate(NavRoutes.chatDetail(target.sessionId))
+                        is com.example.personal_studio.feature.knowledge.vm.KbSourceTarget.ScanPage ->
+                            navController.navigate(NavRoutes.scannerPageEdit(target.pageId))
                     }
                 },
                 onOpenRelated = { relId -> navController.navigate(NavRoutes.kbDetail(relId)) },

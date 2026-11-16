@@ -1,59 +1,72 @@
 package com.example.personal_studio.feature.scanner.library
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.model.ScanDocumentSummary
 import com.example.personal_studio.domain.model.SortMode
-import com.example.personal_studio.ui.components.BlinkingCursor
-import com.example.personal_studio.ui.components.ScanThumbnail
+import com.example.personal_studio.feature.chat.ui.ChatListGrouping
+import com.example.personal_studio.feature.timeline.today.enterUp
+import com.example.personal_studio.ui.components.SheetAction
 import com.example.personal_studio.ui.components.TerminalBottomSheet
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
 import com.example.personal_studio.ui.components.TerminalInputDialog
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Cyan
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Rule
-import com.example.personal_studio.ui.theme.Void
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.personal_studio.ui.components.TgCard
+import com.example.personal_studio.ui.components.TgEmptyState
+import com.example.personal_studio.ui.theme.Tg
+
+/** Sort orders offered on the scans page, with their labels. */
+internal val ScanSorts = listOf(
+    SortMode.TIME_DESC to "按创建时间",
+    SortMode.RECENT_UPDATED to "按最近修改",
+    SortMode.ALPHA_ASC to "按名称",
+)
+
+/** "3 页 · 昨天": the date follows the sort (last change when sorted by it, otherwise creation). */
+internal fun scanDocMeta(doc: ScanDocumentSummary, sort: SortMode, now: Long): String =
+    "${doc.pageCount} 页 · " + ChatListGrouping.rowTime(if (sort == SortMode.RECENT_UPDATED) doc.updatedAt else doc.createdAt, now)
 
 /**
- * /scans tab。可排序的扫描文档列表 + `[+ 新建扫描]`;空时显示与 chat 列表一致的空态。
- * 长按行弹终端动作菜单:未完成件 恢复/丢弃;完成件 重命名/删除。行内渲染首页封面缩略图。
+ * 资料 → 扫描文档: a new-scan card, then the documents as paper covers in two columns.
+ * Long-press a cover to rename or delete it.
  */
 @Composable
 fun ScanLibraryScreen(
@@ -62,69 +75,95 @@ fun ScanLibraryScreen(
 ) {
     val vm: ScanLibraryViewModel = hiltViewModel()
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val c = Tg.colors
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LifecycleResumeEffect(Unit) {
+        now = System.currentTimeMillis()
+        onPauseOrDispose { }
+    }
 
     var actionTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
     var renameTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
     var deleteTarget by remember { mutableStateOf<ScanDocumentSummary?>(null) }
+    var showSort by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().background(Void)) {
-        // 资料页的“扫描文档”分段：数量 + 新建扫描（天光阶段 1 去掉了终端提示符）。
-        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${state.docs.size} 份文档",
-                    color = FoamMute,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 32.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        item(key = "new", span = { GridItemSpan(maxLineSpan) }) {
+            NewScanCard(onNewDoc, Modifier.enterUp(true, 0))
+        }
+        if (state.docs.isEmpty()) {
+            item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                TgEmptyState(
+                    "还没有扫描文档",
+                    "拍下讲义、作业或试卷，自动裁边和增强，多页合成一份文档，可以导出 PDF 或把某一页存进知识库。",
+                    Modifier.padding(top = 12.dp).enterUp(true, 80),
                 )
-                Text(
-                    "新建扫描",
-                    color = Cyan,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.clickable(onClick = onNewDoc).padding(4.dp),
+            }
+        } else {
+            item(key = "head", span = { GridItemSpan(maxLineSpan) }) {
+                Row(Modifier.fillMaxWidth().enterUp(true, 60), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${state.docs.size} 份文档", style = MaterialTheme.typography.bodyMedium.copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),
+                        color = c.textSecondary, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                    Row(
+                        Modifier
+                            .heightIn(min = 40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable(role = Role.Button, onClickLabel = "更改排序") { showSort = true }
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.SwapVert, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(16.dp))
+                        Text(ScanSorts.first { it.first == state.sort }.second, style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                            modifier = Modifier.padding(start = 4.dp))
+                    }
+                }
+            }
+            items(state.docs, key = { it.id }) { doc ->
+                ScanDocCover(
+                    doc = doc,
+                    meta = scanDocMeta(doc, state.sort, now),
+                    onClick = { onOpenDoc(doc.id) },
+                    onLongClick = { actionTarget = doc },
+                    modifier = Modifier.animateItem(),
                 )
             }
         }
-        Spacer(Modifier.height(14.dp))
-        if (state.docs.isEmpty()) {
-            ScanEmptyState(onNewDoc = onNewDoc)
-        } else {
-            SortToolbar(current = state.sort, onSelect = vm::setSort)
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    horizontal = 20.dp, vertical = 8.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                items(state.docs, key = { it.id }) { doc ->
-                    DocRow(
-                        doc,
-                        onClick = { onOpenDoc(doc.id) },
-                        onLongPress = { actionTarget = doc },
-                    )
-                    Spacer(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(Rule),
-                    )
+    }
+
+    if (showSort) {
+        TerminalBottomSheet(onDismiss = { showSort = false }, header = "排序") {
+            ScanSorts.forEach { (mode, label) ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable(role = Role.RadioButton) { vm.setSort(mode); showSort = false }
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val sel = mode == state.sort
+                    Text(label, style = MaterialTheme.typography.bodyLarge, color = if (sel) c.accent else c.text, modifier = Modifier.weight(1f))
+                    if (sel) Icon(Icons.Rounded.Check, contentDescription = "当前", tint = c.accent, modifier = Modifier.size(20.dp))
                 }
             }
         }
     }
-
     actionTarget?.let { doc ->
-        DocActionsDialog(
-            doc = doc,
-            onDismiss = { actionTarget = null },
-            onRename = { actionTarget = null; renameTarget = doc },
-            onDelete = { actionTarget = null; deleteTarget = doc },
-        )
+        TerminalBottomSheet(onDismiss = { actionTarget = null }, header = doc.title) {
+            SheetAction("重命名", icon = Icons.Outlined.DriveFileRenameOutline, onClick = { actionTarget = null; renameTarget = doc })
+            SheetAction("删除文档", icon = Icons.Outlined.DeleteOutline, destructive = true, onClick = { actionTarget = null; deleteTarget = doc })
+        }
     }
     renameTarget?.let { doc ->
         TerminalInputDialog(
-            title = "重命名扫描",
+            title = "重命名文档",
             initial = doc.title,
             onConfirm = { newTitle -> renameTarget = null; vm.onRename(doc.id, newTitle) },
             onDismiss = { renameTarget = null },
@@ -132,8 +171,8 @@ fun ScanLibraryScreen(
     }
     deleteTarget?.let { doc ->
         TerminalConfirmDialog(
-            title = "删除扫描",
-            message = "删除「${doc.title}」？此操作不可撤销。",
+            title = "删除这份文档？",
+            message = "“${doc.title}”的 ${doc.pageCount} 页会一并删除，无法恢复。已存入知识库的条目不受影响。",
             confirmLabel = "删除",
             onConfirm = { deleteTarget = null; vm.onDelete(doc.id) },
             onDismiss = { deleteTarget = null },
@@ -141,104 +180,18 @@ fun ScanLibraryScreen(
     }
 }
 
-/** 空态:对齐 chat 列表的空态样式(`# 暂无…` + `▓ 点 [新建] 开始第一个…` + 闪烁光标)。 */
 @Composable
-private fun ScanEmptyState(onNewDoc: () -> Unit) {
-    Column(Modifier.padding(horizontal = 20.dp)) {
-        Text("暂无文档", style = MaterialTheme.typography.bodyMedium, color = FoamMute)
-        Spacer(Modifier.height(20.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = FoamDim)) { append("点 ") }
-                    withStyle(SpanStyle(color = Cyan)) { append("新建扫描") }
-                    withStyle(SpanStyle(color = FoamDim)) { append(" 开始第一个扫描") }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.clickable(onClick = onNewDoc),
-            )
+private fun NewScanCard(onClick: () -> Unit, modifier: Modifier) {
+    val c = Tg.colors
+    TgCard(modifier, onClick = onClick) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).background(c.accentSoft, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.DocumentScanner, contentDescription = null, tint = c.accent, modifier = Modifier.size(22.dp))
+            }
+            Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                Text("新建扫描", style = MaterialTheme.typography.titleMedium, color = c.text)
+                Text("自动识边、增强，多页合成 PDF", style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
+            }
         }
     }
 }
-
-@Composable
-private fun SortToolbar(current: SortMode, onSelect: (SortMode) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        listOf(
-            SortMode.TIME_DESC to "时间",
-            SortMode.ALPHA_ASC to "名称",
-            SortMode.RECENT_UPDATED to "最近",
-        ).forEach { (mode, label) ->
-            val active = mode == current
-            Text(
-                text = if (active) "$label" else label,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (active) Phosphor else FoamDim,
-                modifier = Modifier.clickable { onSelect(mode) },
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun DocRow(
-    doc: ScanDocumentSummary,
-    onClick: () -> Unit,
-    onLongPress: () -> Unit,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .combinedClickable(onClick = onClick, onLongClick = onLongPress),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ScanThumbnail(path = doc.coverPath)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = Foam)) { append(doc.title) }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "${doc.pageCount} 页 · ${formatTs(doc.createdAt)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = FoamDim,
-            )
-        }
-    }
-}
-
-@Composable
-private fun DocActionsDialog(
-    doc: ScanDocumentSummary,
-    onDismiss: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    TerminalBottomSheet(onDismiss = onDismiss, header = "「${doc.title}」") {
-        ActionLine("重命名", Foam, onRename)
-        ActionLine("删除", Carmine, onDelete)
-    }
-}
-
-@Composable
-private fun ActionLine(label: String, color: Color, onClick: () -> Unit) {
-    Text(
-        label,
-        color = color,
-        style = MaterialTheme.typography.bodyMedium,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
-    )
-}
-
-private fun formatTs(ts: Long): String =
-    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT).format(Date(ts))

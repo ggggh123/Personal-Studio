@@ -1,13 +1,22 @@
 package com.example.personal_studio.feature.knowledge.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,73 +26,74 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.ui.components.MathMarkdownView
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.components.TgTextField
+import com.example.personal_studio.ui.theme.Tg
 
 /**
- * Toggleable preview/edit pane for a markdown blob. Default mode is preview
- * (KaTeX-rendered via [MathMarkdownView]). Tap [edit] to swap to a
- * BasicTextField; tap [save] to commit, [cancel] to discard.
- *
- * Stateless wrt commit — caller persists via [onSave]. Internal local state
- * tracks the edit-mode draft so abandoned edits don't leak back to caller.
+ * A titled Markdown section that reads as rendered text (formulas included) and switches
+ * to a source editor on 编辑. The draft stays local until 保存, so an abandoned edit never
+ * reaches the caller.
  */
 @Composable
 fun SummaryMarkdownEditor(
     initial: String,
-    label: String = "summary",
+    label: String,
     onSave: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val c = Tg.colors
     var editing by remember { mutableStateOf(false) }
     var draft by remember(initial) { mutableStateOf(initial) }
 
-    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    Column(modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "## $label",
-                color = Phosphor,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
+            Text(label, style = MaterialTheme.typography.headlineSmall, color = c.text, modifier = Modifier.weight(1f))
             if (!editing) {
-                Text(
-                    "编辑",
-                    color = FoamDim,
-                    modifier = Modifier
-                        .clickable { editing = true; draft = initial }
-                        .padding(8.dp),
-                )
-            } else {
-                Text(
-                    "取消",
-                    color = FoamDim,
-                    modifier = Modifier.clickable { editing = false }.padding(8.dp),
-                )
-                Text(
-                    "保存",
-                    color = Phosphor,
-                    modifier = Modifier
-                        .clickable { onSave(draft); editing = false }
-                        .padding(8.dp),
-                )
+                Row(
+                    Modifier
+                        .heightIn(min = 40.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable(role = Role.Button, onClickLabel = "编辑$label") { draft = initial; editing = true }
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null, tint = c.accent, modifier = Modifier.size(16.dp))
+                    Text("编辑", style = MaterialTheme.typography.bodyMedium, color = c.accent)
+                }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        if (editing) {
-            BasicTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(color = Foam),
-                cursorBrush = SolidColor(Phosphor),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            MathMarkdownView(markdown = initial, modifier = Modifier.fillMaxWidth())
+        AnimatedContent(
+            targetState = editing,
+            transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
+            label = "summaryMode",
+            modifier = Modifier.padding(top = 8.dp),
+        ) { isEditing ->
+            if (isEditing) {
+                Column {
+                    TgTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        singleLine = false,
+                        minLines = 6,
+                        hint = "支持 Markdown 与 \$公式\$",
+                    )
+                    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
+                        TgPillButton("取消", onClick = { editing = false }, style = PillStyle.SECONDARY)
+                        TgPillButton("保存", onClick = { onSave(draft); editing = false })
+                    }
+                }
+            } else if (initial.isBlank()) {
+                Text("还没有内容，点“编辑”补充。", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
+            } else {
+                MathMarkdownView(markdown = initial, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

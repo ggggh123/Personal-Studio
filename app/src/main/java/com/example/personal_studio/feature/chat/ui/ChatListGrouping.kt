@@ -36,13 +36,14 @@ object ChatListGrouping {
         }
     }
 
-    /** One readable line from a Markdown + LaTeX message: formulas become "[公式]", marks are dropped. */
+    /** One readable line from a Markdown + LaTeX message: formulas become "[公式]", marks and list bullets are dropped. */
     fun plainSnippet(markdown: String): String = markdown
         .replace(Regex("""\$\$[\s\S]*?\$\$"""), " [公式] ")
         .replace(Regex("""\\\[[\s\S]*?\\\]"""), " [公式] ")
         .replace(Regex("""\$[^$\n]+\$"""), "[公式]")
         .replace(Regex("""\\\(.+?\\\)"""), "[公式]")
         .replace(Regex("""(\*\*|__|`+|^#+\s*|^>\s*)""", RegexOption.MULTILINE), "")
+        .replace(Regex("""^\s*([-*+]|\d+[.)])\s+""", RegexOption.MULTILINE), "")
         .replace(Regex("""\s+"""), " ")
         .trim()
 

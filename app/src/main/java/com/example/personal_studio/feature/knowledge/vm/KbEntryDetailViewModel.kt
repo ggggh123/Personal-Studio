@@ -3,11 +3,15 @@ package com.example.personal_studio.feature.knowledge.vm
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.personal_studio.data.repository.ChatRepository
 import com.example.personal_studio.data.repository.KnowledgeRepository
+import com.example.personal_studio.data.repository.ScanRepository
+import com.example.personal_studio.domain.chat.ChatTitles
 import com.example.personal_studio.domain.knowledge.DeleteEntryUseCase
 import com.example.personal_studio.domain.knowledge.RegenerateEntryUseCase
 import com.example.personal_studio.domain.knowledge.UpdateEntryUseCase
 import com.example.personal_studio.domain.model.KbEntry
+import com.example.personal_studio.domain.model.KbSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,9 +20,21 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/** Where the 来源 link on the entry page leads. */
+sealed interface KbSourceTarget {
+    data class Chat(val sessionId: Long) : KbSourceTarget
+    data class ScanPage(val pageId: Long) : KbSourceTarget
+}
+
+/** The 来源 line: what the entry was saved from, and where tapping it goes (null once that is deleted). */
+data class KbSourceLink(val label: String, val target: KbSourceTarget?)
 
 sealed interface KbEntryDetailUiState {
     data object Loading : KbEntryDetailUiState
@@ -33,6 +49,8 @@ class KbEntryDetailViewModel @Inject constructor(
     private val updateUseCase: UpdateEntryUseCase,
     private val deleteUseCase: DeleteEntryUseCase,
     private val regenerateUseCase: RegenerateEntryUseCase,
+    private val chatRepo: ChatRepository,
+    private val scanRepo: ScanRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -45,6 +63,32 @@ class KbEntryDetailViewModel @Inject constructor(
         if (entry == null) KbEntryDetailUiState.NotFound
         else KbEntryDetailUiState.Loaded(entry, related)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), KbEntryDetailUiState.Loading)
+
+    /** Resolved again only when the entry's source fields change, not on every edit. */
+    val source: StateFlow<KbSourceLink?> = repo.observeEntry(entryId)
+        .mapLatest { e -> e?.let { Triple(it.source, it.sourceChatSessionId, it.sourceScanPageId) } }
+        .distinctUntilChanged()
+        .mapLatest { key -> key?.let { (kind, sessionId, pageId) -> resolveSource(kind, sessionId, pageId) } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private suspend fun resolveSource(kind: KbSource, sessionId: Long?, pageId: Long?): KbSourceLink = when (kind) {
+        KbSource.CHAT_MESSAGE, KbSource.CHAT_SESSION -> {
+            val session = sessionId?.let { runCatching { chatRepo.getSession(it) }.getOrNull() }
+            if (session == null) KbSourceLink("原对话已删除", null)
+            else KbSourceLink(
+                "问答 · " + (if (ChatTitles.isPlaceholder(session.title)) ChatTitles.NEW else session.title),
+                KbSourceTarget.Chat(session.id),
+            )
+        }
+        KbSource.SCAN -> {
+            val page = pageId?.let { runCatching { scanRepo.getPage(it) }.getOrNull() }
+            if (page == null) KbSourceLink("原扫描页已删除", null)
+            else {
+                val doc = runCatching { scanRepo.observeDocument(page.docId).first() }.getOrNull()
+                KbSourceLink("扫描 · ${doc?.title ?: "文档"} 第 ${page.ordinal + 1} 页", KbSourceTarget.ScanPage(page.id))
+            }
+        }
+    }
 
     private val _busy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _busy.asStateFlow()
