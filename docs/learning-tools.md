@@ -21,15 +21,15 @@
 
 扫描页可直接作为附件，快捷拍照复用扫描增强链路。会话保存的是本地文件路径，模型调用时才读取并编码图片。界面中的缩略图在后台线程按显示尺寸采样解码并缓存（[`SampledImage`](../app/src/main/java/com/example/personal_studio/ui/components/SampledImage.kt)，缓存键含文件修改时间）；裁切层的显示图也按约 2000 px 采样，裁切坐标按原图宽度换算。
 
-对话页打开期间窗口不随键盘平移或缩放，由页面按键盘高度抬起输入框（[`KeyboardHandledByInsets`](../app/src/main/java/com/example/personal_studio/ui/components/KeyboardInsets.kt)），各厂商系统表现一致；若打开键盘时停在最新回答，列表在键盘动画的每一帧保持贴底。
+对话页打开期间窗口不随键盘平移或缩放，由页面按键盘高度抬起输入框（[`KeyboardHandledByInsets`](../app/src/main/java/com/example/personal_studio/ui/components/KeyboardInsets.kt)），各厂商系统表现一致。消息列表自下而上布局（`reverseLayout`，索引 0 是底部留白，其后是流式回答和倒序的消息），底边固定：重新打开长对话时停在最新回答，上方回答渲染完公式变高不会把它挤走；流式回答原地向上生长；键盘从下方压缩列表时最新内容仍在视野里。只有发送新消息时，若用户正在翻看历史，才跳回底部。内容不满一屏时仍从顶部排起（`Arrangement.Top`）。
 
 [`CuratedModels`](../app/src/main/java/com/example/personal_studio/core/llm/CuratedModels.kt) 是静态名单；[`SettingsViewModel.selectCuratedModel`](../app/src/main/java/com/example/personal_studio/feature/settings/vm/SettingsViewModel.kt) 不仅改模型代号，还会清除自定义 API Key 和 Base URL，回退到构建默认值。因此自建端点配置后再选内置模型，会改变实际请求的服务。高级配置和连接测试是自定义模型的入口，项目当前没有 Gemini 专用 SDK 实现。
 
 ### 公式渲染
 
-完成的消息和知识库正文通过 [`MathMarkdownView`](../app/src/main/java/com/example/personal_studio/ui/components/MathMarkdownView.kt) 使用本地 KaTeX 资源渲染；流式阶段不持续重建公式 WebView。
+完成的消息和知识库正文通过 [`MathMarkdownView`](../app/src/main/java/com/example/personal_studio/ui/components/MathMarkdownView.kt) 使用本地 KaTeX 资源渲染；流式阶段不持续重建公式 WebView。Markdown 由 [`MarkdownHtml`](../app/src/main/java/com/example/personal_studio/ui/components/MarkdownHtml.kt) 转成 HTML：标题、段落（单个换行保留为换行）、有序 / 无序列表（按缩进嵌套，列表可紧跟段落行）、引用、围栏代码、带对齐的管道表格（过宽时横向滚动）、分隔线，以及行内代码、粗体、斜体、删除线、链接（只显示文字，WebView 不跳转）和字面 `<br>`；其余 HTML 一律转义。
 
-渲染中的几个必要约束：先保护数学片段再处理 Markdown／换行，避免 `<br>` 把公式分隔符拆到不同文本节点；等 `onPageFinished` 后才能调用 `setContent`；字体加载会改变高度，因此用 `ResizeObserver` 回报并缓存高度。当前 viewport 下 CSS px 对应 dp，不能再除以屏幕密度。离开组合时销毁 WebView，防止原生资源累积。
+渲染中的几个必要约束：先把围栏代码、行内代码和数学片段换成占位符，再处理 Markdown／换行，避免 `<br>` 把公式分隔符拆到不同文本节点，也避免把代码里的 `$` 当成公式；等 `onPageFinished` 后才能调用 `setContent`；字体加载会改变高度，因此用 `ResizeObserver` 回报并缓存高度。当前 viewport 下 CSS px 对应 dp，不能再除以屏幕密度。离开组合时销毁 WebView，防止原生资源累积。
 
 ## 扫描与多页文档
 

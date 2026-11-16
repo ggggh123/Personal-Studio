@@ -39,12 +39,21 @@
   a { color: var(--accent); text-decoration: none; }
   h1, h2, h3, h4 { font-weight: 600; line-height: 1.4; margin: 14px 0 6px; }
   h1 { font-size: 18px; } h2 { font-size: 17px; } h3, h4 { font-size: 15px; }
+  #content > :first-child { margin-top: 0; }
+  #content > :last-child { margin-bottom: 0; }
   ul, ol { margin: 0 0 10px 0; padding-left: 1.4em; }
   li { margin: 2px 0; }
+  li > ul, li > ol { margin: 2px 0 0 0; }
+  li > p { margin: 4px 0 0 0; }
   blockquote { margin: 0 0 10px 0; padding-left: 12px; border-left: 2px solid var(--line); color: var(--text2); }
+  blockquote > :last-child { margin-bottom: 0; }
+  del { color: var(--text2); }
+  /* Wide tables scroll sideways inside the answer instead of overflowing it. */
+  .table { overflow-x: auto; margin: 0 0 10px 0; }
+  .table table { margin: 0; }
   code { color: var(--text); font-family: ui-monospace, monospace; font-size: 13px;
          padding: 1px 5px; border: 1px solid var(--line); border-radius: 5px; }
-  pre { margin: 0 0 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+  pre { margin: 0 0 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; line-height: 1.5; }
   pre code { padding: 0; border: none; }
   table { border-collapse: collapse; margin: 0 0 10px 0; font-size: 14px; }
   th, td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; }

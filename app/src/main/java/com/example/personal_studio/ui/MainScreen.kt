@@ -5,9 +5,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -50,13 +46,6 @@ import com.example.personal_studio.ui.shell.TgTopBar
 import com.example.personal_studio.ui.theme.LocalThemeSafePoint
 import com.example.personal_studio.ui.theme.Tg
 
-/**
- * Shared-element scope around the navigation host; screens opt in as they are redesigned
- * (card → detail, scan thumbnail → editor, grade row → detail).
- */
-@OptIn(ExperimentalSharedTransitionApi::class)
-val LocalSharedTransitionScope = compositionLocalOf<SharedTransitionScope?> { null }
-
 @Composable
 fun MainScreen(navController: NavHostController = rememberNavController()) {
     val rootVm: RootViewModel = hiltViewModel()
@@ -69,7 +58,6 @@ fun MainScreen(navController: NavHostController = rememberNavController()) {
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun MainShell(navController: NavHostController, startDestination: String) {
     val backStack by navController.currentBackStackEntryAsState()
@@ -129,19 +117,18 @@ private fun MainShell(navController: NavHostController, startDestination: String
                             )
                         }
                         Box(Modifier.weight(1f)) {
-                            // Camera and photo screens keep a dark palette regardless of the time of day.
-                            SharedTransitionLayout {
-                                CompositionLocalProvider(LocalSharedTransitionScope provides this) {
-                                AppNavHost(
-                                    navController = navController,
-                                    startDestination = startDestination,
-                                    onOpenSync = { start ->
-                                        if (start) syncVm.startAll()
-                                        syncOpen = true
-                                    },
-                                )
-                                }
-                            }
+                            // No SharedTransitionLayout (or any lookahead scope) around the host:
+                            // with Compose 1.7.0 it crashed the chat list on scroll ("Placement
+                            // happened before lookahead") when the formula WebView rows were reused.
+                            // Card → detail uses its own container transform (MorphSheet) instead.
+                            AppNavHost(
+                                navController = navController,
+                                startDestination = startDestination,
+                                onOpenSync = { start ->
+                                    if (start) syncVm.startAll()
+                                    syncOpen = true
+                                },
+                            )
                         }
                     }
                     if (isTabRoute) {

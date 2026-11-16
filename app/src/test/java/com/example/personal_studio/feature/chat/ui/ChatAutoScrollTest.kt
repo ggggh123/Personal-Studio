@@ -6,13 +6,16 @@ import org.junit.Test
 
 class ChatAutoScrollTest {
 
-    @Test fun `auto-scrolls only when at bottom and user is not scrolling`() {
-        // 在底部且用户没在手滑 → 抢滚动钉底(流式/新消息场景)
-        assertTrue(shouldAutoScroll(atBottom = true, userScrolling = false))
-        // 用户正在手滑(即便末条露头/在底部) → 不抢,避免打断滑动跳到底
-        assertFalse(shouldAutoScroll(atBottom = true, userScrolling = true))
-        // 不在底部(在看历史) → 不抢
-        assertFalse(shouldAutoScroll(atBottom = false, userScrolling = false))
-        assertFalse(shouldAutoScroll(atBottom = false, userScrolling = true))
+    @Test fun `sending a message jumps to the newest turn`() {
+        assertTrue(sentNewMessage(seen = 3, latest = 7))
+    }
+
+    @Test fun `loading, reopening or rotating does not jump`() {
+        // 首次加载:还没记录过
+        assertFalse(sentNewMessage(seen = null, latest = 7))
+        // 旋转屏幕:记录值恢复,最新一条没变
+        assertFalse(sentNewMessage(seen = 7, latest = 7))
+        // 还没有用户消息
+        assertFalse(sentNewMessage(seen = 7, latest = null))
     }
 }

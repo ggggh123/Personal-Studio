@@ -1,12 +1,12 @@
 package com.example.personal_studio.feature.chat.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -92,41 +91,19 @@ fun ChatDetailScreen(
     // asynchronously); re-entering rows lay out at their last size instead of popping.
     val aiMessageHeights = remember { mutableStateMapOf<Long, Int>() }
 
-    // Follow the newest turn only while the user is already at the bottom.
-    val autoFollow by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val total = info.totalItemsCount
-            if (total == 0) return@derivedStateOf true
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: return@derivedStateOf true
-            lastVisible >= total - 1
-        }
-    }
-    val lastMessageId = state.messages.lastOrNull()?.id
-    val lastMessageHeight = lastMessageId?.let { aiMessageHeights[it] }
-    LaunchedEffect(state.messages.size, state.streamingText?.length, lastMessageHeight) {
-        if (!shouldAutoScroll(autoFollow, listState.isScrollInProgress)) return@LaunchedEffect
-        val lastIndex = state.messages.size + (if (state.streamingText != null) 1 else 0)
-        // Instant scroll: animating on every token would chase a moving target and shake.
-        if (lastIndex > 0) listState.scrollToItem(lastIndex - 1, Int.MAX_VALUE)
+    // The list is laid out bottom-up (see the LazyColumn), so staying with the newest turn
+    // needs no scrolling while answers stream, formulas finish rendering or the keyboard
+    // opens. Only sending jumps back to the bottom when the user was reading history.
+    val lastUserMessageId = state.messages.lastOrNull { it.role == MessageRole.USER }?.id
+    var seenUserMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
+    LaunchedEffect(lastUserMessageId) {
+        if (sentNewMessage(seen = seenUserMessageId, latest = lastUserMessageId)) listState.scrollToItem(0)
+        seenUserMessageId = lastUserMessageId
     }
 
     // The page lifts the composer by the keyboard itself; the window must not pan (which hid
     // the header) or shrink differently per ROM.
     com.example.personal_studio.ui.components.KeyboardHandledByInsets()
-    // If the keyboard opens while the newest turn is in view, keep it in view on every frame
-    // of the keyboard animation (the list shrinks from the bottom as the composer rises).
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val ime = androidx.compose.foundation.layout.WindowInsets.ime
-    val lastIndexNow by androidx.compose.runtime.rememberUpdatedState(state.messages.size + (if (state.streamingText != null) 1 else 0))
-    val followNow by androidx.compose.runtime.rememberUpdatedState(autoFollow)
-    LaunchedEffect(Unit) {
-        var pinned = false
-        androidx.compose.runtime.snapshotFlow { ime.getBottom(density) }.collect { bottom ->
-            if (bottom == 0) pinned = false else if (!pinned) pinned = followNow
-            if (pinned && lastIndexNow > 0) listState.scrollToItem(lastIndexNow - 1, Int.MAX_VALUE)
-        }
-    }
 
     Column(Modifier.fillMaxSize().imePadding()) {
         TerminalTopBar(
@@ -160,11 +137,34 @@ fun ChatDetailScreen(
                     )
                 }
             }
+            // Bottom-up: index 0 is the spacer at the bottom edge, then the streaming answer,
+            // then messages newest first. The list keeps its bottom edge fixed, so a reopened
+            // long conversation stays on the newest turn while the answers above it grow to
+            // their rendered height, a streaming answer grows upward in place, and the keyboard
+            // shrinks the list from below without hiding the newest turn. Short conversations
+            // still start at the top (Arrangement.Top).
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                 state = listState,
+                reverseLayout = true,
+                verticalArrangement = Arrangement.Top,
             ) {
-                items(state.messages, key = { it.id }) { m ->
+                item(key = "__end__") { Box(Modifier.padding(bottom = 12.dp)) }
+                if (state.streamingText != null) {
+                    item(key = "__streaming__") {
+                        AiAnswer(model = state.activeModel) {
+                            if (state.streamingText.isNullOrEmpty()) {
+                                ThinkingIndicator()
+                            } else {
+                                TypewriterText(
+                                    text = state.streamingText ?: "",
+                                    style = MaterialTheme.typography.bodyLarge.copy(color = c.text),
+                                )
+                            }
+                        }
+                    }
+                }
+                items(state.messages.asReversed(), key = { it.id }) { m ->
                     when (m.role) {
                         MessageRole.USER -> UserBubble(text = m.contentMarkdown, images = m.attachedImagePaths)
                         MessageRole.AI -> AiAnswer(
@@ -186,21 +186,6 @@ fun ChatDetailScreen(
                         MessageRole.SYSTEM -> Unit
                     }
                 }
-                if (state.streamingText != null) {
-                    item(key = "__streaming__") {
-                        AiAnswer(model = state.activeModel) {
-                            if (state.streamingText.isNullOrEmpty()) {
-                                ThinkingIndicator()
-                            } else {
-                                TypewriterText(
-                                    text = state.streamingText ?: "",
-                                    style = MaterialTheme.typography.bodyLarge.copy(color = c.text),
-                                )
-                            }
-                        }
-                    }
-                }
-                item(key = "__end__") { Box(Modifier.padding(bottom = 12.dp)) }
             }
         }
 
@@ -277,8 +262,12 @@ fun ChatDetailScreen(
 
 /** 仅当用户停在底部(atBottom)且**没在手动滑动**(userScrolling=false)时才自动钉底。
  *  手滑时不抢滚动,避免末条 AI 消息 WebView 重挂载回报高度把列表瞬跳到底。 */
-internal fun shouldAutoScroll(atBottom: Boolean, userScrolling: Boolean): Boolean =
-    atBottom && !userScrolling
+/**
+ * The user's newest message changed after the conversation had loaded, i.e. they just sent
+ * one. Not on first load ([seen] is still null) and not on rotation ([seen] is restored).
+ */
+internal fun sentNewMessage(seen: Long?, latest: Long?): Boolean =
+    seen != null && latest != null && latest != seen
 
 /** Placeholder names (also the old "session #NNN") read as "新对话". */
 internal fun displayTitle(title: String?): String =
