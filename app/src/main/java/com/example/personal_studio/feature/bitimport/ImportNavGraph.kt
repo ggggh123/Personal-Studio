@@ -2,21 +2,33 @@ package com.example.personal_studio.feature.bitimport
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.bitimport.model.ImportError
 import com.example.personal_studio.feature.bitimport.ui.ImportPreviewScreen
 import com.example.personal_studio.feature.bitimport.ui.ImportProgressScreen
-import com.example.personal_studio.feature.bitimport.ui.ImportTermPickerScreen
 import com.example.personal_studio.feature.bitimport.ui.components.BannerAction
 import com.example.personal_studio.feature.bitimport.ui.components.ErrorBanner
 import com.example.personal_studio.feature.bitimport.ui.components.WizardScaffold
-import com.example.personal_studio.ui.components.TerminalSplash
+import com.example.personal_studio.ui.components.BlinkingCursor
+import com.example.personal_studio.ui.theme.Tg
 
+/**
+ * 从教务导入课表: signs in with the saved account, fetches the current term, shows what
+ * would be imported and replaced, and writes only after 确认导入. Not signed in → login.
+ */
 @Composable
 fun ImportEntryRoute(
     onClose: () -> Unit,
@@ -30,21 +42,30 @@ fun ImportEntryRoute(
     LaunchedEffect(ui.done) {
         if (ui.done) onClose()
     }
-    // error 优先:失败时显示 ErrorBanner 错误屏(可重试/退出),而不是回 Credentials —
-    // 后者对已登录用户渲染成 TerminalSplash,会卡死在裸 logo。
+    // An error wins over the step: it replaces the screen with a way out (retry / re-login / close).
     val err = ui.error
     if (err != null) {
         ImportErrorScreen(error = err, onRetry = vm::onRetry, onClose = onClose, onNeedLogin = onNeedLogin)
     } else when (ui.currentScreen) {
-        ImportScreen.Credentials -> TerminalSplash()
-        ImportScreen.TermPicker  -> ImportTermPickerScreen(vm = vm)
-        ImportScreen.Progress    -> ImportProgressScreen(vm = vm)
-        ImportScreen.Preview     -> ImportPreviewScreen(vm = vm)
+        // Credentials is the moment before the first step arrives; the term picker is never
+        // entered (imports always use the current term), so both just show the wait.
+        ImportScreen.Credentials, ImportScreen.TermPicker -> Starting()
+        ImportScreen.Progress -> ImportProgressScreen(vm = vm)
+        ImportScreen.Preview -> ImportPreviewScreen(vm = vm)
     }
 }
 
-/** 导入出错屏:显示 ErrorBanner(失败原因 + 重试/打开浏览器/反馈)并提供退出。
- *  取代此前「失败/重试 → 回 Credentials → 渲染成 splash 卡死」的死路。 */
+@Composable
+private fun Starting() {
+    val c = Tg.colors
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("正在连接学校", style = MaterialTheme.typography.headlineMedium, color = c.text)
+            BlinkingCursor()
+        }
+    }
+}
+
 @Composable
 private fun ImportErrorScreen(
     error: ImportError,
@@ -54,9 +75,10 @@ private fun ImportErrorScreen(
 ) {
     val context = LocalContext.current
     WizardScaffold(
-        stepNumber = 4,
-        totalSteps = 4,
-        title = "import error",
+        stepNumber = 3,
+        totalSteps = 3,
+        title = "导入课表",
+        caption = "没有完成",
         onBack = onClose,
         primaryLabel = "退出",
         onPrimary = onClose,
@@ -67,9 +89,9 @@ private fun ImportErrorScreen(
                 when (action) {
                     BannerAction.Retry -> onRetry()
                     BannerAction.Reauthenticate -> onNeedLogin()
-                    BannerAction.OpenIssueTracker -> context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ggggh123/Personal-Studio/issues")),
-                    )
+                    BannerAction.OpenIssueTracker -> runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ggggh123/Personal-Studio/issues")))
+                    }
                 }
             },
             onDismiss = onClose,

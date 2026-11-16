@@ -1,5 +1,18 @@
 package com.example.personal_studio.feature.auth.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.Alignment
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.theme.Tg
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.http.SslError
@@ -157,28 +170,47 @@ internal fun BitWebVerificationDialog(url: String, username: String, onFinished:
         BackHandler {
             if (webView.canGoBack()) webView.goBack() else finish(webView, false)
         }
-        Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().systemBarsPadding()) {
-                Text("学校统一身份认证", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "请使用学号 $username 完成学校验证。成功后会自动继续；若未返回，可点击“验证完成，继续”。",
-                    modifier = Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
-                )
-                Row(Modifier.fillMaxWidth()) {
-                    TextButton(onClick = { finish(webView, false) }) { Text("取消") }
-                    TextButton(onClick = {
-                        webView.stopLoading()
-                        // Restart the GET flow instead of resubmitting a password or SMS POST.
-                        webView.loadUrl(url)
-                    }) { Text("重新加载") }
-                    TextButton(onClick = { finish(webView, true) }) { Text("验证完成，继续") }
+        val c = Tg.colors
+        Column(Modifier.fillMaxSize().background(c.bg).systemBarsPadding()) {
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(start = 8.dp, end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { finish(webView, false) }) {
+                    Icon(Icons.Rounded.Close, contentDescription = "取消验证", tint = c.text)
                 }
-                loadError?.let {
-                    Text(it, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.error)
+                Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                    Text("学校统一身份认证", style = MaterialTheme.typography.headlineSmall, color = c.text)
+                    Text("学号 $username · 完成后会自动继续", style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
                 }
-                if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().weight(1f))
+                IconButton(onClick = {
+                    webView.stopLoading()
+                    // Restart the GET flow instead of resubmitting a password or SMS POST.
+                    webView.loadUrl(url)
+                }) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "重新加载", tint = c.text)
+                }
             }
+            Text(
+                "已完成但没有自动返回？",
+                style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp),
+            )
+            TgPillButton(
+                "验证完成，继续",
+                onClick = { finish(webView, true) },
+                style = PillStyle.SECONDARY,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 10.dp),
+            )
+            loadError?.let {
+                Text(it, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp), style = MaterialTheme.typography.bodyMedium, color = c.error)
+            }
+            if (loading) {
+                LinearProgressIndicator(Modifier.fillMaxWidth(), color = c.accent, trackColor = c.line)
+            } else {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+            }
+            AndroidView(factory = { webView }, modifier = Modifier.fillMaxWidth().weight(1f))
         }
     }
 }

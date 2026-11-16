@@ -1,13 +1,15 @@
 package com.example.personal_studio.feature.auth.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,21 +17,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +42,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -47,30 +58,41 @@ import com.example.personal_studio.domain.bitimport.model.LoginOutcome
 import com.example.personal_studio.feature.auth.BitLoginEvent
 import com.example.personal_studio.feature.auth.BitLoginStage
 import com.example.personal_studio.feature.auth.BitLoginViewModel
+import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.components.BlinkingCursor
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Dim
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
-import com.example.personal_studio.ui.theme.scanLines
-import com.example.personal_studio.ui.theme.vignette
+import com.example.personal_studio.ui.components.KeyboardHandledByInsets
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.components.TgTextField
+import com.example.personal_studio.ui.theme.Tg
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
-/** 开机自检引导日志(仅首屏场景逐行淡入,营造终端启动仪式)。 */
-private val BOOT_LINES = listOf(
-    "> boot personal-studio",
-    "> 安全模块就绪",
-    "> 等待身份认证…",
-)
-private const val BOOT_LINE_DELAY_MS = 260L
-private const val BOOT_TAIL_DELAY_MS = 320L
+/** What the login button says while each stage runs. */
+internal fun loginStageText(stage: BitLoginStage?): String = when (stage) {
+    BitLoginStage.CheckingNetwork -> "正在检测网络"
+    BitLoginStage.Authenticating -> "正在登录"
+    BitLoginStage.OpeningBrowser -> "正在打开学校验证"
+    BitLoginStage.BrowserVerification -> "等待完成学校验证"
+    BitLoginStage.VerifyingBrowser -> "正在确认验证结果"
+    null -> "登录"
+}
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Why the last attempt failed, in a sentence; null on success. */
+internal fun loginErrorText(err: LoginOutcome): String? = when (err) {
+    LoginOutcome.WrongCredentials -> "学号或密码不对，请检查后重试。"
+    LoginOutcome.AccountLocked -> "账户暂时被锁定，请稍后再试，或先在学校网页上处理。"
+    LoginOutcome.CaptchaRequired -> "学校要求先完成网页或短信验证。"
+    is LoginOutcome.NetworkFail -> "暂时连不上学校，请检查网络后重试。"
+    is LoginOutcome.Unexpected -> "登录没有成功：${err.cause}"
+    LoginOutcome.Success -> null
+}
+
+/**
+ * 登录学校账户: the first screen on a fresh install (with 暂不登录) and the guard in front
+ * of school features (without it). Native sign-in first; the school's own page handles SMS
+ * and risk checks when it asks for them.
+ */
 @Composable
 fun BitLoginScreen(
     skipVisible: Boolean,
@@ -79,6 +101,8 @@ fun BitLoginScreen(
     vm: BitLoginViewModel = hiltViewModel(),
 ) {
     val st by vm.uiState.collectAsStateWithLifecycle()
+    val c = Tg.colors
+    KeyboardHandledByInsets()
     BackHandler(enabled = st.loading && st.webLoginUrl == null) { vm.onCancelLogin() }
     var slowResponse by remember { mutableStateOf(false) }
     LaunchedEffect(st.stage) {
@@ -89,18 +113,8 @@ fun BitLoginScreen(
         }
     }
     st.webLoginUrl?.let { url ->
-        BitWebVerificationDialog(
-            url = url,
-            username = st.username,
-            onFinished = vm::onWebLoginFinished,
-        )
+        BitWebVerificationDialog(url = url, username = st.username, onFinished = vm::onWebLoginFinished)
     }
-
-    // 守卫场景(skipVisible=false:用户点功能被拦截)直接进表单,不播开机动效。
-    // 首屏场景才播一次启动序列。bootDone 用 remember,登录失败重组不会重播。
-    var bootDone by remember { mutableStateOf(!skipVisible) }
-    var visibleLines by remember { mutableStateOf(if (bootDone) BOOT_LINES.size else 0) }
-
     LaunchedEffect(Unit) {
         vm.events.collectLatest { ev ->
             when (ev) {
@@ -109,179 +123,157 @@ fun BitLoginScreen(
             }
         }
     }
-    LaunchedEffect(Unit) {
-        if (bootDone) return@LaunchedEffect
-        for (i in 1..BOOT_LINES.size) {
-            delay(BOOT_LINE_DELAY_MS)
-            visibleLines = i
-        }
-        delay(BOOT_TAIL_DELAY_MS)
-        bootDone = true
-    }
+    val canSubmit = !st.loading && st.username.isNotBlank() && st.password.isNotBlank()
 
     Column(
         Modifier
             .fillMaxSize()
-            .background(Void)
-            .scanLines()
-            .vignette()
             .systemBarsPadding()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp),
     ) {
-        Spacer(Modifier.height(40.dp))
-        Text("Personal Studio", color = Phosphor, style = MaterialTheme.typography.displayMedium)
-        Text("> 统一身份认证", color = FoamMute, style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(48.dp))
+        HorizonMark(Modifier.enterUp(true, 0))
+        Text("Personal Studio", style = MaterialTheme.typography.displayMedium, color = c.text, modifier = Modifier.padding(top = 20.dp).enterUp(true, 60))
+        Text(
+            "登录北京理工大学统一身份认证，课表、作业、考试和成绩会自动同步到这里。",
+            style = MaterialTheme.typography.bodyMedium, color = c.textSecondary,
+            modifier = Modifier.padding(top = 8.dp).enterUp(true, 100),
+        )
 
-        // 开机自检序列:逐行打出 + 末尾闪烁提示符;点击任意处跳过。
-        if (!bootDone) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                    ) { bootDone = true },
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+        Column(Modifier.padding(top = 32.dp).enterUp(true, 160), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            TgTextField(
+                st.username, vm::onUsernameChange,
+                label = "学号", placeholder = "例如 1120230000", enabled = !st.loading,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
+            )
+            TgTextField(
+                st.password, vm::onPasswordChange,
+                label = "密码", enabled = !st.loading,
+                visualTransformation = if (st.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
+                keyboardActions = KeyboardActions(onGo = { if (canSubmit) vm.onLogin() }),
+                trailing = {
+                    IconButton(onClick = vm::onShowPasswordToggle) {
+                        Icon(
+                            if (st.showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (st.showPassword) "隐藏密码" else "显示密码",
+                            tint = c.textSecondary,
+                        )
+                    }
+                },
+            )
+            AnimatedVisibility(
+                visible = st.error?.let(::loginErrorText) != null,
+                enter = expandVertically(tween(240)) + fadeIn(tween(240)),
+                exit = shrinkVertically(tween(200)) + fadeOut(tween(160)),
             ) {
-                BOOT_LINES.take(visibleLines).forEach { line ->
-                    Text(line, color = Phosphor, style = MaterialTheme.typography.labelMedium)
-                }
-                if (visibleLines > 0) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("> ", color = Phosphor, style = MaterialTheme.typography.labelMedium)
-                        BlinkingCursor()
+                val err = st.error
+                Column(Modifier.fillMaxWidth().background(c.accentSoft, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                    Text(err?.let(::loginErrorText).orEmpty(), style = MaterialTheme.typography.bodyMedium, color = c.text)
+                    if (err == LoginOutcome.CaptchaRequired) {
+                        TgPillButton("完成学校验证", onClick = vm::onOpenWebLogin, style = PillStyle.ACCENT, modifier = Modifier.padding(top = 12.dp))
                     }
                 }
             }
         }
 
-        // 表单:开机序列完成后淡入(守卫场景 bootDone 初始即 true,直接显示)。
-        AnimatedVisibility(visible = bootDone, enter = fadeIn(tween(450))) {
-            Column {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(Phosphor.copy(alpha = 0.04f))
-                        .border(1.dp, Phosphor.copy(alpha = 0.45f))
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        "学校账户",
-                        color = Phosphor.copy(alpha = 0.45f),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-
-                    st.error?.let { err ->
-                        ErrorBox(err, vm::onOpenWebLogin)
-                    }
-
-                    val fieldColors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Phosphor,
-                        unfocusedBorderColor = Dim,
-                        cursorColor = Phosphor,
-                        focusedLabelColor = Phosphor,
-                        unfocusedLabelColor = FoamDim,
-                        focusedTextColor = Foam,
-                        unfocusedTextColor = Foam,
-                    )
-                    OutlinedTextField(
-                        value = st.username, onValueChange = vm::onUsernameChange,
-                        enabled = !st.loading,
-                        label = { Text("学号") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth(), colors = fieldColors,
-                    )
-                    OutlinedTextField(
-                        value = st.password, onValueChange = vm::onPasswordChange,
-                        enabled = !st.loading,
-                        label = { Text("密码") }, singleLine = true,
-                        visualTransformation = if (st.showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = vm::onShowPasswordToggle) {
-                                Icon(
-                                    if (st.showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                    contentDescription = "toggle", tint = FoamMute,
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(), colors = fieldColors,
-                    )
-                    // 网络全自动:校内优先探测 + 校内↔校外按需回退,无需手动选择。
-                    Text(
-                        "› 自动选择可用的学校访问方式",
-                        color = FoamMute, style = MaterialTheme.typography.labelSmall,
-                    )
+        Row(
+            Modifier.fillMaxWidth().padding(top = 24.dp).enterUp(true, 200),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TgPillButton(
+                loginStageText(st.stage) + if (st.loading) "…" else "",
+                // Stays solid while a stage runs (it shows the stage), but a second tap does nothing.
+                onClick = { if (canSubmit) vm.onLogin() },
+                enabled = canSubmit || st.loading,
+                style = PillStyle.ACCENT,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        AnimatedVisibility(st.loading && st.webLoginUrl == null, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                if (slowResponse) {
+                    Text("学校响应有点慢，可以继续等，也可以取消后重试。", style = MaterialTheme.typography.bodySmall,
+                        color = c.textSecondary, modifier = Modifier.padding(top = 12.dp))
                 }
-
-                Spacer(Modifier.height(20.dp))
                 Row(
                     Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, if (st.loading) FoamDim else Phosphor)
-                        .background(if (st.loading) Phosphor.copy(alpha = 0f) else Phosphor.copy(alpha = 0.08f))
-                        .clickable(
-                            enabled = !st.loading,
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() },
-                        ) { vm.onLogin() }
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
+                        .padding(top = 8.dp)
+                        .heightIn(min = 44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .clickable(role = Role.Button, onClick = vm::onCancelLogin)
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(when (st.stage) {
-                        BitLoginStage.CheckingNetwork -> "正在检测连接 "
-                        BitLoginStage.Authenticating -> "正在登录学校账户 "
-                        BitLoginStage.OpeningBrowser -> "正在准备学校验证 "
-                        BitLoginStage.BrowserVerification -> "等待完成学校验证 "
-                        BitLoginStage.VerifyingBrowser -> "正在确认验证结果 "
-                        null -> "登录 →"
-                    }, color = if (st.loading) FoamDim else Phosphor)
-                    if (st.loading) BlinkingCursor()
-                }
-
-                if (st.loading && st.webLoginUrl == null) {
-                    if (slowResponse) {
-                        Text("学校响应较慢，可以继续等待或取消后重试。", color = FoamMute,
-                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
-                    }
-                    TextButton(onClick = vm::onCancelLogin, modifier = Modifier.fillMaxWidth()) {
-                        Text("取消本次登录", color = FoamMute)
-                    }
-                }
-
-                TextButton(
-                    onClick = vm::onOpenWebLogin,
-                    enabled = !st.loading && st.username.isNotBlank() && st.password.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("学校网页验证 / 短信验证", color = Amber) }
-
-                if (skipVisible) {
-                    Spacer(Modifier.height(16.dp))
-                    TextButton(onClick = vm::onSkip, enabled = !st.loading, modifier = Modifier.fillMaxWidth()) {
-                        Text("跳过", color = FoamDim)
-                    }
+                    BlinkingCursor()
+                    Text("取消这次登录", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary)
                 }
             }
+        }
+
+        TextAction(
+            "需要短信或网页验证？",
+            enabled = canSubmit,
+            onClick = vm::onOpenWebLogin,
+            modifier = Modifier.padding(top = 12.dp).enterUp(true, 240),
+        )
+        Text(
+            "密码只保存在这台手机上，用于自动同步；校内校外会自动选择访问方式。",
+            style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+            modifier = Modifier.padding(top = 8.dp, start = 4.dp).enterUp(true, 240),
+        )
+
+        Spacer(Modifier.height(40.dp))
+        if (skipVisible) {
+            TextAction(
+                "暂不登录，先看看",
+                enabled = !st.loading,
+                onClick = vm::onSkip,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp),
+                secondary = true,
+            )
         }
     }
 }
 
 @Composable
-private fun ErrorBox(err: LoginOutcome, onOpenWeb: () -> Unit) {
-    val msg = when (err) {
-        LoginOutcome.WrongCredentials -> "学号或密码错误"
-        LoginOutcome.AccountLocked -> "账号已锁定,请稍后或网页端处理"
-        LoginOutcome.CaptchaRequired -> "学校要求网页或短信验证，请在下方完成验证后重试"
-        is LoginOutcome.NetworkFail -> "暂时无法连接学校服务，请检查网络后重试"
-        is LoginOutcome.Unexpected -> "登录失败：${err.cause}"
-        LoginOutcome.Success -> return
-    }
-    Column(Modifier.fillMaxWidth().border(1.dp, Carmine.copy(alpha = 0.6f)).padding(8.dp)) {
-        Text(msg, color = Carmine, style = MaterialTheme.typography.labelMedium)
-        if (err == LoginOutcome.CaptchaRequired) {
-            TextButton(onClick = onOpenWeb) { Text("完成学校网页验证", color = Amber) }
-        }
+private fun TextAction(label: String, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, secondary: Boolean = false) {
+    val c = Tg.colors
+    Text(
+        label,
+        style = MaterialTheme.typography.bodyMedium,
+        color = when {
+            !enabled -> c.textSecondary.copy(alpha = 0.5f)
+            secondary -> c.textSecondary
+            else -> c.accent
+        },
+        modifier = modifier
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+    )
+}
+
+/** The app's mark: a sun half risen over the horizon, in the accent of the hour. */
+@Composable
+private fun HorizonMark(modifier: Modifier = Modifier) {
+    val c = Tg.colors
+    Canvas(modifier.size(width = 64.dp, height = 40.dp)) {
+        val w = size.width
+        val horizon = size.height * 0.72f
+        val r = size.height * 0.42f
+        drawArc(
+            color = c.accent, startAngle = 180f, sweepAngle = 180f, useCenter = true,
+            topLeft = Offset(w / 2 - r, horizon - r), size = Size(r * 2, r * 2),
+        )
+        drawLine(c.text, Offset(0f, horizon), Offset(w, horizon), strokeWidth = 2.dp.toPx())
+        drawArc(
+            color = c.textSecondary, startAngle = 200f, sweepAngle = 140f, useCenter = false,
+            topLeft = Offset(w / 2 - r * 1.5f, horizon - r * 1.5f), size = Size(r * 3, r * 3),
+            style = Stroke(width = 1.dp.toPx()), alpha = 0.5f,
+        )
     }
 }

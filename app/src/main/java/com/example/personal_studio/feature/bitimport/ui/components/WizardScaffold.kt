@@ -1,17 +1,29 @@
 package com.example.personal_studio.feature.bitimport.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.components.TgProgressTrack
+import com.example.personal_studio.ui.theme.TgMotion
 
+/**
+ * Frame of the course-import steps: title bar (with a back arrow when [onBack] is set), a
+ * thin progress track for [stepNumber] of [totalSteps], the step's content, and a bottom
+ * bar with an optional secondary pill and the primary one.
+ */
 @Composable
 fun WizardScaffold(
     stepNumber: Int,
@@ -23,34 +35,19 @@ fun WizardScaffold(
     primaryEnabled: Boolean = true,
     secondaryLabel: String? = null,
     onSecondary: (() -> Unit)? = null,
+    caption: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().background(Void).statusBarsPadding().navigationBarsPadding()) {
-        // Header
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Text("$title", color = Phosphor, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.weight(1f))
-            Text("$stepNumber / $totalSteps", color = FoamDim, style = MaterialTheme.typography.labelMedium)
-        }
-        HorizontalDivider(color = FoamDim.copy(alpha = 0.3f))
-        // Body
-        Column(
-            Modifier.weight(1f).padding(20.dp),
-            content = content,
-        )
-        // Bottom bar
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) {
-                TextButton(onClick = onBack) { Text("← 返回", color = FoamDim) }
-            }
+    val progress by animateFloatAsState(stepNumber.toFloat() / totalSteps, TgMotion.gentle(), label = "wizardStep")
+    Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+        TerminalTopBar(route = title, subtitle = title + (caption?.let { "\n$it" } ?: ""), onBack = onBack)
+        TgProgressTrack(progress, Modifier.padding(horizontal = 20.dp, vertical = 2.dp))
+        Column(Modifier.weight(1f).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp), content = content)
+        Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (secondaryLabel != null && onSecondary != null) {
-                TextButton(onClick = onSecondary) { Text(secondaryLabel, color = FoamDim) }
+                TgPillButton(secondaryLabel, onClick = onSecondary, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
             }
-            Spacer(Modifier.weight(1f))
-            Button(onClick = onPrimary, enabled = primaryEnabled) {
-                Text(primaryLabel)
-            }
+            TgPillButton(primaryLabel, onClick = onPrimary, enabled = primaryEnabled, modifier = Modifier.weight(1f))
         }
     }
 }
