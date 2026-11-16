@@ -1,58 +1,33 @@
 package com.example.personal_studio.feature.bitimport.ui
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.LoginPrefs
-import com.example.personal_studio.domain.bitimport.SyncAllUseCase
+import com.example.personal_studio.domain.bitimport.SyncCenter
 import com.example.personal_studio.domain.bitimport.model.SyncAllProgress
-import com.example.personal_studio.domain.bitimport.model.SyncSource
-import com.example.personal_studio.domain.bitimport.model.SyncSourceState
-import com.example.personal_studio.domain.bitimport.model.SyncSourceStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Sync progress for the sync panel and the first-sync page; the work itself runs in
+ * [SyncCenter] so it continues when the panel closes.
+ */
 @HiltViewModel
 class SyncAllViewModel @Inject constructor(
-    private val syncAll: SyncAllUseCase,
-    private val loginPrefs: LoginPrefs,
+    private val center: SyncCenter,
+    loginPrefs: LoginPrefs,
 ) : ViewModel() {
 
-    private val _ui = MutableStateFlow(
-        SyncAllProgress(
-            states = SyncSource.values().associateWith { SyncSourceState(SyncSourceStatus.PENDING) },
-            done = false,
-        )
-    )
-    val ui: StateFlow<SyncAllProgress> = _ui.asStateFlow()
+    val lastSyncAt: kotlinx.coroutines.flow.Flow<Long?> = loginPrefs.observeLastSyncAt
 
-    private var job: Job? = null
+    val progress: StateFlow<SyncAllProgress?> = center.progress
 
-    init { start() }
+    val isRunning: Boolean get() = center.isRunning
 
-    private fun start() {
-        job?.cancel()
-        job = viewModelScope.launch {
-            syncAll.run().collect { _ui.value = it }
-            loginPrefs.setFirstSyncDone(true)
-            if (_ui.value.states.values.any { it.status == SyncSourceStatus.OK }) {
-                loginPrefs.setLastSyncAt(System.currentTimeMillis())
-            }
-        }
-    }
+    fun startAll() = center.startAll()
 
-    /** 重试:整体重跑(M1 简单起见,已 OK 的也会再拉)。仅在已 done 时可点。 */
-    fun retry() { if (_ui.value.done) start() }
+    fun retryFailed() = center.retryFailed()
 
-    /** 跳过:取消余下拉取,标记完成,置 firstSyncDone。 */
-    fun skip() {
-        job?.cancel()
-        viewModelScope.launch { loginPrefs.setFirstSyncDone(true) }
-        _ui.update { it.copy(done = true) }
-    }
+    /** 跳过:停止余下来源,标记首次同步已完成。 */
+    fun skip() = center.cancel()
 }

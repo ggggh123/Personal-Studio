@@ -20,7 +20,8 @@ class LogoutUseCaseTest {
         val gradesScheduler = mockk<GradesPollScheduler>(relaxed = true)
         val ddlScheduler = mockk<DdlPollScheduler>(relaxed = true)
         val api = mockk<BitApiClient>(relaxed = true)
-        val useCase = LogoutUseCase(credPrefs, gradesSyncPrefs, ddlSyncPrefs, gradesScheduler, ddlScheduler, api)
+        val clear = mockk<ClearSchoolDataUseCase>(relaxed = true)
+        val useCase = LogoutUseCase(credPrefs, gradesSyncPrefs, ddlSyncPrefs, gradesScheduler, ddlScheduler, api, clear)
 
         useCase.invoke()
 
@@ -30,5 +31,19 @@ class LogoutUseCaseTest {
         coVerify { gradesSyncPrefs.setEnabled(false) }
         coVerify { ddlSyncPrefs.setEnabled(false) }
         coVerify { api.clearBrowserSession() }
+        coVerify { ddlSyncPrefs.clearIcalUrl() }
+        coVerify(exactly = 0) { clear.invoke() }
+    }
+
+    @Test fun `logout can also clear school data`() = runTest {
+        val clear = mockk<ClearSchoolDataUseCase>(relaxed = true)
+        val useCase = LogoutUseCase(
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+            mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), clear,
+        )
+
+        useCase.invoke(clearSchoolData = true)
+
+        coVerify(exactly = 1) { clear.invoke() }
     }
 }

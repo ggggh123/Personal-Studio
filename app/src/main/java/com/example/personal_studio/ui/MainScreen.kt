@@ -31,6 +31,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.personal_studio.feature.auth.RootViewModel
+import com.example.personal_studio.feature.bitimport.ui.SyncAllViewModel
+import com.example.personal_studio.feature.bitimport.ui.SyncSheet
 import com.example.personal_studio.feature.timeline.today.QuickAddTaskSheet
 import com.example.personal_studio.feature.timeline.today.QuickAddTaskViewModel
 import com.example.personal_studio.ui.navigation.NavRoutes
@@ -78,6 +80,10 @@ private fun MainShell(navController: NavHostController, startDestination: String
     val quickAdd by quickAddVm.ui.collectAsStateWithLifecycle()
     var plusOpen by rememberSaveable { mutableStateOf(false) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
+    val syncVm: SyncAllViewModel = hiltViewModel()
+    val syncProgress by syncVm.progress.collectAsStateWithLifecycle()
+    val lastSyncAt by syncVm.lastSyncAt.collectAsStateWithLifecycle(null)
+    var syncOpen by rememberSaveable { mutableStateOf(false) }
     val overlay = remember { ShellOverlay() }
     val toast = remember { ShellToast() }
     val context = LocalContext.current
@@ -90,6 +96,7 @@ private fun MainShell(navController: NavHostController, startDestination: String
         if (!isTabRoute) {
             plusOpen = false
             quickAddOpen = false
+            syncOpen = false
         }
     }
 
@@ -125,7 +132,14 @@ private fun MainShell(navController: NavHostController, startDestination: String
                             // Camera and photo screens keep a dark palette regardless of the time of day.
                             SharedTransitionLayout {
                                 CompositionLocalProvider(LocalSharedTransitionScope provides this) {
-                                    AppNavHost(navController = navController, startDestination = startDestination)
+                                AppNavHost(
+                                    navController = navController,
+                                    startDestination = startDestination,
+                                    onOpenSync = { start ->
+                                        if (start) syncVm.startAll()
+                                        syncOpen = true
+                                    },
+                                )
                                 }
                             }
                         }
@@ -182,6 +196,20 @@ private fun MainShell(navController: NavHostController, startDestination: String
                     go(NavRoutes.TIMELINE_ADD_TASK)
                 },
                 onDismiss = { quickAddOpen = false },
+            )
+            SyncSheet(
+                visible = syncOpen,
+                progress = syncProgress,
+                running = syncProgress?.let { !it.done } == true,
+                lastSyncAt = lastSyncAt,
+                now = System.currentTimeMillis(),
+                onStart = syncVm::startAll,
+                onRetryFailed = syncVm::retryFailed,
+                onLogin = {
+                    syncOpen = false
+                    go(NavRoutes.login(null))
+                },
+                onDismiss = { syncOpen = false },
             )
             ShellToastHost(toast, bottomPadding = if (isTabRoute) 80.dp else 24.dp)
         }

@@ -82,6 +82,17 @@ interface TimelineDao {
     @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_EXAM' ORDER BY startAt ASC")
     fun observeImportedExams(): kotlinx.coroutines.flow.Flow<List<TimelineItemEntity>>
 
+    /** Every class session on the timeline (imported and manual), for the 校园 stats. */
+    @Query("SELECT COUNT(*) FROM timeline_items WHERE type = 'COURSE'")
+    fun observeCourseCount(): kotlinx.coroutines.flow.Flow<Int>
+
+    /** [sources] are `TimelineSource` names. */
+    @Query("SELECT id FROM timeline_items WHERE sourceType IN (:sources)")
+    suspend fun idsBySources(sources: List<String>): List<Long>
+
+    @Query("DELETE FROM timeline_items WHERE sourceType IN (:sources)")
+    suspend fun deleteBySources(sources: List<String>): Int
+
     @Query("SELECT * FROM timeline_items WHERE id = :id")
     suspend fun findById(id: Long): TimelineItemEntity?
 

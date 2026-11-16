@@ -72,6 +72,7 @@ class TimelineViewModelTest {
             timetable = timetable,
             loginPrefs = login,
             focus = focus,
+            syncCenter = mockk { every { progress } returns kotlinx.coroutines.flow.MutableStateFlow(null) },
             clock = clock,
             zone = zone,
         )

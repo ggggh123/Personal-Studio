@@ -1,123 +1,77 @@
 package com.example.personal_studio.feature.bitimport.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.domain.bitimport.model.SyncSource
-import com.example.personal_studio.domain.bitimport.model.SyncSourceState
-import com.example.personal_studio.domain.bitimport.model.SyncSourceStatus
-import com.example.personal_studio.ui.components.BlinkingCursor
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Cyan
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Void
-import com.example.personal_studio.ui.theme.scanLines
-import com.example.personal_studio.ui.theme.vignette
+import com.example.personal_studio.feature.timeline.today.DetailAction
+import com.example.personal_studio.feature.timeline.today.PillButton
+import com.example.personal_studio.ui.theme.Tg
 
-/** 首启/手动一键批量同步进度页。完成或跳过后调 [onFinish]。 */
+/**
+ * First sync right after signing in: the four sources one after another, same rows as the
+ * sync panel. "跳过" stops what is left; "进入" goes to 今日.
+ */
 @Composable
 fun SyncAllScreen(
     onFinish: () -> Unit,
+    onLogin: () -> Unit,
     vm: SyncAllViewModel = hiltViewModel(),
 ) {
-    val ui by vm.ui.collectAsStateWithLifecycle()
-    val anyFailed = ui.states.values.any { it.status == SyncSourceStatus.FAILED }
+    val c = Tg.colors
+    val progress by vm.progress.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { if (!vm.isRunning) vm.startAll() }
+    val done = progress?.done == true
 
     Column(
         Modifier
             .fillMaxSize()
-            .background(Void)
-            .scanLines()
-            .vignette()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
-        Text("初始化教务数据", color = Phosphor, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(20.dp))
-
-        if (ui.noCredentials) {
+        Text("同步学校数据", style = MaterialTheme.typography.displaySmall, color = c.text, modifier = Modifier.padding(top = 24.dp))
+        Text(
+            "课表、作业、考试和成绩依次下载到本机；某一项失败不影响其余各项，之后可在校园页重试。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = c.textSecondary,
+            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
+        )
+        if (progress?.noCredentials == true) {
             Text(
-                "未保存凭据,无法自动同步。\n请到各页手动刷新,或重新登录并勾选「记住密码」。",
-                color = Amber, style = MaterialTheme.typography.bodyMedium,
+                "没有保存学校账户，无法自动同步。可以稍后在校园页登录后再同步。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.text,
             )
         } else {
-            SourceRow("课表", ui.states[SyncSource.COURSES])
-            SourceRow("作业", ui.states[SyncSource.DDL])
-            SourceRow("考试", ui.states[SyncSource.EXAMS])
-            SourceRow("成绩", ui.states[SyncSource.GRADES])
+            SyncSourceRows(progress, onLogin = onLogin)
         }
-
         Spacer(Modifier.weight(1f))
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            if (!ui.done) {
-                Text(
-                    "跳过", color = FoamDim, style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.clickable { vm.skip(); onFinish() }.padding(8.dp),
-                )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (!done) {
+                PillButton(DetailAction("跳过", primary = false) { vm.skip(); onFinish() }, Modifier.weight(1f))
             } else {
-                if (anyFailed) {
-                    Text(
-                        "重试失败项", color = Amber, style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.clickable { vm.retry() }.padding(8.dp),
-                    )
-                    Spacer(Modifier.width(12.dp))
+                val failed = progress?.failed.orEmpty()
+                if (failed.isNotEmpty() && failed.size < SyncSource.values().size) {
+                    PillButton(DetailAction("只重试失败项", primary = false, onClick = vm::retryFailed), Modifier.weight(1f))
                 }
-                Text(
-                    "进入", color = Phosphor, style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.clickable { onFinish() }.padding(8.dp),
-                )
+                PillButton(DetailAction("进入", primary = true, onClick = onFinish), Modifier.weight(1f))
             }
-        }
-    }
-}
-
-@Composable
-private fun SourceRow(label: String, state: SyncSourceState?) {
-    val s = state ?: SyncSourceState(SyncSourceStatus.PENDING)
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "$label", color = Foam, style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.width(64.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        when (s.status) {
-            SyncSourceStatus.PENDING ->
-                Text("○ 待拉取", color = FoamDim, style = MaterialTheme.typography.bodyMedium)
-            SyncSourceStatus.RUNNING -> Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("拉取中…", color = Cyan, style = MaterialTheme.typography.bodyMedium)
-                BlinkingCursor()
-            }
-            SyncSourceStatus.OK ->
-                Text("✓ ${s.detail ?: "完成"}", color = Phosphor, style = MaterialTheme.typography.bodyMedium)
-            SyncSourceStatus.FAILED ->
-                Text("✗ 失败 · 可在该页手动刷新", color = Carmine, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

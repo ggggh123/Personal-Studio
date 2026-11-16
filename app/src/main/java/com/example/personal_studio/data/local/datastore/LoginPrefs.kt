@@ -31,4 +31,10 @@ class LoginPrefs @Inject constructor(
     /** Epoch millis of the last 一键同步 in which at least one source succeeded; null = never. */
     val observeLastSyncAt: Flow<Long?> = dataStore.data.map { it[keyLastSyncAt] }
     suspend fun setLastSyncAt(epoch: Long) = dataStore.edit { it[keyLastSyncAt] = epoch }
+
+    /** Forget sync history (logout with "clear school data"); the next login syncs from scratch. */
+    suspend fun resetSyncHistory() = dataStore.edit {
+        it.remove(keyLastSyncAt)
+        it[keyFirstSyncDone] = false
+    }
 }

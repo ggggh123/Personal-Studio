@@ -150,7 +150,11 @@ fun TimelineScreen(
                 hour = liveHour,
                 sun = sun,
                 tagline = tagline,
-                syncLabel = if (ui.syncKnown) ui.lastSyncAt?.let { "已同步 · ${TodayText.ago(it, ui.now)}" } ?: "一键同步" else null,
+                syncLabel = when {
+                    ui.syncing -> "同步中"
+                    ui.syncKnown -> ui.lastSyncAt?.let { "已同步 · ${TodayText.ago(it, ui.now)}" } ?: "一键同步"
+                    else -> null
+                },
                 play = play,
                 onOpenSettings = onOpenSettings,
                 onOpenSync = onOpenSync,

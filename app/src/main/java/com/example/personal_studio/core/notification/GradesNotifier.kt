@@ -40,7 +40,7 @@ class GradesNotifier @Inject constructor() {
         val text = when (reason) {
             GradesSyncError.WrongCredentials -> "密码错误,凭据已清 — 请打开 App 重新登录"
             GradesSyncError.AccountLocked    -> "账号已锁定,请稍后或修改密码后再启用"
-            GradesSyncError.CaptchaRequired  -> "学校要求验证，请在个人中心完成应用内网页验证后重新开启同步"
+            GradesSyncError.CaptchaRequired  -> "学校要求验证，请在校园页点“重新验证”完成应用内网页验证后重新开启同步"
             GradesSyncError.NeedReview       -> "教务提示未完成评教,请先评教后再启用"
             is GradesSyncError.ParseFail     -> "教务接口结构可能变化,请等 App 更新"
             else                             -> "未知错误,请打开 App 查看"

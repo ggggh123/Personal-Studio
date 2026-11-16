@@ -102,6 +102,9 @@ class ImportCoursesUseCaseTest {
             assertTrue(awaitItem() is ImportStep.FetchingSchedule)
             assertTrue(awaitItem() is ImportStep.Mapping)
             assertTrue(awaitItem() is ImportStep.Preview)
+            // The school session is already closed and released while the user decides.
+            coVerify(exactly = 1) { apiClient.close() }
+            io.mockk.verify(exactly = 1) { apiClient.releaseSession() }
             channel.send(false)
             assertTrue(awaitItem() is ImportStep.Cancelled)
             awaitComplete()

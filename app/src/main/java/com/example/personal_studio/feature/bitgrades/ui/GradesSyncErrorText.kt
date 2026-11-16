@@ -11,7 +11,7 @@ import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 fun GradesSyncError.userMessage(): String = when (this) {
     GradesSyncError.WrongCredentials -> "用户名或密码错误，请重新登录"
     GradesSyncError.AccountLocked    -> "账号已被锁定，请稍后再试或到教务系统解锁"
-    GradesSyncError.CaptchaRequired  -> "学校要求重新验证，请到个人中心重新登录，并完成应用内的学校网页验证"
+    GradesSyncError.CaptchaRequired  -> "学校要求重新验证，请到校园页点“重新验证”，并完成应用内的学校网页验证"
     GradesSyncError.NeedReview       -> "需先在教务系统完成评教才能查成绩"
     GradesSyncError.EmptyGrades      -> "教务系统成绩表为空，暂时没有可同步的成绩"
     is GradesSyncError.ParseFail     -> "解析失败：$message"

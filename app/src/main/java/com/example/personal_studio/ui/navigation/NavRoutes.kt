@@ -65,7 +65,6 @@ object NavRoutes {
     const val TIMELINE_COURSE_LIST = "timeline/course-list"
     const val TIMELINE_COURSE_SERIES_EDIT = "timeline/course-series/{seriesId}"
     fun timelineCourseSeriesEdit(seriesId: Long) = "timeline/course-series/$seriesId"
-    const val TIMELINE_WEEK_GRID = "timeline/week-grid"
 
     // BIT Import wizard (P5)
     const val IMPORT_WIZARD = "import"

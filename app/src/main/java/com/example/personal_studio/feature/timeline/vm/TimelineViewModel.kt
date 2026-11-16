@@ -9,6 +9,7 @@ import com.example.personal_studio.data.local.datastore.SemesterPreferences
 import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.repository.TimelineRepository
 import com.example.personal_studio.domain.model.TimelineItem
+import com.example.personal_studio.domain.bitimport.SyncCenter
 import com.example.personal_studio.domain.timeline.CancelRemindersUseCase
 import com.example.personal_studio.domain.timeline.DeleteItemUseCase
 import com.example.personal_studio.domain.timeline.ScheduleRemindersUseCase
@@ -64,6 +65,7 @@ data class TimelineUiState(
     /** Last 一键同步; [syncKnown] = the user has synced at least once (pill shown). */
     val lastSyncAt: Long? = null,
     val syncKnown: Boolean = false,
+    val syncing: Boolean = false,
     val loaded: Boolean = false,
 ) {
     fun findItem(id: Long): TimelineItem? =
@@ -99,6 +101,7 @@ class TimelineViewModel @Inject constructor(
     timetable: TimetablePreferences,
     loginPrefs: LoginPrefs,
     private val focus: TodayFocus,
+    syncCenter: SyncCenter,
     private val clock: TodayClock,
     private val zone: ZoneId,
 ) : ViewModel() {
@@ -139,8 +142,9 @@ class TimelineViewModel @Inject constructor(
 
     private val settings: Flow<Settings> = combine(
         timetable.periods, semester.startDate, loginPrefs.observeLastSyncAt, loginPrefs.observeFirstSyncDone,
-    ) { periods, start, lastSync, firstSyncDone ->
-        Settings(periods.ifEmpty { DefaultTimetable.PERIODS }, start, lastSync, firstSyncDone || lastSync != null)
+        syncCenter.progress.map { it != null && !it.done },
+    ) { periods, start, lastSync, firstSyncDone, syncing ->
+        Settings(periods.ifEmpty { DefaultTimetable.PERIODS }, start, lastSync, firstSyncDone || lastSync != null, syncing)
     }
 
     private data class Settings(
@@ -148,6 +152,7 @@ class TimelineViewModel @Inject constructor(
         val semesterStart: LocalDate?,
         val lastSyncAt: Long?,
         val syncKnown: Boolean,
+        val syncing: Boolean,
     )
 
     private data class Data(
@@ -183,6 +188,7 @@ class TimelineViewModel @Inject constructor(
             showDone = fb.showDone,
             lastSyncAt = s.lastSyncAt,
             syncKnown = s.syncKnown,
+            syncing = s.syncing,
             loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TimelineUiState(now = clock.now(), today = clock.now().toDate()))

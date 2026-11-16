@@ -39,7 +39,7 @@ class DdlNotifier @Inject constructor() {
         val text = when (reason) {
             DdlSyncError.WrongCredentials -> "密码错误,凭据已清 — 请打开 App 重新登录"
             DdlSyncError.AccountLocked    -> "账号已锁定,请稍后或修改密码后再启用"
-            DdlSyncError.CaptchaRequired  -> "学校要求验证，请在个人中心完成应用内网页验证后重新开启同步"
+            DdlSyncError.CaptchaRequired  -> "学校要求验证，请在校园页点“重新验证”完成应用内网页验证后重新开启同步"
             DdlSyncError.NeedReview       -> "教务提示未完成评教,请先完成后再启用"
             is DdlSyncError.ParseFail     -> "乐学接口结构可能变化,请等 App 更新"
             else                          -> "未知错误,请打开 App 查看"

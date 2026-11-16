@@ -35,7 +35,43 @@ class ImportCoursesUseCase @Inject constructor(
     private val timelineDao: TimelineDao,
 ) {
 
+    /** What the network part of an import produced, ready for the preview. */
+    private data class Fetched(
+        val items: List<com.example.personal_studio.data.local.db.entity.TimelineItemEntity>,
+        val term: com.example.personal_studio.data.network.bit.dto.TermDto,
+        val termCode: String,
+        val anchor: java.time.LocalDate,
+        val countToReplace: Int,
+    )
+
+    /**
+     * The school session lock is held only while talking to the school: it is released
+     * before the preview, so a user deciding on the preview no longer blocks background
+     * polls or other syncs. Confirming only writes to the local database.
+     */
     fun import(req: ImportRequest, confirmChannel: Channel<Boolean>): Flow<ImportStep> = flow {
+        val fetched = fetch(req) ?: return@flow
+        try {
+            emit(ImportStep.Preview(fetched.items, fetched.term, fetched.countToReplace))
+            val confirmed = confirmChannel.receive()
+            if (!confirmed) {
+                emit(ImportStep.Cancelled); return@flow
+            }
+            if (fetched.items.isEmpty()) {
+                emit(ImportStep.Failed(ImportError.EmptySchedule)); return@flow
+            }
+            emit(ImportStep.Writing)
+            val replaced = replacer.invoke(fetched.anchor, ZoneId.systemDefault(), fetched.items)
+            emit(ImportStep.Done(ImportResult(fetched.items.size, replaced, fetched.termCode)))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            emit(ImportStep.Failed(ImportError.Unexpected(e)))
+        }
+    }
+
+    /** Logs in and reads the schedule under the session lock; emits progress and failures. */
+    private suspend fun kotlinx.coroutines.flow.FlowCollector<ImportStep>.fetch(req: ImportRequest): Fetched? {
         apiClient.acquireSession()
         try {
             apiClient.open(req.networkMode)
@@ -50,7 +86,7 @@ class ImportCoursesUseCase @Inject constructor(
                 req.credentials.password,
             )
             val loginErr = loginResult.toImportError()
-            if (loginErr != null) { emit(ImportStep.Failed(loginErr)); return@flow }
+            if (loginErr != null) { emit(ImportStep.Failed(loginErr)); return null }
 
             // jwapp warm-up. Per the BIT101 reference, EVERY wdkbby module call
             // must be preceded by getAppConfig() — it establishes the per-app
@@ -64,7 +100,7 @@ class ImportCoursesUseCase @Inject constructor(
             emit(ImportStep.FetchingTerm)
             val termResp = apiClient.jwapp.getCurrentTerm()
             val currentTerm = termResp.body()?.datas?.dqxnxq?.rows?.firstOrNull()
-                ?: run { emit(ImportStep.Failed(ImportError.NoCurrentTerm)); return@flow }
+                ?: run { emit(ImportStep.Failed(ImportError.NoCurrentTerm)); return null }
             val pickedTermCode = req.termCodeOverride ?: currentTerm.code
 
             emit(ImportStep.FetchingWeekDate)
@@ -74,7 +110,7 @@ class ImportCoursesUseCase @Inject constructor(
                 requestParamStr = """{"XNXQDM":"$pickedTermCode","ZC":"1"}""",
             ).body() ?: run {
                 emit(ImportStep.Failed(ImportError.ParseFail("week-and-date empty body")))
-                return@flow
+                return null
             }
             val resolvedAnchor = anchor.invoke(weekDate.data)
 
@@ -83,7 +119,7 @@ class ImportCoursesUseCase @Inject constructor(
             val rows = scheduleResp.body()?.datas?.cxxszhxqkb?.rows
             if (!scheduleResp.isSuccessful || rows == null) {
                 emit(ImportStep.Failed(ImportError.ParseFail("课表查询失败 HTTP ${scheduleResp.code()}，请重新登录后重试")))
-                return@flow
+                return null
             }
 
             emit(ImportStep.Mapping)
@@ -97,18 +133,7 @@ class ImportCoursesUseCase @Inject constructor(
                 timelineDao.countImportedInRange(start, end)
             }
 
-            emit(ImportStep.Preview(items, currentTerm, countToReplace))
-            val confirmed = confirmChannel.receive()
-            if (!confirmed) {
-                emit(ImportStep.Cancelled); return@flow
-            }
-            if (items.isEmpty()) {
-                emit(ImportStep.Failed(ImportError.EmptySchedule)); return@flow
-            }
-
-            emit(ImportStep.Writing)
-            val replaced = replacer.invoke(resolvedAnchor, zone, items)
-            emit(ImportStep.Done(ImportResult(items.size, replaced, pickedTermCode)))
+            return Fetched(items, currentTerm, pickedTermCode, resolvedAnchor, countToReplace)
         } catch (io: IOException) {
             emit(ImportStep.Failed(ImportError.NetworkFail(io)))
         } catch (e: CancellationException) {
@@ -118,6 +143,7 @@ class ImportCoursesUseCase @Inject constructor(
         } finally {
             try { apiClient.close() } finally { apiClient.releaseSession() }
         }
+        return null
     }
 
     /** Auto 模式:先按 [req].networkMode 试,连接级失败(NetworkFail,登录阶段、Preview 之前)自动换

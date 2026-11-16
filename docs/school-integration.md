@@ -40,7 +40,7 @@
 
 ### Cookie 与互斥
 
-[`BitApiClient`](../app/src/main/java/com/example/personal_studio/data/network/bit/BitApiClient.kt) 是共享单例。前台、Worker、网页验证都必须遵守统一会话锁，从打开会话一直持有到关闭；关闭和释放要在 `finally` 中完成。仅让“一键同步”内部串行，不足以防止后台任务同时关闭客户端。
+[`BitApiClient`](../app/src/main/java/com/example/personal_studio/data/network/bit/BitApiClient.kt) 是共享单例。前台、Worker、网页验证都必须遵守统一会话锁，从打开会话一直持有到关闭；关闭和释放要在 `finally` 中完成。仅让“一键同步”内部串行，不足以防止后台任务同时关闭客户端。课表导入只在登录和读取期间持锁，读完即关闭并释放，再进入预览；用户停在预览页时不阻塞后台轮询和其他同步，确认后只写本地数据库。
 
 [`BitCookieJar`](../app/src/main/java/com/example/personal_studio/data/network/bit/BitCookieJar.kt) 以 `(domain, path, name)` 为键，新 Cookie 覆盖旧值，匹配请求使用标准 `Cookie.matches()`。原生请求通过 network interceptor 与 [CookieManager](../app/src/main/java/com/example/personal_studio/data/network/bit/BitBrowserSessions.kt) 双向同步，并及时写入响应 Cookie，使下一跳能立即使用。
 
@@ -100,7 +100,9 @@ DDL 是日历元数据；“完成”仅在本地记录，没有查询 Moodle �
 
 ## 一键同步与后台轮询
 
-[`SyncAllUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitimport/SyncAllUseCase.kt) 按 **课程 → DDL → 考试 → 成绩** 串行执行，各自开会话、登录、同步、关闭；单项失败继续后续项。课程预览在此自动确认；当前“重试”会重跑全部来源，而非只跑失败项。完成或跳过会设置首次同步标记。
+[`SyncAllUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitimport/SyncAllUseCase.kt) 按 **课程 → DDL → 考试 → 成绩** 串行执行，各自开会话、登录、同步、关闭；单项失败继续后续项。课程预览在此自动确认。每个失败来源带一个原因（[`SyncFailure`](../app/src/main/java/com/example/personal_studio/domain/bitimport/model/SyncAllModels.kt)：需要验证、密码未被接受、锁定、需评教、网络、空结果、其他），由 `SyncFailures` 从各来源的错误类型映射。“只重试失败项”只重跑失败来源，其余来源沿用上次结果。
+
+同步由单例 [`SyncCenter`](../app/src/main/java/com/example/personal_studio/domain/bitimport/SyncCenter.kt) 在应用级协程里运行，同步面板、今日胶囊和首次同步页共享同一份进度；关闭面板不会中断同步。完成或跳过会设置首次同步标记；至少一项成功时记录 `LoginPrefs.lastSyncAt`。
 
 成绩和 DDL 轮询使用 WorkManager，默认关闭，可选 6／12／24 小时；成绩默认 6 小时，DDL 默认 12 小时。任务要求网络已连接，周期执行不保证精确时刻。应用启动和开机会按配置恢复调度。
 

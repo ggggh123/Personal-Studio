@@ -24,7 +24,7 @@
 
 课表导入请求 `cxzkbrq.do` 时带 `ZC=1`，取 `XQ=1` 的 `RQ` 作为第一周周一；[`ResolveSemesterAnchorUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitimport/ResolveSemesterAnchorUseCase.kt) 每次都会保存该日期，覆盖旧锚点和手工设定。此步骤发生在预览确认之前，所以取消导入不会回滚锚点。
 
-没有锚点时周课表提供导入引导和手工设置入口。[周课表 ViewModel](../app/src/main/java/com/example/personal_studio/feature/timeline/vm/CourseWeekGridViewModel.kt)持续观察锚点变化，避免导入后仍停留在旧空态。作息表修改会重算未来课程时间并重排受影响提醒；仍被未来课程引用的末尾节次不能直接删除。
+周课表在“今日”页的周视图中显示，按日期读取日程，不依赖学期锚点；锚点只用于显示教学周。没有锚点时，手动添加课程会先请用户选择第一周周一。作息表修改会重算未来课程时间并重排受影响提醒；仍被未来课程引用的末尾节次不能直接删除。
 
 课程展开及日视图主要使用设备时区；考试解析和乐学非 UTC 日期使用 `+08:00`。跨时区使用不是已经统一处理的场景，不能假设所有学校时间都按相同策略换算。
 

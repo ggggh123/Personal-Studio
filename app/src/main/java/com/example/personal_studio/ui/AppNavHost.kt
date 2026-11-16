@@ -40,7 +40,11 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTabSwitch(): Boo
     initialState.destination.route in NavRoutes.TAB_ROUTES && targetState.destination.route in NavRoutes.TAB_ROUTES
 
 @Composable
-fun AppNavHost(navController: NavHostController, startDestination: String = NavRoutes.TIMELINE) {
+fun AppNavHost(
+    navController: NavHostController,
+    startDestination: String = NavRoutes.TIMELINE,
+    onOpenSync: (start: Boolean) -> Unit = {},
+) {
     val context = LocalContext.current
     NavHost(
         navController = navController,
@@ -147,29 +151,18 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
         composable(NavRoutes.TIMELINE) {
             com.example.personal_studio.feature.timeline.ui.TimelineScreen(
                 onOpenSettings = { navController.navigate(NavRoutes.SETTINGS) },
-                onOpenSync = { navController.navigate(NavRoutes.syncAll(first = false)) },
+                onOpenSync = { onOpenSync(false) },
                 onOpenCourseSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
             )
         }
         composable(NavRoutes.PROFILE) {
-            com.example.personal_studio.feature.profile.ui.ProfileScreen(
-                onOpenTimetable = { navController.navigate(NavRoutes.TIMELINE_WEEK_GRID) },
+            com.example.personal_studio.feature.profile.ui.CampusScreen(
                 onOpenGrades = { navController.navigate(NavRoutes.GRADES) },
                 onOpenAssignments = { navController.navigate(NavRoutes.ASSIGNMENTS) },
                 onOpenExams = { navController.navigate(NavRoutes.EXAMS) },
-                onOpenGradesPoll = { navController.navigate(NavRoutes.SETTINGS_GRADES_POLL) },
-                onOpenDdlPoll = { navController.navigate(NavRoutes.SETTINGS_DDL_POLL) },
                 onOpenEmptyRoom = { navController.navigate(NavRoutes.EMPTY_ROOM) },
                 onLogin = { navController.navigate(NavRoutes.login(null)) },
-                onSyncAll = { navController.navigate(NavRoutes.syncAll(first = false)) },
-            )
-        }
-        composable(NavRoutes.TIMELINE_WEEK_GRID) {
-            com.example.personal_studio.feature.timeline.ui.CourseWeekGridScreen(
-                onBack = { navController.popBackStack() },
-                onOpenItem = { id -> navController.navigate(NavRoutes.timelineDetail(id)) },
-                onNavigateToImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
-                onNavigateToAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
+                onOpenSync = onOpenSync,
             )
         }
         composable(NavRoutes.TIMELINE_ADD_TASK) {
@@ -360,6 +353,7 @@ fun AppNavHost(navController: NavHostController, startDestination: String = NavR
                         launchSingleTop = true
                     } else navController.popBackStack()
                 },
+                onLogin = { navController.navigate(NavRoutes.login(null)) },
             )
         }
 

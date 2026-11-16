@@ -16,6 +16,7 @@ import com.example.personal_studio.domain.bitimport.model.ImportCredentials
 import com.example.personal_studio.domain.bitimport.model.ImportRequest
 import com.example.personal_studio.domain.bitimport.model.ImportStep
 import com.example.personal_studio.domain.bitimport.model.SyncAllProgress
+import com.example.personal_studio.domain.bitimport.model.SyncFailure
 import com.example.personal_studio.domain.bitimport.model.SyncSource
 import com.example.personal_studio.domain.bitimport.model.SyncSourceState
 import com.example.personal_studio.domain.bitimport.model.SyncSourceStatus
@@ -27,7 +28,8 @@ import javax.inject.Inject
 /**
  * 一键批量同步编排:串行(共享单例 BitApiClient,必须串行)收集四个现成 `*Auto` 自包含 Flow
  * (各自 open→登录→拉取→落库→close + 网络回退),逐源发 [SyncAllProgress] 快照。
- * 单源失败/异常仅标 FAILED,不中断其余。无凭据则发 noCredentials 终态。
+ * 单源失败/异常仅标 FAILED 并给出 [SyncFailure] 原因,不中断其余。无凭据则发 noCredentials 终态。
+ * [run] 的 `only` 只跑指定来源(“只重试失败项”),其余来源沿用 `previous` 中的结果。
  */
 class SyncAllUseCase @Inject constructor(
     private val credPrefs: ImportCredentialPrefs,
@@ -37,7 +39,10 @@ class SyncAllUseCase @Inject constructor(
     private val syncExams: SyncExamsUseCase,
     private val syncGrades: SyncGradesUseCase,
 ) {
-    fun run(): Flow<SyncAllProgress> = flow {
+    fun run(
+        only: Set<SyncSource> = SyncSource.values().toSet(),
+        previous: Map<SyncSource, SyncSourceState> = emptyMap(),
+    ): Flow<SyncAllProgress> = flow {
         val creds = credPrefs.observeAll().value
         if (creds == null) {
             emit(SyncAllProgress(pendingAll(), done = true, noCredentials = true))
@@ -47,7 +52,10 @@ class SyncAllUseCase @Inject constructor(
         val onMode: (NetworkMode) -> Unit = { m -> credPrefs.save(creds.username, creds.password, m) }
 
         val states = LinkedHashMap<SyncSource, SyncSourceState>().apply {
-            SyncSource.values().forEach { put(it, SyncSourceState(SyncSourceStatus.PENDING)) }
+            SyncSource.values().forEach { src ->
+                val kept = previous[src]?.takeIf { src !in only }
+                put(src, kept ?: SyncSourceState(SyncSourceStatus.PENDING))
+            }
         }
         emit(SyncAllProgress(states.toMap(), done = false))
 
@@ -58,9 +66,13 @@ class SyncAllUseCase @Inject constructor(
             SyncSource.GRADES to { collectGrades(creds, mode, onMode) },
         )
         for ((src, exec) in steps) {
+            if (src !in only) continue
             states[src] = SyncSourceState(SyncSourceStatus.RUNNING)
             emit(SyncAllProgress(states.toMap(), done = false))
-            states[src] = runCatching { exec() }.getOrElse { SyncSourceState(SyncSourceStatus.FAILED) }
+            states[src] = runCatching { exec() }.getOrElse { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                fail(SyncFailure.OTHER)
+            }
             emit(SyncAllProgress(states.toMap(), done = false))
         }
         emit(SyncAllProgress(states.toMap(), done = true))
@@ -70,7 +82,8 @@ class SyncAllUseCase @Inject constructor(
         SyncSource.values().associateWith { SyncSourceState(SyncSourceStatus.PENDING) }
 
     private fun ok(detail: String) = SyncSourceState(SyncSourceStatus.OK, detail)
-    private val failed = SyncSourceState(SyncSourceStatus.FAILED)
+    private fun fail(reason: SyncFailure) = SyncSourceState(SyncSourceStatus.FAILED, failure = reason)
+    private val failed = fail(SyncFailure.OTHER)
 
     private suspend fun collectCourses(
         creds: SavedCredentials, mode: NetworkMode, onMode: (NetworkMode) -> Unit,
@@ -83,7 +96,7 @@ class SyncAllUseCase @Inject constructor(
         ).collect { step ->
             when (step) {
                 is ImportStep.Done -> state = ok("${step.result.successCount} 节")
-                is ImportStep.Failed -> state = failed
+                is ImportStep.Failed -> state = fail(SyncFailures.of(step.err))
                 else -> {}
             }
         }
@@ -99,7 +112,7 @@ class SyncAllUseCase @Inject constructor(
         ).collect { step ->
             when (step) {
                 is DdlSyncStep.Done -> state = ok("${step.total} 条")
-                is DdlSyncStep.Failed -> state = failed
+                is DdlSyncStep.Failed -> state = fail(SyncFailures.of(step.error))
                 else -> {}
             }
         }
@@ -115,7 +128,7 @@ class SyncAllUseCase @Inject constructor(
         ).collect { step ->
             when (step) {
                 is ExamSyncStep.Done -> state = ok("${step.total} 场")
-                is ExamSyncStep.Failed -> state = failed
+                is ExamSyncStep.Failed -> state = fail(SyncFailures.of(step.error))
                 else -> {}
             }
         }
@@ -131,10 +144,49 @@ class SyncAllUseCase @Inject constructor(
         ).collect { step ->
             when (step) {
                 is SyncGradesStep.Done -> state = ok("${step.courseCount} 门")
-                is SyncGradesStep.Failed -> state = failed
+                is SyncGradesStep.Failed -> state = fail(SyncFailures.of(step.err))
                 else -> {}
             }
         }
         return state
+    }
+}
+
+/** Maps each source's error type onto the reasons the sync panel distinguishes. */
+object SyncFailures {
+    fun of(e: com.example.personal_studio.domain.bitimport.model.ImportError): SyncFailure = when (e) {
+        com.example.personal_studio.domain.bitimport.model.ImportError.WrongCredentials -> SyncFailure.PASSWORD
+        com.example.personal_studio.domain.bitimport.model.ImportError.AccountLocked -> SyncFailure.LOCKED
+        com.example.personal_studio.domain.bitimport.model.ImportError.CaptchaRequired -> SyncFailure.VERIFY
+        is com.example.personal_studio.domain.bitimport.model.ImportError.NetworkFail -> SyncFailure.NETWORK
+        com.example.personal_studio.domain.bitimport.model.ImportError.EmptySchedule -> SyncFailure.EMPTY
+        else -> SyncFailure.OTHER
+    }
+
+    fun of(e: com.example.personal_studio.domain.bitddl.model.DdlSyncError): SyncFailure = when (e) {
+        com.example.personal_studio.domain.bitddl.model.DdlSyncError.WrongCredentials -> SyncFailure.PASSWORD
+        com.example.personal_studio.domain.bitddl.model.DdlSyncError.AccountLocked -> SyncFailure.LOCKED
+        com.example.personal_studio.domain.bitddl.model.DdlSyncError.CaptchaRequired -> SyncFailure.VERIFY
+        com.example.personal_studio.domain.bitddl.model.DdlSyncError.NeedReview -> SyncFailure.REVIEW
+        is com.example.personal_studio.domain.bitddl.model.DdlSyncError.NetworkFail -> SyncFailure.NETWORK
+        else -> SyncFailure.OTHER
+    }
+
+    fun of(e: com.example.personal_studio.domain.bitexam.model.ExamSyncError): SyncFailure = when (e) {
+        com.example.personal_studio.domain.bitexam.model.ExamSyncError.WrongCredentials -> SyncFailure.PASSWORD
+        com.example.personal_studio.domain.bitexam.model.ExamSyncError.AccountLocked -> SyncFailure.LOCKED
+        com.example.personal_studio.domain.bitexam.model.ExamSyncError.CaptchaRequired -> SyncFailure.VERIFY
+        is com.example.personal_studio.domain.bitexam.model.ExamSyncError.NetworkFail -> SyncFailure.NETWORK
+        else -> SyncFailure.OTHER
+    }
+
+    fun of(e: com.example.personal_studio.domain.bitgrades.model.GradesSyncError): SyncFailure = when (e) {
+        com.example.personal_studio.domain.bitgrades.model.GradesSyncError.WrongCredentials -> SyncFailure.PASSWORD
+        com.example.personal_studio.domain.bitgrades.model.GradesSyncError.AccountLocked -> SyncFailure.LOCKED
+        com.example.personal_studio.domain.bitgrades.model.GradesSyncError.CaptchaRequired -> SyncFailure.VERIFY
+        com.example.personal_studio.domain.bitgrades.model.GradesSyncError.NeedReview -> SyncFailure.REVIEW
+        com.example.personal_studio.domain.bitgrades.model.GradesSyncError.EmptyGrades -> SyncFailure.EMPTY
+        is com.example.personal_studio.domain.bitgrades.model.GradesSyncError.NetworkFail -> SyncFailure.NETWORK
+        else -> SyncFailure.OTHER
     }
 }

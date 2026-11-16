@@ -26,7 +26,7 @@ fun ErrorBanner(
         is ImportError.WrongCredentials -> ErrorContent(Carmine, "密码错误", "请重新输入。", null, null)
         is ImportError.AccountLocked    -> ErrorContent(Carmine, "账号已锁定", "请稍后或修改密码后重试。", null, null)
         is ImportError.CaptchaRequired  -> ErrorContent(Amber, "需要验证码",
-            "请到个人中心重新登录，并在应用内完成学校网页或短信验证后重试。",
+            "请到校园页点“重新验证”，并在应用内完成学校网页或短信验证后重试。",
             "重新验证", BannerAction.Reauthenticate)
         is ImportError.NetworkFail      -> ErrorContent(Carmine, "网络异常", "请检查网络后重试。", "重试", BannerAction.Retry)
         is ImportError.ParseFail        -> ErrorContent(Carmine, "数据解析失败",

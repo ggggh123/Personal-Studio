@@ -48,6 +48,8 @@ data class GradesUiState(
     val syncing: Boolean = false,
     val syncSteps: List<String> = emptyList(),
     val syncError: GradesSyncError? = null,
+    /** When the grades on this phone were last downloaded; null when there are none. */
+    val fetchedAt: Long? = null,
 )
 
 @HiltViewModel
@@ -121,6 +123,7 @@ class GradesViewModel @Inject constructor(
             syncing = sync.syncing,
             syncSteps = sync.steps,
             syncError = sync.error,
+            fetchedAt = grades.maxOfOrNull { it.fetchedAt },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesUiState())
 
