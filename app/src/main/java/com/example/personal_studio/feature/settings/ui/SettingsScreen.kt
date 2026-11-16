@@ -34,14 +34,9 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,23 +56,20 @@ import com.example.personal_studio.BuildConfig
 import com.example.personal_studio.data.local.datastore.DebugMoment
 import com.example.personal_studio.feature.settings.vm.AppearanceViewModel
 import com.example.personal_studio.feature.settings.vm.SettingsHomeViewModel
+import com.example.personal_studio.feature.timeline.ui.components.SemesterStartModal
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.feature.timeline.today.semesterWeek
-import com.example.personal_studio.ui.components.PillStyle
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.TgCard
 import com.example.personal_studio.ui.components.TgChip
 import com.example.personal_studio.ui.components.TgGroupLabel
-import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.components.TgRowValue
 import com.example.personal_studio.ui.components.TgSettingRow
 import com.example.personal_studio.ui.navigation.NavRoutes
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.ui.theme.daylight.ThemeMode
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.ZoneOffset
 
 /**
  * 设置 (from the avatar): appearance first, then semester and timetable, reminders, the AI
@@ -159,54 +151,10 @@ fun SettingsScreen(
     }
 
     if (pickStart) {
-        SemesterStartDialog(
+        SemesterStartModal(
             initial = st.semesterStart ?: today,
-            onPick = { vm.setSemesterStart(it); pickStart = false },
+            onPicked = { vm.setSemesterStart(it); pickStart = false },
             onDismiss = { pickStart = false },
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SemesterStartDialog(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
-    val c = Tg.colors
-    val state = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TgPillButton(
-                "确定",
-                onClick = { state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) } },
-                enabled = state.selectedDateMillis != null,
-                modifier = Modifier.padding(end = 8.dp, bottom = 8.dp),
-            )
-        },
-        dismissButton = {
-            TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.padding(end = 8.dp, bottom = 8.dp))
-        },
-        colors = DatePickerDefaults.colors(containerColor = c.surfaceRaised),
-    ) {
-        DatePicker(
-            state = state,
-            title = {
-                Text("学期第一周", style = MaterialTheme.typography.headlineMedium, color = c.text,
-                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 20.dp))
-            },
-            headline = {
-                Text("选第一周里的任意一天，会按那周的周一计算", style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
-                    modifier = Modifier.padding(start = 24.dp, end = 12.dp, bottom = 8.dp))
-            },
-            showModeToggle = false,
-            colors = DatePickerDefaults.colors(
-                containerColor = c.surfaceRaised,
-                selectedDayContainerColor = c.accent,
-                selectedDayContentColor = c.onAccent,
-                todayDateBorderColor = c.accent,
-                todayContentColor = c.accent,
-                selectedYearContainerColor = c.accent,
-                selectedYearContentColor = c.onAccent,
-            ),
         )
     }
 }

@@ -207,6 +207,7 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() },
                 onOpenSeries = { sid -> navController.navigate(NavRoutes.timelineCourseSeriesEdit(sid)) },
                 onAddCourse = { navController.navigate(NavRoutes.TIMELINE_ADD_COURSE) },
+                onImport = { navController.navigate(NavRoutes.IMPORT_WIZARD) },
             )
         }
         composable(

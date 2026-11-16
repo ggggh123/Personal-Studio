@@ -139,7 +139,9 @@ class AddCourseViewModel @Inject constructor(
                     _ui.update {
                         it.copy(
                             saving = false,
-                            savedToast = "已添加 $count 节${draft.title}",
+                            // The conflicts are cleared with the form below, so the confirmation carries them.
+                            savedToast = "已添加「${draft.title}」$count 次课" +
+                                if (conflicts.isNotEmpty()) "，其中 ${conflicts.size} 次与已有课程时间重叠" else "",
                             // Reset form for the next course but keep semester + maxPeriod
                             title = "", instructor = "", location = "", notes = "",
                             credits = "",

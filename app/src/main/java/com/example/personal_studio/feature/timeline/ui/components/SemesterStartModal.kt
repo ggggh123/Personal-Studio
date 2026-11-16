@@ -1,16 +1,13 @@
 package com.example.personal_studio.feature.timeline.ui.components
 
-import android.app.DatePickerDialog
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalContext
 import com.example.personal_studio.core.util.SemesterTimeMapper
+import com.example.personal_studio.ui.components.TgDatePickerDialog
 import java.time.LocalDate
 
 /**
- * Native Android DatePickerDialog wrapper that ALWAYS normalises the picked date back to
- * the Monday of its ISO week before calling [onPicked]. This is shown before the user
- * can interact with AddCourseScreen if no semester start is configured yet.
+ * Pick the first week of the semester (any day of it). [onPicked] receives the Monday of
+ * that week, which is what course weeks count from. Dismissing calls [onDismiss].
  */
 @Composable
 fun SemesterStartModal(
@@ -18,13 +15,11 @@ fun SemesterStartModal(
     onPicked: (LocalDate) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val ctx = LocalContext.current
-    LaunchedEffect(Unit) {
-        DatePickerDialog(ctx, { _, y, m, d ->
-            val picked = LocalDate.of(y, m + 1, d)
-            onPicked(SemesterTimeMapper.normalizeSemesterStart(picked))
-        }, initial.year, initial.monthValue - 1, initial.dayOfMonth)
-            .apply { setOnCancelListener { onDismiss() } }
-            .show()
-    }
+    TgDatePickerDialog(
+        title = "学期第一周",
+        hint = "选第一周里的任意一天，会按那周的周一计算",
+        initial = initial,
+        onPick = { onPicked(SemesterTimeMapper.normalizeSemesterStart(it)) },
+        onDismiss = onDismiss,
+    )
 }

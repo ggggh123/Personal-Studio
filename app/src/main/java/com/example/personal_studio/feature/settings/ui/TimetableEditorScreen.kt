@@ -23,12 +23,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TimePickerDefaults
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,9 +41,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.feature.settings.vm.TimetableEditorViewModel
 import com.example.personal_studio.ui.components.PillStyle
 import com.example.personal_studio.ui.components.TerminalConfirmDialog
-import com.example.personal_studio.ui.components.TerminalDialog
 import com.example.personal_studio.ui.components.TerminalTopBar
 import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.components.TgTimePickerDialog
 import com.example.personal_studio.ui.shell.LocalShellToast
 import com.example.personal_studio.ui.theme.Tg
 import kotlinx.coroutines.delay
@@ -130,10 +126,13 @@ fun TimetableEditorScreen(
     editing?.let { (index, isStart) ->
         val period = ui.periods.firstOrNull { it.index == index }
         if (period != null) {
-            TimeDialog(
+            val (h, m) = (if (isStart) period.startHHmm else period.endHHmm).split(":")
+                .let { (it.getOrNull(0)?.toIntOrNull() ?: 8) to (it.getOrNull(1)?.toIntOrNull() ?: 0) }
+            TgTimePickerDialog(
                 title = "第 $index 节${if (isStart) "上课" else "下课"}",
-                initial = if (isStart) period.startHHmm else period.endHHmm,
-                onPick = { t ->
+                initialHour = h, initialMinute = m,
+                onPick = { hour, minute ->
+                    val t = "%02d:%02d".format(hour, minute)
                     vm.onPeriodChange(index, startHHmm = if (isStart) t else null, endHHmm = if (isStart) null else t)
                     editing = null
                 },
@@ -171,35 +170,5 @@ private fun TimeBox(text: String, label: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = MaterialTheme.typography.titleMedium, color = c.text)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimeDialog(title: String, initial: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
-    val c = Tg.colors
-    val (h, m) = initial.split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 8) to (it.getOrNull(1)?.toIntOrNull() ?: 0) }
-    val state = rememberTimePickerState(initialHour = h, initialMinute = m, is24Hour = true)
-    TerminalDialog(onDismiss = onDismiss, title = title) {
-        Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
-            TimePicker(
-                state = state,
-                colors = TimePickerDefaults.colors(
-                    clockDialColor = c.bg,
-                    selectorColor = c.accent,
-                    clockDialSelectedContentColor = c.onAccent,
-                    clockDialUnselectedContentColor = c.text,
-                    timeSelectorSelectedContainerColor = c.accentSoft,
-                    timeSelectorSelectedContentColor = c.accent,
-                    timeSelectorUnselectedContainerColor = c.bg,
-                    timeSelectorUnselectedContentColor = c.text,
-                ),
-            )
-        }
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            TgPillButton("取消", onClick = onDismiss, style = PillStyle.SECONDARY, modifier = Modifier.weight(1f))
-            TgPillButton("确定", onClick = { onPick("%02d:%02d".format(state.hour, state.minute)) }, modifier = Modifier.weight(1f))
-        }
-        Box(Modifier.height(2.dp))
     }
 }

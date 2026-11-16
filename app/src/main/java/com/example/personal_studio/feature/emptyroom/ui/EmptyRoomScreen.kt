@@ -1,24 +1,38 @@
 package com.example.personal_studio.feature.emptyroom.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,272 +41,247 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.core.util.DefaultTimetable
 import com.example.personal_studio.domain.emptyroom.PeriodClock
-import com.example.personal_studio.domain.emptyroom.model.Building
 import com.example.personal_studio.domain.emptyroom.model.RoomFreeSlots
 import com.example.personal_studio.feature.emptyroom.EmptyRoomEvent
 import com.example.personal_studio.feature.emptyroom.EmptyRoomViewModel
-import com.example.personal_studio.ui.theme.Amber
-import com.example.personal_studio.ui.theme.Carmine
-import com.example.personal_studio.ui.theme.Cyan
-import com.example.personal_studio.ui.theme.Deep
-import com.example.personal_studio.ui.theme.Foam
-import com.example.personal_studio.ui.theme.FoamDim
-import com.example.personal_studio.ui.theme.FoamMute
-import com.example.personal_studio.ui.theme.Phosphor
-import com.example.personal_studio.ui.theme.Rule
-import com.example.personal_studio.ui.theme.Void
-import com.example.personal_studio.ui.theme.scanLines
-import com.example.personal_studio.ui.theme.vignette
+import com.example.personal_studio.feature.timeline.today.TodayText
+import com.example.personal_studio.feature.timeline.today.enterUp
+import com.example.personal_studio.ui.components.PillStyle
+import com.example.personal_studio.ui.components.TerminalTopBar
+import com.example.personal_studio.ui.components.TgCard
+import com.example.personal_studio.ui.components.TgChip
+import com.example.personal_studio.ui.components.TgGroupLabel
+import com.example.personal_studio.ui.components.TgPillButton
+import com.example.personal_studio.ui.theme.Tg
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
+/** Quick picks for the periods that must be free. */
+private val PeriodPresets = listOf("上午" to 1..5, "下午" to 6..10, "晚上" to 11..13)
+
+/** "第 1–2、6–9 节"; nothing free reads "全天有课". */
+internal fun freeRangesText(ranges: List<IntRange>): String =
+    if (ranges.isEmpty()) "全天有课"
+    else "第 " + ranges.joinToString("、") { if (it.first == it.last) "${it.first}" else "${it.first}–${it.last}" } + " 节"
+
+/**
+ * 空教室: pick a day, campuses and buildings (several at once), optionally the periods that
+ * must be free, then query. On today's date rooms free right now come first.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomViewModel = hiltViewModel()) {
     val st by vm.uiState.collectAsStateWithLifecycle()
+    val c = Tg.colors
     LaunchedEffect(Unit) {
         vm.events.collect { if (it is EmptyRoomEvent.NeedLogin) onNeedLogin() }
     }
-
-    // 客户端节次时钟 + 进屏时刻(分钟):用于教室卡「此刻空/占用」与网格高亮当前节。
+    val zone = remember { ZoneId.systemDefault() }
     val clock = remember { PeriodClock(DefaultTimetable.PERIODS) }
-    val nowMin = remember {
-        val t = java.time.Instant.ofEpochMilli(System.currentTimeMillis())
-            .atZone(java.time.ZoneId.systemDefault()).toLocalTime()
-        t.hour * 60 + t.minute
+    val nowMin = remember { java.time.LocalTime.now(zone).let { it.hour * 60 + it.minute } }
+    val today = remember { LocalDate.now(zone) }
+    val date = remember(st.date) { runCatching { LocalDate.parse(st.date) }.getOrNull() ?: today }
+    val isToday = date == today
+    val current = if (isToday) clock.periodAt(nowMin) else null
+    val rooms = remember(st.rooms, current) {
+        if (current == null) st.rooms else st.rooms.sortedBy { if (current in it.busyPeriods) 1 else 0 }
     }
-    val todayStr = remember {
-        java.time.Instant.ofEpochMilli(System.currentTimeMillis())
-            .atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
-    }
-    val isToday = st.date == todayStr
+    val freeNow = if (current == null) null else rooms.count { current !in it.busyPeriods }
 
-    Box(Modifier.fillMaxSize().background(Void).scanLines().vignette(cornerDim = 0.42f, centerGlow = 0.03f)) {
-        Column(Modifier.fillMaxSize().systemBarsPadding().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onBack) { Text("←", color = FoamMute) }
-                Text("空教室", color = Cyan, style = MaterialTheme.typography.titleMedium)
+    Column(Modifier.fillMaxSize()) {
+        TerminalTopBar(route = "空教室", subtitle = "空教室\n按校区、教学楼和节次查询", onBack = onBack)
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth().navigationBarsPadding(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 32.dp),
+        ) {
+            item(key = "date") {
+                DateRow(date, today, onShift = vm::onShiftDate, onToday = vm::onResetToday, modifier = Modifier.enterUp(true, 0))
             }
-
-            LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 查询日期(可前后步进)
-                item {
-                    Spacer(Modifier.height(4.dp))
-                    StepLabel("查询日期")
-                    Spacer(Modifier.height(6.dp))
-                    DateRow(st.date, todayStr, onShift = { vm.onShiftDate(it) }, onToday = { vm.onResetToday() })
-                }
-
-                // ① 选校区:整行大条目,可多选
-                item {
-                    Spacer(Modifier.height(8.dp))
-                    StepLabel("① 选择校区(可多选)")
-                }
+            item(key = "campusLabel") { TgGroupLabel("校区") }
+            item(key = "campuses") {
                 if (st.campuses.isEmpty()) {
-                    item { Hint("加载校区中…") }
+                    Text(if (st.error != null) "校区没有加载出来" else "正在加载校区…", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary,
+                        modifier = Modifier.padding(start = 4.dp))
                 } else {
-                    items(st.campuses, key = { "C" + it.code }) { c ->
-                        SelectRow(c.name, c.code in st.selectedCampusCodes) { vm.onToggleCampus(c) }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        st.campuses.forEach { campus ->
+                            TgChip(campus.name, campus.code in st.selectedCampusCodes, onClick = { vm.onToggleCampus(campus) })
+                        }
                     }
                 }
-
-                // ② 选教学楼:含「全部」,可多选
-                if (st.selectedCampusCodes.isNotEmpty()) {
-                    item { Spacer(Modifier.height(4.dp)); StepLabel("② 选择教学楼(可多选)") }
-                    item { SelectRow("全部教学楼", st.selectedBuildingCodes.isEmpty()) { vm.onSelectAllBuildings() } }
-                    items(st.buildings, key = { "B" + it.code }) { b ->
-                        SelectRow(b.name, b.code in st.selectedBuildingCodes) { vm.onToggleBuilding(b) }
-                    }
-
-                    // ③ 须空闲的节次(可选)
-                    item {
-                        Spacer(Modifier.height(4.dp))
-                        StepLabel("③ 须空闲的节次(可选)")
-                        Spacer(Modifier.height(2.dp))
-                        Hint("留空=不限;选中的节次须全部空闲")
-                        Spacer(Modifier.height(6.dp))
-                        PeriodPicker(st.requiredFreePeriods) { vm.onTogglePeriod(it) }
-                    }
-
-                    // ④ 查询
-                    item {
-                        Spacer(Modifier.height(8.dp))
-                        QueryButton(if (st.loading) "查询中…" else "↻ 查询空教室", enabled = !st.loading) { vm.onQuery() }
+            }
+            if (st.selectedCampusCodes.isNotEmpty()) {
+                item(key = "buildingLabel") { TgGroupLabel("教学楼") }
+                item(key = "buildings") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TgChip("全部", st.selectedBuildingCodes.isEmpty(), onClick = vm::onSelectAllBuildings)
+                        st.buildings.forEach { b -> TgChip(b.name, b.code in st.selectedBuildingCodes, onClick = { vm.onToggleBuilding(b) }) }
                     }
                 }
-
-                st.error?.let { item { Text("⚠ $it", color = Amber, style = MaterialTheme.typography.labelMedium) } }
-
-                // 结果
-                item {
-                    when {
-                        st.loading -> Hint("查询中…")
-                        st.selectedCampusCodes.isEmpty() -> Hint("请先选择校区")
-                        !st.queried -> Hint(
-                            "已选 " + (if (st.selectedBuildingCodes.isEmpty()) "全部教学楼" else "${st.selectedBuildingCodes.size} 栋楼") +
-                                ",点上方「查询空教室」",
-                        )
-                        st.rooms.isEmpty() -> Hint("该范围当日无空闲教室记录")
-                        else -> Text("共 ${st.rooms.size} 间", color = FoamDim, style = MaterialTheme.typography.labelMedium)
+                item(key = "periodLabel") { TgGroupLabel("这些节次要空着（不选则不限）") }
+                item(key = "periods") {
+                    Column {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PeriodPresets.forEach { (label, range) ->
+                                val all = range.all { it in st.requiredFreePeriods }
+                                TgChip("$label ${range.first}–${range.last}", all, onClick = {
+                                    range.filter { (it in st.requiredFreePeriods) == all }.forEach(vm::onTogglePeriod)
+                                })
+                            }
+                        }
+                        PeriodPicker(st.requiredFreePeriods, vm::onTogglePeriod, Modifier.padding(top = 12.dp))
                     }
                 }
-                if (st.queried && !st.loading) {
-                    items(st.rooms, key = { it.buildingCode + "|" + it.roomName }) { RoomCard(it, nowMin, clock, showNow = isToday) }
+                item(key = "query") {
+                    TgPillButton(
+                        if (st.loading) "正在查询…" else "查询空教室",
+                        onClick = vm::onQuery, enabled = !st.loading, style = PillStyle.ACCENT,
+                        modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                    )
                 }
-                item { Spacer(Modifier.height(12.dp)) }
+            }
+            st.error?.let { err ->
+                item(key = "error") {
+                    Text(err, style = MaterialTheme.typography.bodyMedium, color = c.error, modifier = Modifier.padding(start = 4.dp, top = 12.dp))
+                }
+            }
+            if (st.queried && !st.loading) {
+                item(key = "count") {
+                    TgGroupLabel(
+                        when {
+                            rooms.isEmpty() -> "没有符合条件的教室"
+                            freeNow != null -> "共 ${rooms.size} 间 · 此刻空着 $freeNow 间"
+                            else -> "共 ${rooms.size} 间"
+                        },
+                    )
+                }
+                items(rooms, key = { it.buildingCode + "|" + it.roomName }) { room ->
+                    RoomCard(room, current, modifier = Modifier.padding(bottom = 10.dp).animateItem())
+                }
+            } else if (st.selectedCampusCodes.isEmpty() && st.campuses.isNotEmpty()) {
+                item(key = "hint") {
+                    Text("先选一个或几个校区。", style = MaterialTheme.typography.bodyMedium, color = c.textSecondary,
+                        modifier = Modifier.padding(start = 4.dp, top = 16.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun StepLabel(text: String) {
-    Text(text, color = Cyan, style = MaterialTheme.typography.titleSmall)
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, color = FoamDim, style = MaterialTheme.typography.bodyMedium)
-}
-
-/** 整行大条目(多选):选中态加粗 phosphor 边框 + 淡底 + ☑ 标记;文字左对齐、完整显示。 */
-@Composable
-private fun SelectRow(text: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth()
-            .border(if (selected) 2.dp else 1.dp, if (selected) Phosphor else Rule)
-            .background(if (selected) Phosphor.copy(alpha = 0.10f) else Deep)
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            if (selected) "☑" else "☐",
-            color = if (selected) Phosphor else FoamMute, style = MaterialTheme.typography.titleMedium,
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text, color = if (selected) Foam else FoamMute, style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
-        )
+private fun DateRow(date: LocalDate, today: LocalDate, onShift: (Int) -> Unit, onToday: () -> Unit, modifier: Modifier) {
+    val c = Tg.colors
+    val diff = ChronoUnit.DAYS.between(today, date)
+    TgCard(modifier) {
+        Row(Modifier.padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onShift(-1) }, enabled = diff > 0, modifier = Modifier.alpha(if (diff > 0) 1f else 0.35f)) {
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, contentDescription = "前一天", tint = c.text)
+            }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${date.monthValue} 月 ${date.dayOfMonth} 日 ${TodayText.weekday(date)}", style = MaterialTheme.typography.headlineSmall, color = c.text)
+                val rel = when (diff) { 0L -> "今天"; 1L -> "明天"; 2L -> "后天"; else -> null }
+                if (rel != null) {
+                    Text(rel, style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
+                } else {
+                    Text(
+                        "回到今天", style = MaterialTheme.typography.bodySmall, color = c.accent,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onToday).padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                }
+            }
+            IconButton(onClick = { onShift(1) }) {
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = "后一天", tint = c.text)
+            }
+        }
     }
 }
 
-/** 节次多选:1..13 等宽方格,选中高亮 phosphor。 */
+/** Periods 1–13 as round toggles in two rows. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PeriodPicker(selected: Set<Int>, onToggle: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+private fun PeriodPicker(selected: Set<Int>, onToggle: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val c = Tg.colors
+    FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 7) {
         (1..13).forEach { p ->
-            val sel = p in selected
+            val on = p in selected
             Box(
-                Modifier.weight(1f).height(34.dp)
-                    .border(if (sel) 2.dp else 1.dp, if (sel) Phosphor else Rule)
-                    .background(if (sel) Phosphor.copy(alpha = 0.18f) else Deep)
-                    .clickable { onToggle(p) },
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (on) c.text else c.bg)
+                    .border(1.dp, if (on) c.text else c.textTertiary, CircleShape)
+                    .clickable(role = Role.Checkbox, onClickLabel = "第 $p 节") { onToggle(p) },
                 contentAlignment = Alignment.Center,
-            ) { Text("$p", color = if (sel) Phosphor else FoamMute, style = MaterialTheme.typography.labelMedium) }
+            ) {
+                Text("$p", style = MaterialTheme.typography.bodyMedium, color = if (on) c.bg else c.text)
+            }
         }
     }
 }
 
 @Composable
-private fun QueryButton(text: String, enabled: Boolean, onClick: () -> Unit) {
-    val color = if (enabled) Cyan else FoamMute
-    Box(
-        Modifier.fillMaxWidth().border(1.dp, color).background(Deep)
-            .clickable(enabled = enabled) { onClick() }.padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = color, style = MaterialTheme.typography.titleMedium, maxLines = 1) }
-}
-
-@Composable
-private fun RoomCard(room: RoomFreeSlots, nowMin: Int, clock: PeriodClock, showNow: Boolean) {
+private fun RoomCard(room: RoomFreeSlots, current: Int?, modifier: Modifier = Modifier) {
+    val c = Tg.colors
     var expanded by remember { mutableStateOf(false) }
-    // 仅当查询日期为今天时,「此刻」与当前节高亮才有意义。
-    val curPeriod = if (showNow) clock.periodAt(nowMin) else null
-    val freeNow = curPeriod == null || curPeriod !in room.busyPeriods
-    Column(
-        Modifier.fillMaxWidth().border(1.dp, Rule).background(Deep)
-            .clickable { expanded = !expanded }.padding(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${room.buildingName} ${room.roomName}", color = Foam,
-                style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            if (showNow) {
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    if (freeNow) "此刻空" else "此刻占用",
-                    color = if (freeNow) Phosphor else Carmine, style = MaterialTheme.typography.labelMedium,
-                )
+    val freeNow = current != null && current !in room.busyPeriods
+    TgCard(modifier, onClick = { expanded = !expanded }, onClickLabel = if (expanded) "收起占用情况" else "查看每节占用") {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${room.buildingName} ${room.roomName}", style = MaterialTheme.typography.titleMedium, color = c.text,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (current != null) {
+                    Text(
+                        if (freeNow) "此刻空着" else "此刻有课",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (freeNow) c.accent else c.textSecondary,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .background(if (freeNow) c.accentSoft else c.bg, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+            Text("空闲 " + freeRangesText(room.freeRanges), style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                modifier = Modifier.padding(top = 4.dp))
+            AnimatedVisibility(expanded, enter = expandVertically(tween(240)) + fadeIn(tween(240)), exit = shrinkVertically(tween(200)) + fadeOut(tween(150))) {
+                OccupancyBar(room.busyPeriods, current, Modifier.padding(top = 12.dp))
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Text("空闲 " + prettyFree(room.freeRanges), color = FoamMute, style = MaterialTheme.typography.bodySmall)
-        if (expanded) { Spacer(Modifier.height(8.dp)); OccupancyGrid(room.busyPeriods, curPeriod) }
     }
 }
 
-/** 日期步进行:◀ 周X yyyy-MM-dd ▶,显示「今天/明天/后天」;非今天时可一键回今天。 */
+/** 13 cells: free in the accent wash, busy in a faint text tone; the current period is outlined. */
 @Composable
-private fun DateRow(date: String, todayStr: String, onShift: (Int) -> Unit, onToday: () -> Unit) {
-    val d = java.time.LocalDate.parse(date)
-    val today = java.time.LocalDate.parse(todayStr)
-    val daysFromToday = java.time.temporal.ChronoUnit.DAYS.between(today, d)
-    val rel = when (daysFromToday) {
-        0L -> "今天"; 1L -> "明天"; 2L -> "后天"; else -> null
-    }
-    val atToday = daysFromToday == 0L
-    Row(
-        Modifier.fillMaxWidth().border(1.dp, Rule).background(Deep)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        StepperButton("◀", enabled = !atToday) { onShift(-1) }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${weekdayCn(d.dayOfWeek.value)}  $date", color = Foam, style = MaterialTheme.typography.titleMedium)
-            if (rel != null) {
-                Text(rel, color = Cyan, style = MaterialTheme.typography.labelSmall)
-            } else {
-                Text("↺ 回到今天", color = Amber, style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.clickable { onToday() })
+private fun OccupancyBar(busy: Set<Int>, highlight: Int?, modifier: Modifier = Modifier) {
+    val c = Tg.colors
+    Column(modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            (1..13).forEach { p ->
+                val isBusy = p in busy
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isBusy) c.text.copy(alpha = 0.12f) else c.accentSoft)
+                        .then(if (p == highlight) Modifier.border(1.5.dp, c.accent, RoundedCornerShape(6.dp)) else Modifier),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("$p", style = MaterialTheme.typography.labelSmall, color = if (isBusy) c.textSecondary else c.accent)
+                }
             }
         }
-        StepperButton("▶", enabled = true) { onShift(1) }
+        Text("浅色为空闲，灰色为有课" + if (highlight != null) "，描边是现在这一节" else "", style = MaterialTheme.typography.bodySmall,
+            color = c.textSecondary, modifier = Modifier.padding(top = 6.dp))
     }
 }
-
-@Composable
-private fun StepperButton(sym: String, enabled: Boolean, onClick: () -> Unit) {
-    val color = if (enabled) Cyan else Rule
-    Box(
-        Modifier.border(1.dp, color).background(Deep)
-            .clickable(enabled = enabled) { onClick() }.padding(horizontal = 16.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(sym, color = color, style = MaterialTheme.typography.titleMedium) }
-}
-
-private fun weekdayCn(dow: Int): String =
-    "周" + listOf("一", "二", "三", "四", "五", "六", "日")[(dow - 1).coerceIn(0, 6)]
-
-/** 节次×占用 可视化:13 格,忙=Carmine,空=Phosphor 淡底;当前时刻所在节加亮边框。 */
-@Composable
-private fun OccupancyGrid(busy: Set<Int>, highlight: Int?) {
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        (1..13).forEach { p ->
-            val isBusy = p in busy
-            val isHi = p == highlight
-            Box(
-                Modifier.weight(1f).height(22.dp)
-                    .background(if (isBusy) Carmine.copy(alpha = 0.30f) else Phosphor.copy(alpha = 0.18f))
-                    .border(if (isHi) 2.dp else 1.dp, if (isHi) Cyan else if (isBusy) Carmine else Phosphor),
-                contentAlignment = Alignment.Center,
-            ) { Text("$p", color = if (isBusy) Carmine else Phosphor, style = MaterialTheme.typography.labelSmall) }
-        }
-    }
-}
-
-private fun prettyFree(ranges: List<IntRange>): String =
-    if (ranges.isEmpty()) "无" else ranges.joinToString(", ") { if (it.first == it.last) "${it.first}" else "${it.first}~${it.last}" } + " 节"
