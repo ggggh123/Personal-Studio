@@ -24,23 +24,49 @@ object EmptyRoomQuery {
 
     /**
      * 现在 = the period under way, or the next one during a break; on another day it means no
-     * constraint. 上午 / 下午 / 晚上 / 自选 = their periods, minus those already over when the
-     * date is today.
+     * constraint. 上午 / 下午 / 晚上 = their periods, 自选 = the chosen periods (any blocks, e.g.
+     * 1–3 and 7–9; none chosen = no constraint), minus those already over when the date is today.
      */
-    fun required(filter: TimeFilter, custom: IntRange, isToday: Boolean, nowMinute: Int, clock: PeriodClock): RequiredPeriods {
-        val span = when (filter) {
+    fun required(filter: TimeFilter, custom: Set<Int>, isToday: Boolean, nowMinute: Int, clock: PeriodClock): RequiredPeriods {
+        val span: Collection<Int> = when (filter) {
             TimeFilter.ANY -> return RequiredPeriods(emptySet())
             TimeFilter.NOW -> {
                 if (!isToday) return RequiredPeriods(emptySet())
                 val p = clock.periodAt(nowMinute) ?: (1..LAST_PERIOD).firstOrNull { clock.startMinute(it) > nowMinute }
                 return if (p == null) RequiredPeriods(emptySet(), passed = true) else RequiredPeriods(setOf(p))
             }
-            TimeFilter.CUSTOM -> custom
-            else -> filter.span!!
+            TimeFilter.CUSTOM -> if (custom.isEmpty()) return RequiredPeriods(emptySet()) else custom
+            else -> filter.span!!.toList()
         }
         if (!isToday) return RequiredPeriods(span.toSet())
         val left = span.filter { clock.endMinute(it) > nowMinute }.toSet()
         return if (left.isEmpty()) RequiredPeriods(emptySet(), passed = true) else RequiredPeriods(left)
+    }
+
+    /** Consecutive periods merged into blocks: {1, 2, 3, 7, 8} → [1..3, 7..8]. */
+    fun blocks(periods: Set<Int>): List<IntRange> {
+        val sorted = periods.sorted()
+        if (sorted.isEmpty()) return emptyList()
+        val out = mutableListOf<IntRange>()
+        var start = sorted.first(); var prev = start
+        for (p in sorted.drop(1)) {
+            if (p == prev + 1) prev = p else { out += start..prev; start = p; prev = p }
+        }
+        out += start..prev
+        return out
+    }
+
+    /** A tap on period [p] in 自选: selects it, or clears it when it was selected. */
+    fun toggle(selected: Set<Int>, p: Int): Set<Int> = if (p in selected) selected - p else selected + p
+
+    /**
+     * Dragging across 自选 from period [from] to [to] paints that stretch onto [base] (the
+     * selection when the drag began): selecting when the drag started on an empty period,
+     * clearing when it started on a selected one. Other blocks are kept.
+     */
+    fun paint(base: Set<Int>, from: Int, to: Int): Set<Int> {
+        val stretch = (minOf(from, to)..maxOf(from, to)).toSet()
+        return if (from in base) base - stretch else base + stretch
     }
 
     /** Rooms with every required period free. */

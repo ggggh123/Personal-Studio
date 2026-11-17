@@ -1,9 +1,20 @@
 package com.example.personal_studio.feature.emptyroom.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
+import kotlin.math.abs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,61 +88,139 @@ internal fun OccupancyStrip(busy: Set<Int>, current: Int?, modifier: Modifier = 
     }
 }
 
+/** "第 1–3、7–9 节 · 08:00–09:35、14:10–15:55" for any set of periods; null when empty. */
+internal fun periodsText(periods: Set<Int>, clock: PeriodClock): String? {
+    val blocks = EmptyRoomQuery.blocks(periods)
+    if (blocks.isEmpty()) return null
+    val names = blocks.joinToString("、") { if (it.first == it.last) "${it.first}" else "${it.first}–${it.last}" }
+    val times = blocks.joinToString("、") { "${EmptyRoomQuery.hhmm(clock.startMinute(it.first))}–${EmptyRoomQuery.hhmm(clock.endMinute(it.last))}" }
+    return "第 $names 节 · $times"
+}
+
 /**
- * 自选: the 13 periods in one row. Tap a period to start, tap another to stretch the range to
- * it; or drag across. The line below gives the periods and their clock times.
+ * 自选: the 13 periods in one row; any number of blocks (e.g. 1–3 and 7–9). Tap a period to
+ * select it, tap again to clear it. Long-press (or drag sideways) and move to paint a stretch:
+ * starting on an empty period selects, starting on a selected one clears; other blocks stay.
+ * A vertical swipe is left to the page. Periods already over today are dimmed and not counted.
  */
 @Composable
-internal fun PeriodRangeBar(range: IntRange, clock: PeriodClock, onChange: (IntRange) -> Unit, modifier: Modifier = Modifier) {
+internal fun PeriodPicker(
+    selected: Set<Int>,
+    clock: PeriodClock,
+    onChange: (Set<Int>) -> Unit,
+    modifier: Modifier = Modifier,
+    passed: Set<Int> = emptySet(),
+) {
     val c = Tg.colors
-    val latest by rememberUpdatedState(range)
+    val latest by rememberUpdatedState(selected)
     val change by rememberUpdatedState(onChange)
-    var width by remember { mutableIntStateOf(1) }
-    var dragStart by remember { mutableIntStateOf(0) }
-    fun cellAt(x: Float): Int = ((x / width) * PERIODS).toInt().coerceIn(0, PERIODS - 1) + 1
+    val haptic = LocalHapticFeedback.current
     Column(modifier) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(36.dp)
-                .semantics { contentDescription = "自选节次，" + rangeText(range, clock) }
+                .height(40.dp)
                 .pointerInput(Unit) {
-                    width = size.width
-                    detectTapGestures { pos ->
-                        val p = cellAt(pos.x)
-                        val r = latest
-                        change(if (r.first == r.last && p != r.first) minOf(p, r.first)..maxOf(p, r.first) else p..p)
+                    val slop = viewConfiguration.touchSlop
+                    val longPressMs = viewConfiguration.longPressTimeoutMillis
+                    fun cellAt(x: Float): Int = ((x / size.width) * PERIODS).toInt().coerceIn(0, PERIODS - 1) + 1
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val start = cellAt(down.position.x)
+                        // TAP, DRAG (sideways past the slop), SCROLL (vertical, left to the list),
+                        // or null when the finger rests long enough: a long press.
+                        val decided: Int? = withTimeoutOrNull(longPressMs) {
+                            var result = 0
+                            while (result == 0) {
+                                val ch = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                                result = when {
+                                    ch == null -> SCROLL
+                                    !ch.pressed -> TAP
+                                    abs(ch.position.x - down.position.x) > slop &&
+                                        abs(ch.position.x - down.position.x) >= abs(ch.position.y - down.position.y) -> DRAG
+                                    abs(ch.position.y - down.position.y) > slop -> SCROLL
+                                    else -> 0
+                                }
+                            }
+                            result
+                        }
+                        when (decided) {
+                            TAP -> change(EmptyRoomQuery.toggle(latest, start))
+                            SCROLL -> Unit
+                            else -> {
+                                if (decided == null) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val base = latest
+                                var last = start
+                                change(EmptyRoomQuery.paint(base, start, start))
+                                while (true) {
+                                    val ch = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!ch.pressed) break
+                                    ch.consume()
+                                    val cell = cellAt(ch.position.x)
+                                    if (cell != last) {
+                                        last = cell
+                                        change(EmptyRoomQuery.paint(base, start, cell))
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-                .pointerInput(Unit) {
-                    width = size.width
-                    detectHorizontalDragGestures(
-                        onDragStart = { pos -> dragStart = cellAt(pos.x); change(dragStart..dragStart) },
-                        onHorizontalDrag = { ch, _ ->
-                            val p = cellAt(ch.position.x)
-                            change(minOf(p, dragStart)..maxOf(p, dragStart))
-                        },
-                    )
                 },
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             (1..PERIODS).forEach { p ->
-                val on = p in range
-                val shape = RoundedCornerShape(8.dp)
+                val on = p in selected
+                // Neighbouring selected periods join into one block: their facing corners square off.
+                val joinLeft = on && (p - 1) in selected
+                val joinRight = on && (p + 1) in selected
+                val shape = RoundedCornerShape(
+                    topStart = if (joinLeft) 2.dp else 8.dp, bottomStart = if (joinLeft) 2.dp else 8.dp,
+                    topEnd = if (joinRight) 2.dp else 8.dp, bottomEnd = if (joinRight) 2.dp else 8.dp,
+                )
+                val bg by animateColorAsState(if (on) c.text else c.bg, tween(150), label = "periodBg")
                 Box(
                     Modifier
                         .weight(1f)
-                        .height(36.dp)
+                        .height(40.dp)
+                        .alpha(if (p in passed) 0.4f else 1f)
                         .clip(shape)
-                        .background(if (on) c.text else c.bg)
-                        .border(1.dp, if (on) c.text else c.line, shape),
+                        .background(bg)
+                        .border(1.dp, if (on) c.text else c.line, shape)
+                        .semantics {
+                            role = Role.Checkbox
+                            contentDescription = "第 $p 节"
+                            stateDescription = if (on) "已选" else "未选"
+                            onClick(label = if (on) "取消" else "选择") { change(EmptyRoomQuery.toggle(latest, p)); true }
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("$p", style = MaterialTheme.typography.labelSmall, color = if (on) c.bg else c.textSecondary, textAlign = TextAlign.Center)
                 }
             }
         }
-        Text(rangeText(range, clock), style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 6.dp, start = 2.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            val summary = periodsText(selected, clock)
+            Text(
+                summary?.let { if (selected.any { it in passed }) "$it · 已过的不计" else it }
+                    ?: "点格子选节次，长按拖动可以连选，再点一下取消",
+                style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                modifier = Modifier.weight(1f).padding(start = 2.dp),
+            )
+            if (selected.isNotEmpty()) {
+                Text(
+                    "清除", style = MaterialTheme.typography.bodySmall, color = c.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(role = Role.Button, onClickLabel = "清除自选节次") { change(emptySet()) }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                )
+            }
+        }
     }
 }
+
+private const val TAP = 1
+private const val DRAG = 2
+private const val SCROLL = 3

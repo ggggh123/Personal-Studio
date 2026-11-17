@@ -65,7 +65,8 @@ data class EmptyRoomUiState(
     val today: LocalDate = LocalDate.now(),
     val date: LocalDate = today,
     val timeFilter: TimeFilter = TimeFilter.NOW,
-    val custom: IntRange = 1..2,
+    /** 自选 periods, any blocks (e.g. 1–3 and 7–9). */
+    val custom: Set<Int> = emptySet(),
     val periods: List<TimetablePeriod> = DefaultTimetable.PERIODS,
     val nowMinute: Int = 0,
     val loading: Boolean = false,
@@ -124,7 +125,7 @@ class EmptyRoomViewModel @Inject constructor(
                     buildingCodes = saved.buildingCodes,
                     recentBuildingCodes = saved.recentBuildingCodes,
                     timeFilter = saved.timeFilter?.let { f -> TimeFilter.entries.firstOrNull { e -> e.name == f } } ?: TimeFilter.NOW,
-                    custom = saved.customFrom..maxOf(saved.customFrom, saved.customTo),
+                    custom = saved.customPeriods,
                     periods = periods,
                 )
             }
@@ -162,9 +163,10 @@ class EmptyRoomViewModel @Inject constructor(
         persist()
     }
 
-    fun onCustomRange(range: IntRange) {
-        val r = range.first.coerceIn(1, 13)..range.last.coerceIn(range.first.coerceIn(1, 13), 13)
-        _ui.update { it.copy(custom = r, timeFilter = TimeFilter.CUSTOM).withResults() }
+    /** 自选 periods changed (tapped or dragged); filtered locally like the other time options. */
+    fun onCustomPeriods(periods: Set<Int>) {
+        val p = periods.filter { it in 1..13 }.toSet()
+        _ui.update { it.copy(custom = p, timeFilter = TimeFilter.CUSTOM).withResults() }
         persist()
     }
 
@@ -257,8 +259,7 @@ class EmptyRoomViewModel @Inject constructor(
                     campusCode = st.campusCode,
                     buildingCodes = st.buildingCodes,
                     timeFilter = st.timeFilter.name,
-                    customFrom = st.custom.first,
-                    customTo = st.custom.last,
+                    customPeriods = st.custom,
                     recentBuildingCodes = st.recentBuildingCodes,
                 ),
             )

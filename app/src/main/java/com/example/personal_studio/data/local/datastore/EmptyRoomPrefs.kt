@@ -16,8 +16,8 @@ data class EmptyRoomSelection(
     /** Empty = every building of the campus. */
     val buildingCodes: Set<String> = emptySet(),
     val timeFilter: String? = null,
-    val customFrom: Int = 1,
-    val customTo: Int = 2,
+    /** 自选 periods, any blocks. */
+    val customPeriods: Set<Int> = emptySet(),
     /** Most recent first, at most [EmptyRoomPrefs.RECENT_MAX]. */
     val recentBuildingCodes: List<String> = emptyList(),
 )
@@ -44,13 +44,11 @@ class EmptyRoomPrefs @Inject constructor(
 
     suspend fun selection(): EmptyRoomSelection {
         val p = dataStore.data.first()
-        val custom = p[keyCustom]?.split('-')?.mapNotNull { it.toIntOrNull() }.orEmpty()
         return EmptyRoomSelection(
             campusCode = p[keyCampus]?.takeIf { it.isNotEmpty() },
             buildingCodes = p[keyBuildings].toCodes().toSet(),
             timeFilter = p[keyFilter],
-            customFrom = custom.getOrNull(0) ?: 1,
-            customTo = custom.getOrNull(1) ?: 2,
+            customPeriods = parseCustomPeriods(p[keyCustom]),
             recentBuildingCodes = p[keyRecent].toCodes(),
         )
     }
@@ -60,7 +58,7 @@ class EmptyRoomPrefs @Inject constructor(
             it[keyCampus] = s.campusCode.orEmpty()
             it[keyBuildings] = s.buildingCodes.joinToString(",")
             s.timeFilter?.let { f -> it[keyFilter] = f }
-            it[keyCustom] = "${s.customFrom}-${s.customTo}"
+            it[keyCustom] = s.customPeriods.sorted().joinToString(",")
             it[keyRecent] = s.recentBuildingCodes.take(RECENT_MAX).joinToString(",")
         }
     }
@@ -69,5 +67,18 @@ class EmptyRoomPrefs @Inject constructor(
 
     companion object {
         const val RECENT_MAX = 6
+
+        /** "1,2,3,7,8"; the first version stored one range as "3-5". */
+        fun parseCustomPeriods(raw: String?): Set<Int> {
+            if (raw.isNullOrBlank()) return emptySet()
+            if ('-' in raw && ',' !in raw) {
+                val ends = raw.split('-').mapNotNull { it.trim().toIntOrNull() }
+                if (ends.isEmpty()) return emptySet()
+                val a = ends.first()
+                val b = ends.last()
+                return (minOf(a, b)..maxOf(a, b)).filter { it in 1..13 }.toSet()
+            }
+            return raw.split(',').mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..13 }.toSet()
+        }
     }
 }

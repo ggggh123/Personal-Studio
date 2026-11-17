@@ -151,9 +151,12 @@ class EmptyRoomViewModelTest {
         assertEquals(3, vm.uiState.value.results?.matching)
         vm.onTimeFilter(TimeFilter.MORNING); advanceUntilIdle()
         assertEquals(listOf("102", "103"), vm.uiState.value.results?.groups?.flatMap { g -> g.second.map { it.roomName } }?.sorted())
-        vm.onCustomRange(7..8); advanceUntilIdle()
+        vm.onCustomPeriods(setOf(7, 8)); advanceUntilIdle()
         assertEquals(TimeFilter.CUSTOM, vm.uiState.value.timeFilter)
         assertEquals(listOf("101", "103"), vm.uiState.value.results?.groups?.flatMap { g -> g.second.map { it.roomName } }?.sorted())
+        // Two blocks: 1–2 and 7–8 must both be free.
+        vm.onCustomPeriods(setOf(1, 2, 7, 8)); advanceUntilIdle()
+        assertEquals(listOf("103"), vm.uiState.value.results?.groups?.flatMap { g -> g.second.map { it.roomName } })
         coVerify(exactly = 1) { r.openAndLogin(any(), any(), any()) }
     }
 

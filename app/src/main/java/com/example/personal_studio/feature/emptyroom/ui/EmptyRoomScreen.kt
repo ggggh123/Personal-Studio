@@ -105,7 +105,7 @@ fun EmptyRoomScreen(onBack: () -> Unit, onNeedLogin: () -> Unit, vm: EmptyRoomVi
                     st = st, place = place, clock = clock,
                     onDate = vm::onDate, onPickDate = { pickDate = true },
                     onPlace = { if (st.catalog != null) showSheet = true else if (!st.loggedIn) vm.onLogin() },
-                    onFilter = vm::onTimeFilter, onCustom = vm::onCustomRange,
+                    onFilter = vm::onTimeFilter, onCustom = vm::onCustomPeriods,
                     modifier = Modifier.enterUp(true, 0),
                 )
             }
@@ -171,7 +171,7 @@ private fun Conditions(
     onPickDate: () -> Unit,
     onPlace: () -> Unit,
     onFilter: (TimeFilter) -> Unit,
-    onCustom: (IntRange) -> Unit,
+    onCustom: (Set<Int>) -> Unit,
     modifier: Modifier,
 ) {
     val c = Tg.colors
@@ -228,7 +228,8 @@ private fun Conditions(
                 enter = expandVertically(tween(240)) + fadeIn(tween(240)),
                 exit = shrinkVertically(tween(200)) + fadeOut(tween(150)),
             ) {
-                PeriodRangeBar(st.custom, clock, onCustom, Modifier.padding(top = 12.dp))
+                val passed = if (st.isToday) (1..13).filter { clock.endMinute(it) <= st.nowMinute }.toSet() else emptySet()
+                PeriodPicker(st.custom, clock, onCustom, Modifier.padding(top = 12.dp), passed = passed)
             }
             val hint = filterHint(st, clock)
             if (hint != null && st.timeFilter != TimeFilter.CUSTOM) {
