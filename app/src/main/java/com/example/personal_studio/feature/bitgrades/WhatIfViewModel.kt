@@ -3,8 +3,7 @@ package com.example.personal_studio.feature.bitgrades
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.core.util.GpaCalculator
-import com.example.personal_studio.data.local.db.dao.GradesDao
-import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
+import com.example.personal_studio.domain.bitgrades.GradeBookSource
 import com.example.personal_studio.domain.bitgrades.model.GradeBook
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,16 +26,14 @@ data class WhatIfUiState(
 
 @HiltViewModel
 class WhatIfViewModel @Inject constructor(
-    dao: GradesDao,
-    computeGpa: ComputeGpaUseCase,
+    bookSource: GradeBookSource,
 ) : ViewModel() {
 
     private val _input = MutableStateFlow(WhatIfUiState())
 
-    val uiState: StateFlow<WhatIfUiState> = combine(
-        dao.observeAll(), dao.observeRanks(), _input,
-    ) { grades, ranks, input ->
-        input.copy(book = computeGpa.invoke(grades, ranks))
+    // The book is computed once in GradeBookSource; typing only copies the inputs.
+    val uiState: StateFlow<WhatIfUiState> = combine(bookSource.books, _input) { book, input ->
+        input.copy(book = book)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WhatIfUiState())
 
     fun onModeChange(m: WhatIfMode) = _input.update { it.copy(mode = m) }

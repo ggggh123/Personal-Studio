@@ -6,12 +6,11 @@ import com.example.personal_studio.data.local.datastore.DdlSyncPrefs
 import com.example.personal_studio.data.local.datastore.GradesSyncPrefs
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.LoginPrefs
-import com.example.personal_studio.data.local.db.dao.GradesDao
+import com.example.personal_studio.domain.bitgrades.GradeBookSource
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.auth.LogoutUseCase
-import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
 import com.example.personal_studio.domain.bitimport.SyncCenter
 import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import com.example.personal_studio.feature.bitgrades.GradesPollScheduler
@@ -77,8 +76,7 @@ fun maskAccount(username: String): String {
 class CampusViewModel @Inject constructor(
     credPrefs: ImportCredentialPrefs,
     loginPrefs: LoginPrefs,
-    gradesDao: GradesDao,
-    computeGpa: ComputeGpaUseCase,
+    bookSource: GradeBookSource,
     timelineDao: TimelineDao,
     private val gradesSyncPrefs: GradesSyncPrefs,
     private val ddlSyncPrefs: DdlSyncPrefs,
@@ -89,9 +87,7 @@ class CampusViewModel @Inject constructor(
     private val clock: TodayClock,
 ) : ViewModel() {
 
-    private val book = combine(gradesDao.observeAll(), gradesDao.observeRanks()) { entries, ranks ->
-        computeGpa.invoke(entries, ranks)
-    }
+    private val book = bookSource.books
     private val agenda = combine(timelineDao.observeLexueDdls(), timelineDao.observeImportedExams()) { d, e -> d to e }
     private val polls = combine(gradesSyncPrefs.observe, ddlSyncPrefs.observe) { g, d ->
         PollUi(g.enabled, g.intervalHours) to PollUi(d.enabled, d.intervalHours)

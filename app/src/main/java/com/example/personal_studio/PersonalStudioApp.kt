@@ -27,8 +27,13 @@ class PersonalStudioApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        OpenCvInitializer.ensureInitialized()
         CrashLogger.install(this)
+
+        // Off the main thread so the first frame does not wait for it; the scanner calls
+        // ensureInitialized() again before use. (The serif fonts are warmed in MainActivity.)
+        appScope.launch {
+            runCatching { OpenCvInitializer.ensureInitialized() }
+        }
 
         // One-shot: move legacy openrouter_api_key → new api_key if present.
         // Safe to call every launch; no-op once migrated.

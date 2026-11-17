@@ -37,6 +37,12 @@ Debug APK 输出到 `app/build/outputs/apk/debug/app-debug.apk`。连接开启 U
 .\gradlew.bat :app:installDebug
 ```
 
+Debug 版可调试、不预编译，每个页面第一次打开都会明显更慢，不能用来判断动画是否流畅。日常使用或检查流畅度时安装 `profile` 版：它就是 release 代码，不可调试，用 debug 签名，所以能直接覆盖 debug 版并保留数据（反过来也可以）：
+
+```powershell
+.\gradlew.bat :app:installProfile
+```
+
 AI 的 API Key、Base URL、模型名可在应用设置中配置；Base URL 填服务基础地址，客户端会追加 `/chat/completions`。编译不要求提供 API Key。如需给自己的构建设置默认值，可在已被 Git 忽略的 `local.properties` 中填写：
 
 ```properties

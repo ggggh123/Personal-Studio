@@ -68,6 +68,15 @@ android {
                 "proguard-rules.pro"
             )
         }
+        // Release code on a local install: not debuggable (so ART precompiles it and Compose's
+        // bundled baseline profiles apply), signed with the debug key so it installs over a
+        // debug build and keeps its data. Use it to judge animation smoothness; debug builds
+        // are much slower on first use of each screen.
+        create("profile") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {

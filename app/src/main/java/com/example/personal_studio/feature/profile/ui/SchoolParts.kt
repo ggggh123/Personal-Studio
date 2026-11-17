@@ -1,11 +1,6 @@
 package com.example.personal_studio.feature.profile.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,19 +8,16 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Sync
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.personal_studio.feature.timeline.today.TodayText
+import com.example.personal_studio.ui.components.SpinningSyncIcon
 import com.example.personal_studio.ui.components.TgTopBar
 import com.example.personal_studio.ui.theme.Tg
 import java.time.Instant
@@ -88,18 +80,12 @@ fun SchoolHeader(
     error: String?,
 ) {
     val c = Tg.colors
-    val spin = rememberInfiniteTransition(label = "sync")
-    val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart), label = "syncAngle")
     Column(Modifier.fillMaxWidth()) {
         TgTopBar(
             route = title, subtitle = "$title\n$caption", onBack = onBack,
             trailing = {
                 IconButton(onClick = onSync, enabled = !syncing) {
-                    Icon(
-                        Icons.Rounded.Sync, contentDescription = if (syncing) "正在同步" else "从学校同步",
-                        tint = if (syncing) c.accent else c.text,
-                        modifier = Modifier.rotate(if (syncing) -angle else 0f),
-                    )
+                    SpinningSyncIcon(syncing, if (syncing) c.accent else c.text, contentDescription = if (syncing) "正在同步" else "从学校同步")
                 }
             },
         )

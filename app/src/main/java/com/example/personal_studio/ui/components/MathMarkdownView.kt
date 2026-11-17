@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -65,8 +65,7 @@ fun MathMarkdownView(
     // at 60dp until the next ResizeObserver tick — visually clipping the
     // re-rendered content. Keeping the previous height as the smooth-update
     // hint avoids that.
-    var heightDp by remember { mutableStateOf(initialHeightDp) }
-    var pageReady by remember { mutableStateOf(false) }
+    var heightDp by remember { mutableIntStateOf(initialHeightDp) }
 
     // 天光 tokens for the page's CSS variables. Pushed separately from the content so the
     // minute-by-minute palette drift restyles formulas without re-rendering them.
@@ -80,69 +79,83 @@ fun MathMarkdownView(
             .put("error", colors.error.cssHex())
             .toString()
     }
-    val pushed = remember { PushedState() }
 
     AndroidView(
         modifier = modifier
             .fillMaxWidth()
             .height(heightDp.dp),
-        factory = { ctx ->
-            WebView(ctx).apply {
-                setBackgroundColor(AndroidColor.TRANSPARENT)
-                settings.javaScriptEnabled = true
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
-                settings.domStorageEnabled = true
-
-                addJavascriptInterface(object {
-                    @JavascriptInterface
-                    fun onRendered(contentHeightCssPx: Int) {
-                        // JS reports CSS pixels ≈ dp under our viewport config.
-                        post {
-                            val h = contentHeightCssPx + 12
-                            heightDp = h
-                            onHeightChanged(h)
-                        }
-                    }
-                }, "Android")
-
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        pageReady = true
-                    }
-                }
-
-                loadUrl("file:///android_asset/katex/render.html")
-            }
-        },
+        factory = { ctx -> MathWebView(ctx) },
         update = { web ->
-            if (pageReady) {
-                if (pushed.theme != themeJson) {
-                    web.evaluateJavascript("setTheme($themeJson)", null)
-                    pushed.theme = themeJson
-                }
-                if (pushed.markdown != markdown) {
-                    val encoded = JSONObject.quote(toHtml(markdown))
-                    web.evaluateJavascript("setContent($encoded)", null)
-                    pushed.markdown = markdown
-                }
-            }
-            // If page isn't ready yet, the state flip from WebViewClient will trigger
-            // another recomposition and this `update` lambda will run again with
-            // pageReady=true. No explicit retry needed.
+            // The listener is replaced on every update, so a recycled view reports to the
+            // row now showing it.
+            web.onHeight = { h -> heightDp = h; onHeightChanged(h) }
+            web.show(markdown, themeJson)
         },
-        // Without this, every time the composable leaves composition (e.g. user
-        // toggles a sibling edit/preview view) the WebView is dropped without
-        // releasing its native resources. Each instance is several MB of native
-        // heap + a JS context — observable as steady native-heap growth.
+        // Lazy lists recycle the view for the next row instead of building a new WebView and
+        // loading the KaTeX page again (tens of milliseconds each while scrolling a chat).
+        onReset = { web -> web.onHeight = null },
+        // Without this, a view that leaves for good is dropped without releasing its native
+        // resources (several MB of native heap and a JS context each).
         onRelease = { web -> web.destroy() },
     )
 }
 
-/** What the current WebView page already shows; plain fields, never read by composition. */
-private class PushedState {
-    var theme: String? = null
-    var markdown: String? = null
+/**
+ * The KaTeX page in a WebView that remembers what it shows, so recycling it for another row
+ * only sends the new content. `setContent` is sent only after the page has loaded (before
+ * that the function does not exist and the content would vanish); the page's ResizeObserver
+ * keeps reporting the height as KaTeX fonts load.
+ */
+@SuppressLint("SetJavaScriptEnabled", "ViewConstructor")
+private class MathWebView(context: android.content.Context) : WebView(context) {
+    var onHeight: ((Int) -> Unit)? = null
+    private var pageReady = false
+    private var wantMarkdown: String? = null
+    private var wantTheme: String? = null
+    private var shownMarkdown: String? = null
+    private var shownTheme: String? = null
+
+    init {
+        setBackgroundColor(AndroidColor.TRANSPARENT)
+        settings.javaScriptEnabled = true
+        settings.allowFileAccess = false
+        settings.allowContentAccess = false
+        settings.domStorageEnabled = true
+        addJavascriptInterface(object {
+            @JavascriptInterface
+            fun onRendered(contentHeightCssPx: Int) {
+                // CSS px equal dp under the page's viewport (device-width, scale 1).
+                post { onHeight?.invoke(contentHeightCssPx + 12) }
+            }
+        }, "Android")
+        webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String?) {
+                pageReady = true
+                sync()
+            }
+        }
+        loadUrl("file:///android_asset/katex/render.html")
+    }
+
+    fun show(markdown: String, themeJson: String) {
+        wantMarkdown = markdown
+        wantTheme = themeJson
+        sync()
+    }
+
+    private fun sync() {
+        if (!pageReady) return
+        val theme = wantTheme
+        if (theme != null && theme != shownTheme) {
+            evaluateJavascript("setTheme($theme)", null)
+            shownTheme = theme
+        }
+        val md = wantMarkdown
+        if (md != null && md != shownMarkdown) {
+            evaluateJavascript("setContent(${JSONObject.quote(toHtml(md))})", null)
+            shownMarkdown = md
+        }
+    }
 }
 
 private fun Color.cssHex(): String = String.format("#%06X", toArgb() and 0xFFFFFF)

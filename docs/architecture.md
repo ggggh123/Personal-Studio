@@ -40,6 +40,8 @@ Room schema 快照在 [`app/schemas`](../app/schemas)，表关系以 Entity／DA
 
 ## 界面约定
 
+性能约定（2026-11 性能检查后）：整页列表用 `LazyColumn` 且尽量一行一项，避免打开页面时一次组合几十行；遍历全部数据的计算（如成绩册、筛选统计）放在 `@DefaultDispatcher` 上并只在输入变化时重算，同一份数据由单例共享（[`GradeBookSource`](../app/src/main/java/com/example/personal_studio/domain/bitgrades/GradeBookSource.kt)）；只影响绘制的动画值在 `graphicsLayer` / `drawBehind` 里读取，不要在组合阶段读，也不要用改变宽高的动画驱动大量行；无限动画只在需要时创建（如 `SpinningSyncIcon` 仅在同步时转）；列表里的 `AndroidView` 提供 `onReset` 让视图可被复用（公式 WebView 即如此），并为不同行设 `contentType`。
+
 界面使用“天光”主题：配色随北京的真实太阳高度变化，白天为纸本浅色、夜里为灯下深色，深浅只在拂晓和日落后、且在回到前台或切换页面时切换。令牌、动效与各页设计见 [界面改版](ui-redesign.md)；实现入口为 [`ui/theme`](../app/src/main/java/com/example/personal_studio/ui/theme)，所有界面通过 `Tg.colors` 取色、`TgMotion` 取动效，不写固定色值。
 
 公共组件在 [`ui/components`](../app/src/main/java/com/example/personal_studio/ui/components)：子页面标题栏 `TgTopBar`，对话框 `TgDialog` / `TgConfirmDialog` / `TgInputDialog`，底部面板 `TgBottomSheet` 与 `SheetAction`，按钮 `TgPillButton`，开关 `TgSwitch`，分段 `TgSegmented`，以及 [`TgKit`](../app/src/main/java/com/example/personal_studio/ui/components/TgKit.kt) 里的卡片、筛选胶囊、输入框、设置行、空态和处理中遮罩，[`TgPickers`](../app/src/main/java/com/example/personal_studio/ui/components/TgPickers.kt) 里的日期与时钟对话框。有输入框的整页调用 `KeyboardHandledByInsets` 并自己 `imePadding`。相机、裁边、增强预览和图片裁切始终使用深色（`DarkCanvas`）；导出为图片的成绩分享卡固定使用正午纸面配色（`PaperCanvas`）；外部学校页面保留网页自身样式。交互文案以中文为主；路由、模型代号等技术值保留原样。
@@ -53,6 +55,7 @@ Room schema 快照在 [`app/schemas`](../app/schemas)，表关系以 Entity／DA
 | 纯计算、解析、ViewModel、网络编排 | [`app/src/test`](../app/src/test) 中相关 JVM 测试；网络测试使用 MockWebServer |
 | Room 查询／FTS、真实 SQLite 行为 | [`app/src/androidTest`](../app/src/androidTest)；连接设备后运行 `:app:connectedDebugAndroidTest` |
 | 扫描／相机、WebView、权限、提醒 | Android 设备操作；JVM 测试不能代替图像质量、布局和厂商后台行为验证 |
+| 动画与页面切换的流畅度 | 在真机上装 `profile` 版（`:app:installProfile`），用 `adb shell dumpsys gfxinfo <包名>` 看掉帧比例与百分位帧时长；debug 版首次打开每个页面都会因运行时校验类和解释执行而卡，不能作为依据 |
 | 学校协议变化 | 脱敏响应样本回归，加校园网和移动数据下的实际业务查询 |
 | 仅文档 | 检查本地链接、源码引用、失效文档引用和 `git diff --check` |
 

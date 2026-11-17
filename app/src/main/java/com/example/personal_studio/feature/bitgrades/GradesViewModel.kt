@@ -4,20 +4,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.GradesAnalysisCache
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
-import com.example.personal_studio.data.local.db.dao.GradesDao
+import com.example.personal_studio.core.di.DefaultDispatcher
 import com.example.personal_studio.core.util.RankPercentileEstimate
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitgrades.AnalyzeGradesUseCase
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
+import com.example.personal_studio.domain.bitgrades.GradeBookSource
 import com.example.personal_studio.domain.bitgrades.StartGradeChatUseCase
 import com.example.personal_studio.domain.bitgrades.SyncGradesUseCase
 import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.bitgrades.model.GradeBook
+import com.example.personal_studio.domain.bitgrades.model.GradeItem
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncError
 import com.example.personal_studio.domain.bitgrades.model.GradesSyncRequest
 import com.example.personal_studio.domain.bitgrades.model.SyncGradesStep
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -50,11 +56,13 @@ data class GradesUiState(
     val syncError: GradesSyncError? = null,
     /** When the grades on this phone were last downloaded; null when there are none. */
     val fetchedAt: Long? = null,
+    /** False until the database has answered, so the page does not flash its empty state. */
+    val loaded: Boolean = false,
 )
 
 @HiltViewModel
 class GradesViewModel @Inject constructor(
-    private val dao: GradesDao,
+    private val bookSource: GradeBookSource,
     private val computeGpa: ComputeGpaUseCase,
     private val analyze: AnalyzeGradesUseCase,
     private val startChat: StartGradeChatUseCase,
@@ -62,6 +70,7 @@ class GradesViewModel @Inject constructor(
     private val syncGrades: SyncGradesUseCase,
     private val credPrefs: ImportCredentialPrefs,
     private val resolveNetworkMode: ResolveNetworkModeUseCase,
+    @DefaultDispatcher private val computeDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _local = MutableStateFlow(GradesUiState())
@@ -84,48 +93,91 @@ class GradesViewModel @Inject constructor(
     )
     private val syncLocal = MutableStateFlow(SyncLocalState())
 
-    val uiState: StateFlow<GradesUiState> = combine(
-        dao.observeAll(), dao.observeRanks(), _local, credPrefs.observeAll(), syncLocal,
-    ) { grades, ranks, local, creds, sync ->
-        val book = computeGpa.invoke(grades, ranks)
-        val allCourses = book.terms.flatMap { it.courses }
-        val included = allCourses.filter { it.id !in local.excludedIds }
-        val selGpa = com.example.personal_studio.core.util.GpaCalculator.weightedGpa(included.map { it.credit to it.gradePoint })
-        val selCredits = included.filter { it.gradePoint != null }.sumOf { it.credit }
-        val selAvg = run {
+    /** Stats for the courses left in after "选择课程"; [NONE] while nothing is excluded. */
+    private data class Selection(
+        val excluded: Set<Long> = emptySet(),
+        val gpa: Double = 0.0,
+        val avgScore: Double? = null,
+        val credits: Double = 0.0,
+        val count: Int = 0,
+        val peerAvgScore: Double? = null,
+        val peerAvgGpa: Double? = null,
+        val majorRankEst: RankPercentileEstimate? = null,
+    )
+
+    // The book comes computed from GradeBookSource; the selection stats walk every course too,
+    // so they run on the default dispatcher and only when the excluded set changes. A tap in
+    // 选择课程 or a streamed AI token never recomputes anything on the main thread.
+    private val computed = combine(bookSource.snapshots, _local.map { it.excludedIds }.distinctUntilChanged()) { data, excluded ->
+        data to selectionOf(data.all, excluded)
+    }.flowOn(computeDispatcher)
+
+    private fun selectionOf(all: List<GradeItem>, excluded: Set<Long>): Selection {
+        val included = if (excluded.isEmpty()) all else all.filter { it.id !in excluded }
+        val gpa = com.example.personal_studio.core.util.GpaCalculator.weightedGpa(included.map { it.credit to it.gradePoint })
+        val credits = included.filter { it.gradePoint != null }.sumOf { it.credit }
+        val avg = run {
             var sc = 0.0; var sw = 0.0
             included.forEach { c -> com.example.personal_studio.core.util.BitGpaConverter.toScore(c.score)?.let { sc += c.credit; sw += c.credit * it } }
             if (sc == 0.0) null else sw / sc
         }
-        val (selPeerScore, selPeerGpa) = run {
+        val (peerScore, peerGpa) = run {
             var c = 0.0; var ss = 0.0; var sg = 0.0
             included.forEach { course ->
-                val avg = course.courseAvg ?: return@forEach
+                val courseAvg = course.courseAvg ?: return@forEach
                 val sigma = com.example.personal_studio.core.util.PeerGpaEstimator.estimateSigma(
-                    mean = avg, max = course.courseMaxScore, n = course.courseStudyCount,
+                    mean = courseAvg, max = course.courseMaxScore, n = course.courseStudyCount,
                 )
-                val gpa = com.example.personal_studio.core.util.PeerGpaEstimator.correctedGradePoint(avg, sigma)
-                c += course.credit; ss += course.credit * avg; sg += course.credit * gpa
+                val point = com.example.personal_studio.core.util.PeerGpaEstimator.correctedGradePoint(courseAvg, sigma)
+                c += course.credit; ss += course.credit * courseAvg; sg += course.credit * point
             }
             if (c == 0.0) (null to null) else (ss / c) to (sg / c)
         }
+        return Selection(
+            excluded = excluded, gpa = gpa, avgScore = avg, credits = credits, count = included.size,
+            peerAvgScore = peerScore, peerAvgGpa = peerGpa,
+            majorRankEst = if (excluded.isEmpty()) null else computeGpa.majorRankEstimate(included),
+        )
+    }
+
+    val uiState: StateFlow<GradesUiState> = combine(
+        computed, _local, credPrefs.observeAll(), syncLocal,
+    ) { (data, sel), local, creds, sync ->
         local.copy(
-            book = book,
-            selectedGpa = selGpa,
-            selectedAvgScore = selAvg,
-            selectedCredits = selCredits,
-            selectedCount = included.size,
-            filtering = local.excludedIds.isNotEmpty(),
-            selectedPeerAvgScore = selPeerScore,
-            selectedPeerAvgGpa = selPeerGpa,
-            selectedMajorRankEst = computeGpa.majorRankEstimate(included),
+            book = data.book,
+            // The excluded set the stats were computed for, so numbers and ticks always agree.
+            excludedIds = sel.excluded,
+            selectedGpa = sel.gpa,
+            selectedAvgScore = sel.avgScore,
+            selectedCredits = sel.credits,
+            selectedCount = sel.count,
+            filtering = sel.excluded.isNotEmpty(),
+            selectedPeerAvgScore = sel.peerAvgScore,
+            selectedPeerAvgGpa = sel.peerAvgGpa,
+            selectedMajorRankEst = sel.majorRankEst ?: data.book.overallMajorRankEst,
             loggedIn = creds != null,
             syncing = sync.syncing,
             syncSteps = sync.steps,
             syncError = sync.error,
-            fetchedAt = grades.maxOfOrNull { it.fetchedAt },
+            fetchedAt = data.fetchedAt,
+            loaded = true,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GradesUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialState())
+
+    /**
+     * When the book was computed before (another grades screen, or an earlier visit within the
+     * last minute), start from it so the page has its numbers on the first frame of the slide-in.
+     */
+    private fun initialState(): GradesUiState {
+        val snap = bookSource.snapshots.replayCache.firstOrNull() ?: return GradesUiState()
+        return GradesUiState(
+            book = snap.book,
+            fetchedAt = snap.fetchedAt,
+            selectedMajorRankEst = snap.book.overallMajorRankEst,
+            loggedIn = credPrefs.observeAll().value != null,
+            loaded = true,
+        )
+    }
 
     /** 打开 AI 分析:有缓存或正在生成 → 仅展示(不重跑);否则触发一次新生成。 */
     fun onAnalyze() {

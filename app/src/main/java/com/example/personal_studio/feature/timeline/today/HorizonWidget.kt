@@ -100,20 +100,23 @@ fun HorizonWidget(
         }
     }
 
-    val stars = rememberInfiniteTransition(label = "stars")
-    val twinkle = STARS.mapIndexed { i, s ->
-        stars.animateFloat(
-            initialValue = 0.3f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(s.periodMs / 2, delayMillis = s.delayMs), RepeatMode.Reverse),
-            label = "star$i",
-        )
-    }
-
     val h = ((shownHour % 24) + 24) % 24
     val nightLength = 24 - sun.sunset + sun.sunrise
     val u = (((h - sun.sunset) % 24) + 24) % 24 / nightLength
     val starsOn = u > 0.04 && u < 0.96
     val starAlpha by animateFloatAsState(if (starsOn) 1f else 0f, tween(1400), label = "starAlpha")
+    // The twinkle runs only while stars can be seen; in daylight it would redraw the
+    // horizon every frame for nothing.
+    val twinkle = if (starsOn || starAlpha > 0f) {
+        val stars = rememberInfiniteTransition(label = "stars")
+        STARS.mapIndexed { i, s ->
+            stars.animateFloat(
+                initialValue = 0.3f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(s.periodMs / 2, delayMillis = s.delayMs), RepeatMode.Reverse),
+                label = "star$i",
+            )
+        }
+    } else null
     val sunOn = h > sun.sunrise - 0.6 && h < sun.sunset + 0.6
     val sunAlpha by animateFloatAsState(if (sunOn) 1f else 0f, tween(600), label = "sunAlpha")
     val moonOn = u <= 1.06
@@ -187,7 +190,7 @@ fun HorizonWidget(
             // Stars.
             if (starAlpha > 0f) {
                 STARS.forEachIndexed { i, s ->
-                    drawCircle(c.text, s.r, Offset(s.x, s.y), alpha = starAlpha * twinkle[i].value)
+                    drawCircle(c.text, s.r, Offset(s.x, s.y), alpha = starAlpha * (twinkle?.get(i)?.value ?: 1f))
                 }
             }
             // Moon: soft halo plus the lit part for today's phase.

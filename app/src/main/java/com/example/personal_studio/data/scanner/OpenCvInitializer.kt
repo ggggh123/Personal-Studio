@@ -4,10 +4,14 @@ import android.util.Log
 import org.opencv.android.OpenCVLoader
 
 object OpenCvInitializer {
-    private var initialized = false
+    @Volatile private var initialized = false
 
-    /** Idempotent. Safe to call on main thread at app start — OpenCVLoader.initDebug() just
-     *  loads the native lib synchronously and returns whether it succeeded. */
+    /**
+     * Idempotent and thread-safe: loads the native library synchronously the first time.
+     * The app warms it on a background thread at start; the scanner calls it again before
+     * use, which waits for (or does) that load instead of racing it.
+     */
+    @Synchronized
     fun ensureInitialized() {
         if (initialized) return
         val ok = OpenCVLoader.initDebug()

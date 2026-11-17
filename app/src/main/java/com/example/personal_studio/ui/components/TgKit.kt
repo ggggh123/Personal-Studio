@@ -1,6 +1,7 @@
 package com.example.personal_studio.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,6 +41,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.VisualTransformation
@@ -338,4 +341,27 @@ fun TgProgressTrack(fraction: Float, modifier: Modifier = Modifier, color: Color
             .background(c.line)
             .drawBehind { drawRect(color, size = size.copy(width = size.width * f)) },
     )
+}
+
+/**
+ * The sync icon, turning while [spinning]. The infinite animation exists only while it spins
+ * and is read in the draw phase, so an idle icon costs nothing and a turning one only redraws
+ * (an always-running transition read in composition recomposes its row on every frame).
+ */
+@Composable
+fun SpinningSyncIcon(spinning: Boolean, tint: Color, modifier: Modifier = Modifier, contentDescription: String? = null) {
+    if (spinning) {
+        val spin = androidx.compose.animation.core.rememberInfiniteTransition(label = "syncSpin")
+        val angle = spin.animateFloat(
+            0f, 360f,
+            androidx.compose.animation.core.infiniteRepeatable(
+                tween(1000, easing = androidx.compose.animation.core.LinearEasing),
+                androidx.compose.animation.core.RepeatMode.Restart,
+            ),
+            label = "syncAngle",
+        )
+        Icon(Icons.Rounded.Sync, contentDescription, tint = tint, modifier = modifier.graphicsLayer { rotationZ = -angle.value })
+    } else {
+        Icon(Icons.Rounded.Sync, contentDescription, tint = tint, modifier = modifier)
+    }
 }

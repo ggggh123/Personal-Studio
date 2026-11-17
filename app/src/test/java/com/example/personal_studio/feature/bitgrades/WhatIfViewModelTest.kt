@@ -3,9 +3,12 @@ package com.example.personal_studio.feature.bitgrades
 import com.example.personal_studio.data.local.db.dao.GradesDao
 import com.example.personal_studio.data.local.db.entity.GradeEntryEntity
 import com.example.personal_studio.domain.bitgrades.ComputeGpaUseCase
+import com.example.personal_studio.domain.bitgrades.GradeBookSource
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -30,7 +33,7 @@ class WhatIfViewModelTest {
                 GradeEntryEntity(0,"2024-2025-1","t","c","c",60.0,"x",3.0,null,null,"正常",true,1L)))
             every { observeRanks() } returns flowOf(emptyList())
         }
-        val vm = WhatIfViewModel(dao, ComputeGpaUseCase())
+        val vm = WhatIfViewModel(GradeBookSource(dao, ComputeGpaUseCase(), StandardTestDispatcher(testScheduler), CoroutineScope(StandardTestDispatcher(testScheduler) + SupervisorJob())))
         val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
         val st = vm.uiState.value.copy(targetGpa = "3.2", remainingCredits = "40")

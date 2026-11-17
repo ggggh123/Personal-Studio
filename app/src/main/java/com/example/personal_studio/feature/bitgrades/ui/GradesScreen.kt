@@ -1,22 +1,15 @@
 package com.example.personal_studio.feature.bitgrades.ui
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,30 +32,33 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -91,6 +87,7 @@ import com.example.personal_studio.feature.timeline.today.PillButton
 import com.example.personal_studio.feature.timeline.today.TodayText
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.ui.theme.SerifFamily
+import com.example.personal_studio.ui.components.SpinningSyncIcon
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.ui.theme.TgMotion
 import java.util.Locale
@@ -117,54 +114,94 @@ fun GradesScreen(
     var selecting by rememberSaveable { mutableStateOf(false) }
     val sync = { if (st.loggedIn) vm.onSyncNow() else onNeedLogin() }
 
+    // The entrance stagger plays once; term cards scrolled into view later just appear.
+    var introDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(st.loaded) {
+        if (st.loaded) { delay(900); introDone = true }
+    }
+    val onToggleCourse = remember(vm) { { id: Long -> vm.onToggleCourse(id) } }
+    val onToggleTerm = remember(vm) { { ids: List<Long> -> vm.onToggleTerm(ids) } }
+    var expandedId by rememberSaveable { mutableStateOf<Long?>(null) }
+
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Header(st, onBack, sync)
         StatusLine(st)
+        // Until the database answers there is nothing to draw (not even the empty state), so
+        // the page does not flash "还没有成绩" during the slide-in.
+        if (!st.loaded) return@Column
         if (st.book.isEmpty) {
             EmptyGrades(st, sync)
             return@Column
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
-            Hero(st, Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp).enterUp(true, 50))
-            TermBars(st.book.terms, Modifier.padding(top = 22.dp))
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ActionChip("目标绩点", onClick = onOpenWhatIf)
-                ActionChip("成绩分享卡", onClick = onOpenShare)
-                ActionChip("AI 学情报告") { showSheet = true; vm.onAnalyze() }
-                ActionChip(if (selecting) "完成选择" else "选择课程", active = selecting) {
-                    selecting = !selecting
-                }
-            }
-            AnimatedVisibility(visible = selecting || st.filtering) {
-                Row(Modifier.padding(start = 24.dp, end = 20.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (selecting) "点课程把它移出或放回计算。" else "已移出 ${st.excludedIds.size} 门课程。",
-                        style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.weight(1f),
-                    )
-                    if (st.filtering) {
-                        Text("全部计入", style = MaterialTheme.typography.labelLarge, color = c.accent,
-                            modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = vm::onClearSelection).padding(8.dp))
+        // Lazy: opening the page composes only what is on screen (a long record has 60+
+        // courses), and switching 选择课程 only touches the visible term cards.
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+            item(key = "hero") { Hero(st, Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp).enterUp(!introDone, 50)) }
+            item(key = "bars") { TermBars(st.book.terms, Modifier.padding(top = 22.dp)) }
+            item(key = "actions") {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ActionChip("目标绩点", onClick = onOpenWhatIf)
+                    ActionChip("成绩分享卡", onClick = onOpenShare)
+                    ActionChip("AI 学情报告") { showSheet = true; vm.onAnalyze() }
+                    ActionChip(if (selecting) "完成选择" else "选择课程", active = selecting) {
+                        selecting = !selecting
                     }
                 }
             }
-            st.book.terms.forEachIndexed { i, term ->
-                TermSection(
-                    term = term,
-                    selecting = selecting,
-                    excluded = st.excludedIds,
-                    onToggleCourse = vm::onToggleCourse,
-                    onToggleTerm = vm::onToggleTerm,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp).enterUp(true, 260 + i * 40),
+            item(key = "selectNote") {
+                AnimatedVisibility(visible = selecting || st.filtering) {
+                    Row(Modifier.padding(start = 24.dp, end = 20.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (selecting) "点课程把它移出或放回计算。" else "已移出 ${st.excludedIds.size} 门课程。",
+                            style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.weight(1f),
+                        )
+                        if (st.filtering) {
+                            Text("全部计入", style = MaterialTheme.typography.labelLarge, color = c.accent,
+                                modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = vm::onClearSelection).padding(8.dp))
+                        }
+                    }
+                }
+            }
+            st.book.terms.forEachIndexed { ti, term ->
+                val intro = !introDone && ti < 3
+                item(key = "term-" + term.termCode) {
+                    TermHeader(
+                        term = term,
+                        selecting = selecting,
+                        excluded = st.excludedIds,
+                        onToggleTerm = onToggleTerm,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 26.dp).enterUp(intro, 260 + ti * 40),
+                    )
+                }
+                // One item per course, so only the rows on screen are composed and measured.
+                itemsIndexed(term.courses, key = { _, course -> "course-" + course.id }) { i, course ->
+                    CourseRow(
+                        course = course,
+                        first = i == 0,
+                        last = i == term.courses.lastIndex,
+                        selecting = selecting,
+                        included = course.id !in st.excludedIds,
+                        expanded = expandedId == course.id && !selecting,
+                        onClick = {
+                            if (selecting) onToggleCourse(course.id)
+                            else expandedId = if (expandedId == course.id) null else course.id
+                        },
+                        modifier = Modifier
+                            .padding(start = 20.dp, end = 20.dp, top = if (i == 0) 10.dp else 0.dp)
+                            .enterUp(intro, 260 + ti * 40),
+                    )
+                }
+            }
+            item(key = "rule") {
+                Text(
+                    "绩点按学校规则换算：百分制 60 分以下记 0，其余为 4 − 3 × (100 − 分数)² ÷ 1600；等级制按学校对照取值；通过制课程不计入。再按学分加权。",
+                    style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                    modifier = Modifier.navigationBarsPadding().padding(start = 24.dp, end = 24.dp, top = 22.dp),
                 )
             }
-            Text(
-                "绩点按学校规则换算：百分制 60 分以下记 0，其余为 4 − 3 × (100 − 分数)² ÷ 1600；等级制按学校对照取值；通过制课程不计入。再按学分加权。",
-                style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 40.dp),
-            )
         }
     }
 
@@ -201,9 +238,7 @@ private fun Header(st: GradesUiState, onBack: () -> Unit, onSync: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            val spin = rememberInfiniteTransition(label = "gradesSpin")
-            val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(1000, easing = LinearEasing), RepeatMode.Restart), label = "gradesAngle")
-            Icon(Icons.Rounded.Sync, contentDescription = null, tint = c.textSecondary, modifier = Modifier.size(14.dp).rotate(if (st.syncing) -angle else 0f))
+            SpinningSyncIcon(st.syncing, c.textSecondary, Modifier.size(14.dp))
             Text(label, style = MaterialTheme.typography.bodySmall, color = c.textSecondary)
         }
     }
@@ -249,17 +284,12 @@ private fun Hero(st: GradesUiState, modifier: Modifier = Modifier) {
     val avg = if (st.filtering) st.selectedAvgScore else st.book.overallAvgScore
     val rank = if (st.filtering) st.selectedMajorRankEst else st.book.overallMajorRankEst
     val peer = if (st.filtering) st.selectedPeerAvgGpa else st.book.overallPeerAvgGpa
-    val all = st.book.terms.flatMap { it.courses }
-    val counted = if (st.filtering) st.selectedCount else all.size
-    val noGpa = all.count { it.gradePoint == null }
-
-    // Counts up from zero the first time, then glides between values (selection changes).
-    val shown = remember { Animatable(0f) }
-    var first by remember { mutableStateOf(true) }
-    LaunchedEffect(gpa) {
-        shown.animateTo(gpa.toFloat(), tween(if (first) 1200 else 500, easing = EaseOutCubic))
-        first = false
+    val totals = remember(st.book) {
+        val all = st.book.terms.flatMap { it.courses }
+        all.size to all.count { it.gradePoint == null }
     }
+    val counted = if (st.filtering) st.selectedCount else totals.first
+    val noGpa = totals.second
 
     Column(modifier) {
         Text(
@@ -267,12 +297,7 @@ private fun Hero(st: GradesUiState, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = MaterialTheme.typography.labelLarge.fontSize), color = c.textSecondary,
         )
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
-            StableDigits(
-                String.format(Locale.US, "%.2f", shown.value),
-                MaterialTheme.typography.displayLarge,
-                c.text,
-                Modifier.semantics { contentDescription = "总绩点 " + String.format(Locale.US, "%.2f", gpa) },
-            )
+            CountingGpa(gpa, Modifier.semantics { contentDescription = "总绩点 " + String.format(Locale.US, "%.2f", gpa) })
             Text("/ 4.00", style = MaterialTheme.typography.bodyLarge, color = c.textSecondary, modifier = Modifier.padding(bottom = 8.dp))
         }
         Text(
@@ -312,6 +337,21 @@ private fun Hero(st: GradesUiState, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/**
+ * The GPA counting up from zero the first time, then gliding between values when the
+ * selection changes. Only this composable recomposes per animation frame.
+ */
+@Composable
+private fun CountingGpa(gpa: Double, modifier: Modifier = Modifier) {
+    val shown = remember { Animatable(0f) }
+    var first by remember { mutableStateOf(true) }
+    LaunchedEffect(gpa) {
+        shown.animateTo(gpa.toFloat(), tween(if (first) 1200 else 500, easing = EaseOutCubic))
+        first = false
+    }
+    StableDigits(String.format(Locale.US, "%.2f", shown.value), MaterialTheme.typography.displayLarge, Tg.colors.text, modifier)
 }
 
 /** Digits in equal-width cells: the serif face has no tabular figures, and a counting number must not jitter. */
@@ -398,61 +438,87 @@ private fun ActionChip(label: String, active: Boolean = false, onClick: () -> Un
 }
 
 @Composable
-private fun TermSection(
+private fun TermHeader(
     term: TermGrades,
     selecting: Boolean,
     excluded: Set<Long>,
-    onToggleCourse: (Long) -> Unit,
     onToggleTerm: (List<Long>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = Tg.colors
-    var expandedId by rememberSaveable(term.termCode) { mutableStateOf<Long?>(null) }
-    val credits = term.courses.sumOf { it.credit }
-    Column(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(fullTermName(term.termName), style = MaterialTheme.typography.titleMedium, color = c.text, modifier = Modifier.weight(1f))
-            if (selecting) {
-                val allIn = term.courses.none { it.id in excluded }
-                Text(if (allIn) "全不选" else "全选", style = MaterialTheme.typography.labelLarge, color = c.accent,
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { onToggleTerm(term.courses.map { it.id }) }.padding(horizontal = 8.dp, vertical = 10.dp))
-            } else {
-                Text("${fmtCredits(credits)} 学分 · " + String.format(Locale.US, "%.2f", term.weightedGpa),
-                    style = MaterialTheme.typography.bodySmall, color = c.textSecondary, maxLines = 1)
-            }
-        }
-        val shape = RoundedCornerShape(18.dp)
-        Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(shape).background(c.surface).border(1.dp, c.line, shape)) {
-            term.courses.forEachIndexed { i, course ->
-                CourseRow(
-                    course = course,
-                    first = i == 0,
-                    selecting = selecting,
-                    included = course.id !in excluded,
-                    expanded = expandedId == course.id && !selecting,
-                    onClick = {
-                        if (selecting) onToggleCourse(course.id)
-                        else expandedId = if (expandedId == course.id) null else course.id
-                    },
-                )
-            }
+    val credits = remember(term) { term.courses.sumOf { it.credit } }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(fullTermName(term.termName), style = MaterialTheme.typography.titleMedium, color = c.text, modifier = Modifier.weight(1f))
+        if (selecting) {
+            val allIn = term.courses.none { it.id in excluded }
+            Text(if (allIn) "全不选" else "全选", style = MaterialTheme.typography.labelLarge, color = c.accent,
+                modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { onToggleTerm(term.courses.map { it.id }) }.padding(horizontal = 8.dp, vertical = 10.dp))
+        } else {
+            Text("${fmtCredits(credits)} 学分 · " + String.format(Locale.US, "%.2f", term.weightedGpa),
+                style = MaterialTheme.typography.bodySmall, color = c.textSecondary, maxLines = 1)
         }
     }
+}
+
+/**
+ * This row's slice of the term card: page surface, rounded top corners on the first row and
+ * bottom corners on the last, and the side borders, with the top / bottom edge only where the
+ * card begins or ends (rows between are divided by their own separator line).
+ */
+private fun Modifier.cardSegment(first: Boolean, last: Boolean, fill: Color, line: Color): Modifier {
+    val r = 18.dp
+    val shape = RoundedCornerShape(
+        topStart = if (first) r else 0.dp, topEnd = if (first) r else 0.dp,
+        bottomStart = if (last) r else 0.dp, bottomEnd = if (last) r else 0.dp,
+    )
+    return this
+        .clip(shape)
+        .background(fill)
+        .drawWithContent {
+            drawContent()
+            val w = 1.dp.toPx()
+            val radius = androidx.compose.ui.geometry.CornerRadius(r.toPx())
+            val zero = androidx.compose.ui.geometry.CornerRadius.Zero
+            val outline = androidx.compose.ui.graphics.Path().apply {
+                addRoundRect(
+                    androidx.compose.ui.geometry.RoundRect(
+                        0f, 0f, size.width, size.height,
+                        topLeftCornerRadius = if (first) radius else zero, topRightCornerRadius = if (first) radius else zero,
+                        bottomRightCornerRadius = if (last) radius else zero, bottomLeftCornerRadius = if (last) radius else zero,
+                    ),
+                )
+            }
+            // The stroke is centred on the edge and the outer half is clipped away by the shape.
+            clipRect(top = if (first) 0f else w, bottom = if (last) size.height else size.height - w) {
+                drawPath(outline, line, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2 * w))
+            }
+        }
 }
 
 @Composable
 private fun CourseRow(
     course: GradeItem,
     first: Boolean,
+    last: Boolean,
     selecting: Boolean,
     included: Boolean,
     expanded: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = Tg.colors
     val failed = !course.isPass
-    val dim by animateFloatAsState(if (selecting && !included) 0.45f else 1f, tween(200), label = "dim")
-    Column(Modifier.fillMaxWidth().drawBehind { if (!first) drawLine(c.line, Offset.Zero, Offset(size.width, 0f), 1.dp.toPx()) }) {
+    val dim = animateFloatAsState(if (selecting && !included) 0.45f else 1f, tween(200), label = "dim")
+    // 0 → 1 as selection mode opens. Read only in graphicsLayer, so the animation never
+    // re-measures the row: the check slot is added in one step and the text slides by drawing.
+    val sel = animateFloatAsState(if (selecting) 1f else 0f, TgMotion.standard(), label = "selSlide")
+    val slot = with(LocalDensity.current) { 34.dp.toPx() }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .cardSegment(first, last, c.surface, c.line)
+            .drawBehind { if (!first) drawLine(c.line, Offset.Zero, Offset(size.width, 0f), 1.dp.toPx()) },
+    ) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -467,16 +533,31 @@ private fun CourseRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AnimatedVisibility(selecting) {
+            if (selecting) {
                 val fill by animateColorAsState(if (included) c.text else Color.Transparent, tween(200), label = "selFill")
                 Box(
-                    Modifier.size(22.dp).background(fill, CircleShape).border(1.5.dp, if (included) c.text else c.textSecondary, CircleShape),
+                    Modifier
+                        .size(22.dp)
+                        .graphicsLayer {
+                            alpha = sel.value
+                            scaleX = 0.6f + 0.4f * sel.value
+                            scaleY = 0.6f + 0.4f * sel.value
+                        }
+                        .background(fill, CircleShape)
+                        .border(1.5.dp, if (included) c.text else c.textSecondary, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (included) Icon(Icons.Rounded.Check, contentDescription = null, tint = c.bg, modifier = Modifier.size(14.dp))
                 }
             }
-            Column(Modifier.weight(1f).graphicsLayer { alpha = dim }) {
+            Column(
+                Modifier.weight(1f).graphicsLayer {
+                    alpha = dim.value
+                    // Entering: starts where it was (one slot to the left) and slides into place;
+                    // leaving: starts one slot to the right and slides back.
+                    translationX = if (selecting) -(1f - sel.value) * slot else sel.value * slot
+                },
+            ) {
                 Text(course.courseName, style = MaterialTheme.typography.bodyLarge, color = c.text)
                 Text(
                     listOfNotNull(
@@ -487,7 +568,7 @@ private fun CourseRow(
                     style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 1.dp),
                 )
             }
-            Column(horizontalAlignment = Alignment.End, modifier = Modifier.graphicsLayer { alpha = dim }) {
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.graphicsLayer { alpha = dim.value }) {
                 Text(
                     course.score,
                     style = TextStyle(fontFamily = SerifFamily, fontWeight = FontWeight.SemiBold, fontSize = 19.sp, lineHeight = 25.sp),

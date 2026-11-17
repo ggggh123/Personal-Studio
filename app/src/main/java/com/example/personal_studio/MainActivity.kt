@@ -16,6 +16,10 @@ import com.example.personal_studio.data.local.datastore.ThemePreferences
 import com.example.personal_studio.domain.timeline.RescheduleAllUpcomingUseCase
 import com.example.personal_studio.feature.auth.RootViewModel
 import com.example.personal_studio.ui.MainScreen
+import androidx.compose.ui.platform.LocalFontFamilyResolver
+import com.example.personal_studio.ui.theme.SerifFamily
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.example.personal_studio.ui.theme.AppTheme
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.ui.theme.daylight.DaylightPalette
@@ -44,6 +48,13 @@ class MainActivity : ComponentActivity() {
             AppTheme(preferences = themePreferences) {
                 val family = Tg.colors.family
                 LaunchedEffect(family) { rememberSplashFamily(family) }
+                // Read both serif faces (2.4 MB each) on a background thread into Compose's
+                // typeface cache; otherwise the first page that uses a weight reads the file on
+                // the main thread in the middle of its transition (seen on 校园 with Bold).
+                val fontResolver = LocalFontFamilyResolver.current
+                LaunchedEffect(Unit) {
+                    withContext(Dispatchers.IO) { runCatching { fontResolver.preload(SerifFamily) } }
+                }
                 MainScreen()
             }
         }

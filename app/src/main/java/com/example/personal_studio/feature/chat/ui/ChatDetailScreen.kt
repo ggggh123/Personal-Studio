@@ -164,7 +164,8 @@ fun ChatDetailScreen(
                         }
                     }
                 }
-                items(state.messages.asReversed(), key = { it.id }) { m ->
+                // contentType lets the list recycle an answer row (and its WebView) only into another answer row.
+                items(state.messages.asReversed(), key = { it.id }, contentType = { it.role }) { m ->
                     when (m.role) {
                         MessageRole.USER -> UserBubble(text = m.contentMarkdown, images = m.attachedImagePaths)
                         MessageRole.AI -> AiAnswer(
