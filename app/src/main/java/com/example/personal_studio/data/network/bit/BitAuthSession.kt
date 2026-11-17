@@ -23,6 +23,9 @@ internal data class BitAuthUrls(
     val jwappLanding: String = "https://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/*default/index.do",
     val jwms: String = "http://jwms.bit.edu.cn/",
     val lexue: String = "https://lexue.bit.edu.cn/login/index.php",
+    /** 新乐学 (畅课). It signs in through the school's Keycloak (zy-identity), which brokers to CAS. */
+    val eclass: String = "https://zy-eclass.bit.edu.cn/user/courses",
+    val eclassIdentity: String = "https://zy-identity.bit.edu.cn/auth/realms/bit/",
     val proxyBases: Map<String, String> = mapOf(
         "https://jxzxehall.bit.edu.cn" to "https://webvpn.bit.edu.cn/https/77726476706e69737468656265737421faef5b842238695c72468ba58c1b26316e8e7f6f/",
         "https://jxzxehallapp.bit.edu.cn" to BitUrlsConfig.WEBVPN.jwapp,
@@ -39,11 +42,14 @@ internal data class BitAuthUrls(
 
     fun trusted(url: HttpUrl): Boolean = url.origin() in
         (proxyBases.keys + proxyBases.values.map { it.toHttpUrl().origin() } +
-            listOf(casLogin, gatewayCallback, jwappAuth, jwappLanding, jwms, lexue).map { it.toHttpUrl().origin() })
+            listOf(casLogin, gatewayCallback, jwappAuth, jwappLanding, jwms, lexue, eclass, eclassIdentity)
+                .map { it.toHttpUrl().origin() })
 
+    /** zy-identity hands off to `/cas//login`: repeated slashes still name the CAS login page. */
     fun isCas(url: HttpUrl): Boolean {
         val cas = casLogin.toHttpUrl()
-        return url.origin() == cas.origin() && url.encodedPath.trimEnd('/') == cas.encodedPath.trimEnd('/')
+        fun HttpUrl.loginPath() = encodedPath.replace(Regex("/{2,}"), "/").trimEnd('/')
+        return url.origin() == cas.origin() && url.loginPath() == cas.loginPath()
     }
 
     fun browserLoginUrl(): String = casLogin.toHttpUrl().newBuilder()

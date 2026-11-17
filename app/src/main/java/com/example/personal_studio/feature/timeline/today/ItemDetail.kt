@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.example.personal_studio.domain.model.TimelineItem
+import com.example.personal_studio.domain.bitddl.model.DdlSource
 import com.example.personal_studio.domain.model.TimelineSource
 import com.example.personal_studio.domain.model.TimelineType
 import com.example.personal_studio.domain.model.formatCredits
@@ -116,7 +117,7 @@ fun detailSpec(item: TimelineItem, now: Long, zone: ZoneId): DetailSpec {
             note = if (item.sourceType == TimelineSource.IMPORTED_PORTAL) "来自教务课表导入。重新导入会覆盖本学期内导入的课程。" else null,
         )
         TimelineType.TASK -> DetailSpec(
-            kind = if (item.sourceType == TimelineSource.IMPORTED_LEXUE) "乐学作业" else "待办",
+            kind = DdlSource.of(item.sourceType)?.let { "${it.label}作业" } ?: "待办",
             subtitle = "$date ${TodayText.hhmm(item.startAt, zone)} 截止",
             rows = buildList {
                 add("来源", TodayText.source(item))
@@ -128,7 +129,11 @@ fun detailSpec(item: TimelineItem, now: Long, zone: ZoneId): DetailSpec {
             },
             reminders = reminders,
             remindersOff = item.isDone,
-            note = if (item.sourceType == TimelineSource.IMPORTED_LEXUE) "完成状态只记录在本机，不会同步到乐学。" else null,
+            note = when (item.sourceType) {
+                TimelineSource.IMPORTED_LEXUE -> "完成状态只记录在本机，不会同步到乐学。"
+                TimelineSource.IMPORTED_ECLASS -> "在新乐学提交后，下次同步会自动标为完成；这里的勾选不会同步到新乐学。"
+                else -> null
+            },
         )
         TimelineType.EXAM -> DetailSpec(
             kind = "考试",

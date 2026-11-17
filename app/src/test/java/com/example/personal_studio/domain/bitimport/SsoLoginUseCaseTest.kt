@@ -28,6 +28,8 @@ class SsoLoginUseCaseTest {
     private val cas = MockWebServer()
     private val vpn = MockWebServer()
     private val portal = MockWebServer()
+    private val eclass = MockWebServer()
+    private val idp = MockWebServer()
     private val jar = BitCookieJar()
     private val sso = SsoLoginUseCase()
     private lateinit var urls: BitAuthUrls
@@ -36,13 +38,15 @@ class SsoLoginUseCaseTest {
     private fun casUrl(path: String) = cas.at("sso.test", path)
     private fun vpnUrl(path: String) = vpn.at("vpn.test", path)
     private fun portalUrl(path: String) = portal.at("portal.test", path)
+    private fun eclassUrl(path: String) = eclass.at("eclass.test", path)
+    private fun idpUrl(path: String) = idp.at("idp.test", path)
     private fun fixture() = javaClass.getResourceAsStream("/bit-fixtures/cas-login-page.html")!!
         .bufferedReader().use { it.readText() }
     private fun redirect(url: Any) = MockResponse().setResponseCode(302).setHeader("Location", url)
     private fun success() = MockResponse().setBody("<html>教学服务主页</html>")
 
     @Before fun setUp() {
-        listOf(cas, vpn, portal).forEach { it.start() }
+        listOf(cas, vpn, portal, eclass, idp).forEach { it.start() }
         urls = BitAuthUrls(
             casLogin = casUrl("/cas/login").toString(),
             gatewayCallback = vpnUrl("/login?cas_login=true").toString(),
@@ -50,6 +54,8 @@ class SsoLoginUseCaseTest {
             jwappLanding = portalUrl("/jwapp/sys/wdkbby/*default/index.do").toString(),
             jwms = portalUrl("/").toString(),
             lexue = portalUrl("/login/index.php").toString(),
+            eclass = eclassUrl("/user/courses").toString(),
+            eclassIdentity = idpUrl("/auth/realms/bit/").toString(),
             proxyBases = mapOf(portalUrl("/").origin() to vpnUrl("/https/campus/").toString()),
         )
         val client = OkHttpClient.Builder().cookieJar(jar)
@@ -63,7 +69,7 @@ class SsoLoginUseCaseTest {
 
     @After fun tearDown() {
         api.close()
-        listOf(cas, vpn, portal).forEach { it.shutdown() }
+        listOf(cas, vpn, portal, eclass, idp).forEach { it.shutdown() }
     }
 
     private fun passwordTicket(service: HttpUrl = portalUrl("/")) {
@@ -250,5 +256,57 @@ class SsoLoginUseCaseTest {
         assertEquals(0, vpn.requestCount)
         assertEquals(1, portal.requestCount)
         assertEquals("/login/index.php", portal.takeRequest().requestUrl!!.encodedPath)
+    }
+
+    @Test fun `新乐学 login follows its identity broker to CAS and back, never through WebVPN`() = runBlocking {
+        // setUp opened the session in WebVPN mode; 新乐学 is public and must still go direct.
+        val brokerEndpoint = idpUrl("/auth/realms/bit/broker/cas-client/endpoint?state=s1")
+        eclass.enqueue(redirect(idpUrl("/auth/realms/bit/protocol/cas/login?service=" + eclassUrl("/user/courses"))))
+        idp.enqueue(redirect(idpUrl("/auth/realms/bit/broker/cas-client/login?session_code=c1"))
+            .addHeader("Set-Cookie", "AUTH_SESSION_ID=kc; Path=/auth/realms/bit/"))
+        // zy-identity writes the CAS address with a double slash.
+        idp.enqueue(redirect(casUrl("/cas//login").newBuilder().addQueryParameter("service", brokerEndpoint.toString()).build()))
+        passwordTicket(brokerEndpoint)
+        idp.enqueue(redirect(eclassUrl("/user/courses?ticket=ST-kc")))
+        eclass.enqueue(redirect("/user/courses").addHeader("Set-Cookie", "session=signed; Path=/"))
+        eclass.enqueue(success())
+
+        assertEquals(CasLoginDto.Success, sso.loginEclass(api, "student", "password"))
+
+        assertEquals(0, vpn.requestCount)
+        val init = cas.takeRequest()
+        assertEquals(brokerEndpoint.toString(), init.requestUrl!!.queryParameter("service"))
+        assertEquals("POST", cas.takeRequest().method)
+        val idpRequests = (1..3).map { idp.takeRequest() }
+        assertEquals("ST-target", idpRequests[2].requestUrl!!.queryParameter("ticket"))
+        assertEquals("s1", idpRequests[2].requestUrl!!.queryParameter("state"))
+        assertEquals("AUTH_SESSION_ID=kc", idpRequests[2].getHeader("Cookie"))
+        val eclassRequests = (1..3).map { eclass.takeRequest() }
+        assertEquals("ST-kc", eclassRequests[1].requestUrl!!.queryParameter("ticket"))
+        assertEquals("session=signed", eclassRequests[2].getHeader("Cookie"))
+    }
+
+    @Test fun `新乐学 login is a no-op while its session is still valid`() = runBlocking {
+        eclass.enqueue(success())
+        assertEquals(CasLoginDto.Success, sso.loginEclass(api, "student", "password"))
+        assertEquals(0, cas.requestCount)
+        assertEquals(0, idp.requestCount)
+    }
+
+    @Test fun `新乐学 login reports a wrong password from CAS`() = runBlocking {
+        val brokerEndpoint = idpUrl("/auth/realms/bit/broker/cas-client/endpoint?state=s2")
+        eclass.enqueue(redirect(idpUrl("/auth/realms/bit/broker/cas-client/login?session_code=c2")))
+        idp.enqueue(redirect(casUrl("/cas//login").newBuilder().addQueryParameter("service", brokerEndpoint.toString()).build()))
+        cas.enqueue(MockResponse().setBody(fixture()))
+        cas.enqueue(MockResponse().setBody("""<div id="login-error-code">1030027</div>"""))
+        assertEquals(CasLoginDto.WrongCredentials, sso.loginEclass(api, "student", "wrong"))
+    }
+
+    @Test fun `CAS address with repeated slashes is still CAS`() {
+        assertTrue(urls.isCas(casUrl("/cas//login")))
+        assertTrue(urls.isCas(casUrl("/cas/login/")))
+        assertFalse(urls.isCas(casUrl("/cas/logout")))
+        assertTrue(urls.trusted(eclassUrl("/api/my-semesters")))
+        assertTrue(urls.trusted(idpUrl("/auth/realms/bit/broker/cas-client/endpoint")))
     }
 }

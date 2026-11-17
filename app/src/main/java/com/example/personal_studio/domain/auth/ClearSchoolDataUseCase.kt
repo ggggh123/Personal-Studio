@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 /**
  * Removes what was downloaded from the school for the signed-in account: grades and ranks,
- * the AI grade report, imported courses, Lexue assignments and exams (with their reminders),
+ * the AI grade report, imported courses, 乐学 and 新乐学 assignments and exams (with their reminders),
  * and the sync history. Manual courses, tasks and events stay.
  */
 class ClearSchoolDataUseCase @Inject constructor(
@@ -33,10 +33,14 @@ class ClearSchoolDataUseCase @Inject constructor(
         timelineDao.deleteBySources(sources)
         gradesSyncPrefs.setLastSeenSignature(emptySet())
         ddlSyncPrefs.setLastSeenUids(emptySet())
+        ddlSyncPrefs.setBaselinedSources(emptySet())
+        ddlSyncPrefs.setSubmittedUids(emptySet())
         loginPrefs.resetSyncHistory()
     }
 
     companion object {
-        val SCHOOL_SOURCES = listOf(TimelineSource.IMPORTED_PORTAL, TimelineSource.IMPORTED_LEXUE, TimelineSource.IMPORTED_EXAM)
+        val SCHOOL_SOURCES = listOf(
+            TimelineSource.IMPORTED_PORTAL, TimelineSource.IMPORTED_LEXUE, TimelineSource.IMPORTED_ECLASS, TimelineSource.IMPORTED_EXAM,
+        )
     }
 }

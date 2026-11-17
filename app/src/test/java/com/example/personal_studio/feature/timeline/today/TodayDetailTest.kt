@@ -48,6 +48,14 @@ class TodayDetailTest {
         assertTrue(spec.note!!.contains("不会同步到乐学"))
     }
 
+    @Test fun `新乐学 task detail names its platform and the auto-done rule`() {
+        val task = item(1, TimelineType.TASK, at(18), source = TimelineSource.IMPORTED_ECLASS, courseName = "计算机视觉")
+        val spec = detailSpec(task, now = at(16, 30), zone = zone)
+        assertEquals("新乐学作业", spec.kind)
+        assertEquals("来源" to "新乐学 · 计算机视觉", spec.rows.first())
+        assertTrue(spec.note!!.contains("自动标为完成"))
+    }
+
     @Test fun `done task switches reminders off`() {
         val spec = detailSpec(item(1, TimelineType.TASK, at(18), done = true), now = at(10), zone = zone)
         assertTrue(spec.remindersOff)

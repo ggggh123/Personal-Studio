@@ -66,7 +66,7 @@ import com.example.personal_studio.ui.theme.Tg
 private const val DAY_MS = 86_400_000L
 
 /**
- * 作业 (乐学): open assignments grouped by 今天 / 明天 / 7 天内 / 更晚, each with a circle to
+ * 作业 (乐学 + 新乐学): open assignments grouped by 今天 / 明天 / 7 天内 / 更晚, each with a circle to
  * mark it done; past-due and finished ones are folded at the end. Only the circle toggles,
  * so scrolling past a row never marks it by accident.
  */
@@ -93,7 +93,7 @@ fun AssignmentsScreen(
     Column(Modifier.fillMaxSize()) {
         SchoolHeader(
             title = "作业",
-            caption = if (st.upcoming.isEmpty()) "没有未完成的作业" else "${st.upcoming.size} 项未完成 · 来自乐学",
+            caption = if (st.upcoming.isEmpty()) "没有未完成的作业" else "${st.upcoming.size} 项未完成 · 来自${st.sources.joinToString("、").ifEmpty { "乐学" }}",
             syncing = st.syncing, onSync = vm::onRefresh, onBack = onBack,
             step = st.syncSteps.lastOrNull(), error = st.error,
         )
@@ -105,7 +105,7 @@ fun AssignmentsScreen(
                 item(key = "empty") {
                     TgEmptyState(
                         if (st.doneOrOverdue.isEmpty()) "还没有作业" else "作业都处理完了",
-                        "点右上角从乐学同步；在“校园”打开作业自动同步后，有新作业会通知你，截止前 1 天、2 小时和 30 分钟会提醒。",
+                        "点右上角从乐学和新乐学同步；在“校园”打开作业自动同步后，有新作业会通知你，截止前 1 天、2 小时和 30 分钟会提醒。",
                         Modifier.padding(top = 20.dp).enterUp(true, 0),
                     )
                 }
@@ -179,7 +179,7 @@ private fun DdlRowView(row: DdlRow, now: Long, first: Boolean, onToggle: (Boolea
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
             )
             Text(
-                listOfNotNull(row.courseName?.takeIf { it.isNotBlank() }, SchoolText.dayTime(row.dueAt)).joinToString(" · "),
+                listOfNotNull(row.source, row.courseName?.takeIf { it.isNotBlank() }, SchoolText.dayTime(row.dueAt)).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp),
             )
         }

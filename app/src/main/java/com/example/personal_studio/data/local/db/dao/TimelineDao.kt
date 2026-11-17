@@ -70,11 +70,13 @@ interface TimelineDao {
 
     // ---------- Reads ----------
 
-    @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_LEXUE'")
-    suspend fun getLexueDdls(): List<TimelineItemEntity>
+    /** Imported assignments of one platform; [source] is a `TimelineSource` name. */
+    @Query("SELECT * FROM timeline_items WHERE sourceType = :source")
+    suspend fun getImportedDdls(source: String): List<TimelineItemEntity>
 
-    @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_LEXUE' ORDER BY startAt ASC")
-    fun observeLexueDdls(): kotlinx.coroutines.flow.Flow<List<TimelineItemEntity>>
+    /** Assignments from 乐学 and 新乐学 together. */
+    @Query("SELECT * FROM timeline_items WHERE sourceType IN ('IMPORTED_LEXUE', 'IMPORTED_ECLASS') ORDER BY startAt ASC")
+    fun observeImportedDdls(): kotlinx.coroutines.flow.Flow<List<TimelineItemEntity>>
 
     @Query("SELECT * FROM timeline_items WHERE sourceType = 'IMPORTED_EXAM'")
     suspend fun getImportedExams(): List<TimelineItemEntity>

@@ -17,7 +17,7 @@ import javax.inject.Inject
 /** CAS and WebVPN need separate service tickets. Keep the target ticket unconsumed
  * until the gateway session is ready, then redeem it through the selected route. */
 class SsoLoginUseCase @Inject constructor() {
-    private enum class Target { JWAPP, JWMS, LEXUE }
+    private enum class Target { JWAPP, JWMS, LEXUE, ECLASS }
     private class Rejected(val result: CasLoginDto) : Exception()
 
     suspend operator fun invoke(api: BitApiClient, username: String, password: String): CasLoginDto =
@@ -28,6 +28,11 @@ class SsoLoginUseCase @Inject constructor() {
 
     suspend fun loginLexue(api: BitApiClient, username: String, password: String): CasLoginDto =
         login(api, username, password, Target.LEXUE)
+
+    /** 新乐学 (畅课): its Keycloak (zy-identity) brokers to CAS with a per-login state, so the
+     * service URL is read from the redirect chain. Success when its cookies are still valid. */
+    suspend fun loginEclass(api: BitApiClient, username: String, password: String): CasLoginDto =
+        login(api, username, password, Target.ECLASS)
 
     private suspend fun login(api: BitApiClient, username: String, password: String, target: Target): CasLoginDto {
         api.prepareAccount(username)
@@ -48,9 +53,11 @@ class SsoLoginUseCase @Inject constructor() {
                 }
                 Target.JWMS -> urls.jwms.toHttpUrl()
                 Target.LEXUE -> urls.lexue.toHttpUrl()
+                Target.ECLASS -> eclassService(session) ?: return CasLoginDto.Success
             }
             val callback = requestTicket(session, service, username, password)
-            val mode = if (target == Target.LEXUE) NetworkMode.LOCAL else api.networkMode
+            // 乐学 and 新乐学 are public: they never go through WebVPN.
+            val mode = if (target == Target.LEXUE || target == Target.ECLASS) NetworkMode.LOCAL else api.networkMode
             if (mode == NetworkMode.WEBVPN) {
                 val gatewayTicket = requestTicket(session, urls.gatewayCallback.toHttpUrl(), username, password)
                 follow(session, gatewayTicket, NetworkMode.LOCAL, "WebVPN 登录")
@@ -60,7 +67,7 @@ class SsoLoginUseCase @Inject constructor() {
                 val root = session.request(urls.route(service, mode))
                 if (root.code >= 400) reject(root, "教务系统初始化失败")
             }
-            follow(session, callback, mode, "教务服务登录")
+            follow(session, callback, mode, if (target == Target.ECLASS) "新乐学登录" else "教务服务登录")
             if (target == Target.JWAPP) {
                 follow(session, urls.jwappLanding.toHttpUrl(), mode, "教学中心初始化")
             }
@@ -68,6 +75,31 @@ class SsoLoginUseCase @Inject constructor() {
         } catch (e: Rejected) {
             e.result
         }
+    }
+
+    /** Follows 新乐学 → zy-identity until the hand-off to CAS and returns the service it asks
+     * a ticket for; null when 新乐学 answers directly (still signed in). */
+    private suspend fun eclassService(session: BitAuthSession): HttpUrl? {
+        val urls = session.urls
+        val entry = urls.eclass.toHttpUrl()
+        var next = entry
+        var previous: HttpUrl? = null
+        repeat(10) {
+            val response = session.request(next, referer = previous)
+            val redirect = if (response.code in 300..399) response.redirect() else null
+            if (redirect == null) {
+                if (response.code in 200..299 && response.url.origin() == entry.origin()) return null
+                reject(response, "新乐学未返回认证入口")
+            }
+            if (urls.isCas(redirect)) {
+                return redirect.queryParameter("service")?.toHttpUrlOrNull()
+                    ?.takeIf { urls.trusted(it) && !urls.isCas(it) }
+                    ?: reject(response, "新乐学缺少服务回调")
+            }
+            previous = response.url
+            next = redirect
+        }
+        throw Rejected(CasLoginDto.UnknownFailure("新乐学登录：重定向次数过多"))
     }
 
     private suspend fun requestTicket(

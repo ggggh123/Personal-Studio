@@ -269,9 +269,10 @@ object TodayText {
         item.notes?.lineSequence()?.map { it.trim() }?.firstOrNull { it.startsWith(SEAT_PREFIX) }
             ?.removePrefix(SEAT_PREFIX)?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** Where a task comes from: "乐学 · 课程名" or "手动添加". */
+    /** Where a task comes from: "乐学 · 课程名", "新乐学 · 课程名" or "手动添加". */
     fun source(item: TimelineItem): String = when (item.sourceType) {
         TimelineSource.IMPORTED_LEXUE -> listOfNotNull("乐学", item.courseName?.takeIf { it.isNotBlank() }).joinToString(" · ")
+        TimelineSource.IMPORTED_ECLASS -> listOfNotNull("新乐学", item.courseName?.takeIf { it.isNotBlank() }).joinToString(" · ")
         TimelineSource.IMPORTED_EXAM -> "教务考试安排"
         TimelineSource.IMPORTED_PORTAL -> "教务课表"
         TimelineSource.IMPORTED_ICS -> "日历导入"

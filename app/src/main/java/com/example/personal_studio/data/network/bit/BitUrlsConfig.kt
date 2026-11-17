@@ -25,7 +25,10 @@ package com.example.personal_studio.data.network.bit
  */
 object BitUrlsConfig {
 
-    data class Hosts(val jwapp: String, val jwms: String, val lexue: String)
+    data class Hosts(val jwapp: String, val jwms: String, val lexue: String, val eclass: String = ECLASS)
+
+    /** 新乐学 (畅课) is public: the same host on and off campus. */
+    const val ECLASS = "https://zy-eclass.bit.edu.cn/"
 
     /** Campus data endpoints. jwms's registered service uses HTTP; off campus
      * requests are carried inside the HTTPS WebVPN connection below. */

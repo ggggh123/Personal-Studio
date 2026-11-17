@@ -16,7 +16,9 @@ import com.example.personal_studio.domain.bitddl.ReplaceImportedDdlUseCase
 import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
 import com.example.personal_studio.domain.bitddl.model.BackgroundDdlResult
 import com.example.personal_studio.domain.bitddl.model.DdlEvent
+import com.example.personal_studio.domain.bitddl.model.DdlSource
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
+import com.example.personal_studio.domain.bitddl.model.DdlSyncOutcome
 import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import io.mockk.coEvery
@@ -26,6 +28,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DdlPollWorkerTest {
@@ -33,6 +36,9 @@ class DdlPollWorkerTest {
     private fun enabled() = DdlSyncState(true, 12, null, emptySet(), "URL")
     private fun disabled() = DdlSyncState(false, 12, null, emptySet(), null)
     private fun creds() = SavedCredentials("u", "p", NetworkMode.LOCAL)
+    /** 乐学 gives [lexue]; 新乐学 answers with no homework unless told otherwise. */
+    private fun outcome(lexue: BackgroundDdlResult, eclass: BackgroundDdlResult = BackgroundDdlResult.Ok(emptyList())) =
+        DdlSyncOutcome(mapOf(DdlSource.LEXUE to lexue, DdlSource.ECLASS to eclass))
 
     private fun resolveLocal(): ResolveNetworkModeUseCase {
         val m = mockk<ResolveNetworkModeUseCase>()
@@ -82,7 +88,7 @@ class DdlPollWorkerTest {
             every { observeAll() } returns MutableStateFlow(creds())
         }
         val sync = mockk<SyncAssignmentsUseCase> {
-            coEvery { syncForBackground(any()) } returns BackgroundDdlResult.Stop(DdlSyncError.WrongCredentials)
+            coEvery { syncForBackground(any()) } returns outcome(BackgroundDdlResult.Stop(DdlSyncError.WrongCredentials), BackgroundDdlResult.Transient)
         }
         val notifier = mockk<DdlNotifier>(relaxed = true)
         val scheduler = mockk<DdlPollScheduler>(relaxed = true)
@@ -99,7 +105,7 @@ class DdlPollWorkerTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(creds())
         }
-        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns BackgroundDdlResult.Transient }
+        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns outcome(BackgroundDdlResult.Transient, BackgroundDdlResult.Transient) }
         val r = worker(pollPrefs, credPrefs, sync).doWork()
         assertEquals(ListenableWorker.Result.retry(), r)
         coVerify(exactly = 0) { pollPrefs.setEnabled(false) }
@@ -111,14 +117,14 @@ class DdlPollWorkerTest {
             every { observeAll() } returns MutableStateFlow(creds())
         }
         val events = listOf(ev("a"), ev("b"))
-        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns BackgroundDdlResult.Ok(events) }
+        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns outcome(BackgroundDdlResult.Ok(events)) }
         val detector = mockk<DetectNewDdlUseCase>()
-        coEvery { detector.invoke(events) } returns DdlDiffResult(emptyList(), setOf("a", "b"), isFirstRun = true)
+        coEvery { detector.invoke(any<DdlSyncOutcome>()) } returns DdlDiffResult(emptyList(), setOf("a", "b"), isFirstRun = true)
         val replacer = mockk<ReplaceImportedDdlUseCase>(relaxed = true)
         val notifier = mockk<DdlNotifier>(relaxed = true)
         val r = worker(pollPrefs, credPrefs, sync, detector, replacer, notifier = notifier).doWork()
         assertEquals(ListenableWorker.Result.success(), r)
-        coVerify { replacer.invoke(events, any()) }
+        coVerify { replacer.invoke(DdlSource.LEXUE, events, any()) }
         coVerify(exactly = 0) { notifier.notifyNewDdls(any(), any()) }
         coVerify { pollPrefs.setLastSeenUids(setOf("a", "b")) }
     }
@@ -130,21 +136,21 @@ class DdlPollWorkerTest {
         }
         val newOne = ev("c")
         val events = listOf(ev("a"), newOne)
-        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns BackgroundDdlResult.Ok(events) }
+        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns outcome(BackgroundDdlResult.Ok(events)) }
         val detector = mockk<DetectNewDdlUseCase>()
-        coEvery { detector.invoke(events) } returns DdlDiffResult(listOf(newOne), setOf("a", "c"), isFirstRun = false)
+        coEvery { detector.invoke(any<DdlSyncOutcome>()) } returns DdlDiffResult(listOf(newOne), setOf("a", "c"), isFirstRun = false)
         val replacer = mockk<ReplaceImportedDdlUseCase>(relaxed = true)
         val notifier = mockk<DdlNotifier>(relaxed = true)
         val r = worker(pollPrefs, credPrefs, sync, detector, replacer, notifier = notifier).doWork()
         assertEquals(ListenableWorker.Result.success(), r)
-        coVerify { replacer.invoke(events, any()) }
+        coVerify { replacer.invoke(DdlSource.LEXUE, events, any()) }
         coVerify { notifier.notifyNewDdls(any(), listOf(newOne)) }
     }
 
     @Test fun `NeedReview keeps polling, does not disable, records status`() = runTest {
         val pollPrefs = mockk<DdlSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns enabled() }
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds()) }
-        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns BackgroundDdlResult.Stop(DdlSyncError.NeedReview) }
+        val sync = mockk<SyncAssignmentsUseCase> { coEvery { syncForBackground(any()) } returns outcome(BackgroundDdlResult.Stop(DdlSyncError.NeedReview), BackgroundDdlResult.Transient) }
         val scheduler = mockk<DdlPollScheduler>(relaxed = true)
         val notifier = mockk<DdlNotifier>(relaxed = true)
         val r = worker(pollPrefs, credPrefs, sync, notifier = notifier, scheduler = scheduler).doWork()
@@ -159,14 +165,54 @@ class DdlPollWorkerTest {
         val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds()) }
         val events = listOf(ev("a"))
         val sync = mockk<SyncAssignmentsUseCase> {
-            coEvery { syncForBackground(match { it.networkMode == NetworkMode.LOCAL }) } returns BackgroundDdlResult.Transient
-            coEvery { syncForBackground(match { it.networkMode == NetworkMode.WEBVPN }) } returns BackgroundDdlResult.Ok(events)
+            coEvery { syncForBackground(match { it.networkMode == NetworkMode.LOCAL }) } returns
+                outcome(BackgroundDdlResult.Transient, BackgroundDdlResult.Transient)
+            coEvery { syncForBackground(match { it.networkMode == NetworkMode.WEBVPN }) } returns outcome(BackgroundDdlResult.Ok(events))
         }
         val detector = mockk<DetectNewDdlUseCase>()
-        coEvery { detector.invoke(any()) } returns DdlDiffResult(emptyList(), setOf("a"), isFirstRun = false)
+        coEvery { detector.invoke(any<DdlSyncOutcome>()) } returns DdlDiffResult(emptyList(), setOf("a"), isFirstRun = false)
         val replacer = mockk<ReplaceImportedDdlUseCase>(relaxed = true)
         val r = worker(pollPrefs, credPrefs, sync, detector, replacer).doWork()
         assertEquals(ListenableWorker.Result.success(), r)
         coVerify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
+    }
+
+    @Test fun `one platform failing keeps polling and stores the other`() = runTest {
+        val pollPrefs = mockk<DdlSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns enabled() }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds()) }
+        val events = listOf(ev("a"))
+        val sync = mockk<SyncAssignmentsUseCase> {
+            coEvery { syncForBackground(any()) } returns
+                outcome(BackgroundDdlResult.Ok(events), BackgroundDdlResult.Stop(DdlSyncError.CaptchaRequired))
+        }
+        val detector = mockk<DetectNewDdlUseCase>()
+        coEvery { detector.invoke(any<DdlSyncOutcome>()) } returns DdlDiffResult(emptyList(), setOf("a"), isFirstRun = false)
+        val replacer = mockk<ReplaceImportedDdlUseCase>(relaxed = true)
+        val scheduler = mockk<DdlPollScheduler>(relaxed = true)
+        val result = mutableListOf<com.example.personal_studio.data.local.datastore.PollResult>()
+        coEvery { pollPrefs.setLastResult(capture(result)) } returns mockk(relaxed = true)
+        val r = worker(pollPrefs, credPrefs, sync, detector, replacer, scheduler = scheduler).doWork()
+        assertEquals(ListenableWorker.Result.success(), r)
+        coVerify { replacer.invoke(DdlSource.LEXUE, events, any()) }
+        coVerify(exactly = 0) { replacer.invoke(DdlSource.ECLASS, any(), any()) }
+        coVerify(exactly = 0) { pollPrefs.setEnabled(false) }
+        coVerify(exactly = 0) { scheduler.cancel() }
+        assertTrue(result.single().ok)
+        assertEquals("新乐学未同步：学校要求验证", result.single().message)
+    }
+
+    @Test fun `a wrong password found by 新乐学 still stops polling`() = runTest {
+        val pollPrefs = mockk<DdlSyncPrefs>(relaxed = true) { coEvery { snapshot() } returns enabled() }
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds()) }
+        val sync = mockk<SyncAssignmentsUseCase> {
+            coEvery { syncForBackground(any()) } returns
+                outcome(BackgroundDdlResult.Ok(listOf(ev("a"))), BackgroundDdlResult.Stop(DdlSyncError.WrongCredentials))
+        }
+        val replacer = mockk<ReplaceImportedDdlUseCase>(relaxed = true)
+        val r = worker(pollPrefs, credPrefs, sync, replacer = replacer).doWork()
+        assertEquals(ListenableWorker.Result.success(), r)
+        coVerify { credPrefs.clear() }
+        coVerify { pollPrefs.setEnabled(false) }
+        coVerify(exactly = 0) { replacer.invoke(any(), any(), any()) }
     }
 }

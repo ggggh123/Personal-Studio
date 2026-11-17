@@ -88,7 +88,7 @@ class CampusViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val book = bookSource.books
-    private val agenda = combine(timelineDao.observeLexueDdls(), timelineDao.observeImportedExams()) { d, e -> d to e }
+    private val agenda = combine(timelineDao.observeImportedDdls(), timelineDao.observeImportedExams()) { d, e -> d to e }
     private val polls = combine(gradesSyncPrefs.observe, ddlSyncPrefs.observe) { g, d ->
         PollUi(g.enabled, g.intervalHours) to PollUi(d.enabled, d.intervalHours)
     }

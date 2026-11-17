@@ -8,6 +8,7 @@ import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.repository.TimelineRepository
 import com.example.personal_studio.domain.bitddl.SyncAssignmentsUseCase
+import com.example.personal_studio.domain.bitddl.model.DdlSource
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.domain.bitddl.model.DdlSyncStep
@@ -39,6 +40,8 @@ data class DdlRow(
     val courseName: String?,
     val dueAt: Long,
     val isDone: Boolean,
+    /** "乐学" / "新乐学": which platform to submit it on. */
+    val source: String? = null,
 )
 
 data class AssignmentsUiState(
@@ -48,6 +51,8 @@ data class AssignmentsUiState(
     val syncSteps: List<String> = emptyList(),  // 刷新时逐步累积的状态文案(同成绩页)
     val error: String? = null,
     val credsSaved: Boolean = false,
+    /** Platforms the listed assignments come from, in a fixed order. */
+    val sources: List<String> = emptyList(),
 )
 
 @HiltViewModel
@@ -69,7 +74,7 @@ class AssignmentsViewModel @Inject constructor(
     val events: SharedFlow<AssignmentsEvent> = _events.asSharedFlow()
 
     val uiState: StateFlow<AssignmentsUiState> = combine(
-        dao.observeLexueDdls(), credPrefs.observeAll(), transient,
+        dao.observeImportedDdls(), credPrefs.observeAll(), transient,
     ) { rows, creds, t ->
         val now = nowProvider()
         val mapped = rows.map { it.toRow() }
@@ -78,6 +83,7 @@ class AssignmentsViewModel @Inject constructor(
             upcoming = upcoming.sortedBy { it.dueAt },
             doneOrOverdue = folded.sortedByDescending { it.dueAt },
             credsSaved = creds != null,
+            sources = DdlSource.entries.filter { s -> rows.any { it.sourceType == s.timeline } }.map { it.label },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AssignmentsUiState())
 
@@ -105,9 +111,16 @@ class AssignmentsViewModel @Inject constructor(
             ).collect { step ->
                 val cur = transient.value
                 transient.value = when (step) {
-                    DdlSyncStep.FetchingCalendar -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "登录并拉取乐学日历…")
+                    DdlSyncStep.FetchingCalendar -> cur.copy(syncing = true, error = null, syncSteps = cur.syncSteps + "拉取乐学作业…")
+                    DdlSyncStep.FetchingEclass -> cur.copy(syncSteps = cur.syncSteps + "拉取新乐学作业…")
                     is DdlSyncStep.SwitchingMode -> cur.copy(syncSteps = cur.syncSteps + switchMsg(step.to))
-                    is DdlSyncStep.Done -> cur.copy(syncing = false, syncSteps = cur.syncSteps + "完成 · ${step.total} 项作业")
+                    is DdlSyncStep.Done -> cur.copy(
+                        syncing = false,
+                        syncSteps = cur.syncSteps + doneText(step),
+                        // One platform failing does not undo the other; say which one is missing.
+                        error = step.failed.entries.joinToString("；") { (s, e) -> "${s.label}未同步：${e.toMessage()}" }
+                            .ifEmpty { null },
+                    )
                     is DdlSyncStep.Failed -> cur.copy(syncing = false, error = step.error.toMessage())
                 }
             }
@@ -117,14 +130,18 @@ class AssignmentsViewModel @Inject constructor(
     private fun switchMsg(to: NetworkMode): String =
         if (to == NetworkMode.WEBVPN) "校内不可达，改用校外(WEBVPN)重试…" else "校外不可达，改用校内重试…"
 
-    private fun TimelineItemEntity.toRow() = DdlRow(id, title, courseName, startAt, isDone)
+    private fun doneText(step: DdlSyncStep.Done): String =
+        "完成 · " + step.counts.entries.joinToString(" · ") { (s, n) -> "${s.label} $n 项" }.ifEmpty { "${step.total} 项作业" }
+
+    private fun TimelineItemEntity.toRow() =
+        DdlRow(id, title, courseName, startAt, isDone, DdlSource.of(sourceType)?.label)
 
     private fun DdlSyncError.toMessage(): String = when (this) {
         is DdlSyncError.WrongCredentials -> "密码错误"
         is DdlSyncError.AccountLocked -> "账号锁定"
         is DdlSyncError.CaptchaRequired -> "请到校园页点“重新验证”，并完成应用内的学校网页验证"
         is DdlSyncError.NeedReview -> "请先完成评教"
-        is DdlSyncError.ParseFail -> "乐学返回异常"
+        is DdlSyncError.ParseFail -> "平台返回异常"
         is DdlSyncError.NetworkFail -> "网络错误,请重试"
         is DdlSyncError.Unexpected -> "未知错误"
     }

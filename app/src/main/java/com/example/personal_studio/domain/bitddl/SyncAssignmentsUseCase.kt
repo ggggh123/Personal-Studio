@@ -5,7 +5,9 @@ import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.autoNetworkFallback
 import com.example.personal_studio.domain.bitddl.model.BackgroundDdlResult
+import com.example.personal_studio.domain.bitddl.model.DdlSource
 import com.example.personal_studio.domain.bitddl.model.DdlSyncError
+import com.example.personal_studio.domain.bitddl.model.DdlSyncOutcome
 import com.example.personal_studio.domain.bitddl.model.DdlSyncRequest
 import com.example.personal_studio.domain.bitddl.model.DdlSyncStep
 import com.example.personal_studio.domain.bitddl.model.LexueUrlResult
@@ -16,9 +18,11 @@ import java.io.IOException
 import javax.inject.Inject
 
 /**
- * 作业 DDL 同步编排。策略 Y:优先用持久化 .ics URL 免登录直拉;无/失效则登录派生。
- *   - sync(req): Flow<DdlSyncStep>      前台手动刷新(自管 open/close,落库 + 设基线)。
- *   - syncForBackground(req)            后台静默(假设 apiClient 已 open,仅返回 fetch 结果)。
+ * 作业 DDL 同步编排,两个平台在同一次会话里依次拉取,结果互不影响:
+ *   - 乐学:策略 Y,优先用持久化 .ics URL 免登录直拉;无/失效则登录派生。
+ *   - 新乐学:畅课作业接口,Cookie 失效时走统一认证(同一会话里通常不必再交密码)。
+ *   - sync(req): Flow<DdlSyncStep>      前台手动刷新(自管 open/close,按平台落库 + 设基线)。
+ *   - syncForBackground(req)            后台静默(假设 apiClient 已 open,仅返回各平台的 fetch 结果)。
  */
 class SyncAssignmentsUseCase @Inject constructor(
     private val apiClient: BitApiClient,
@@ -26,26 +30,44 @@ class SyncAssignmentsUseCase @Inject constructor(
     private val generateUrl: GenerateLexueIcalUrlUseCase,
     private val prefs: DdlSyncPrefs,
     private val replacer: ReplaceImportedDdlUseCase,
+    private val fetchEclass: FetchEclassAssignmentsUseCase,
+    private val detector: DetectNewDdlUseCase,
 ) {
     fun sync(req: DdlSyncRequest): Flow<DdlSyncStep> = flow {
         apiClient.acquireSession()
         try {
             apiClient.open(req.networkMode)
             emit(DdlSyncStep.FetchingCalendar)
-            when (val result = fetchEvents(req)) {
-                is BackgroundDdlResult.Stop -> emit(DdlSyncStep.Failed(result.reason))
-                is BackgroundDdlResult.Transient ->
-                    emit(DdlSyncStep.Failed(DdlSyncError.NetworkFail("网络错误,请重试")))
-                is BackgroundDdlResult.Ok -> {
-                    replacer.invoke(result.events)
-                    prefs.setLastSeenUids(result.events.map { it.uid }.toSet())
-                    prefs.setLastSyncAt(System.currentTimeMillis())
-                    emit(DdlSyncStep.Done(result.events.size, 0))
-                }
+            val lexue = fetchEvents(req)
+            emit(DdlSyncStep.FetchingEclass)
+            val eclass = guarded { fetchEclass(req) }
+            val outcome = DdlSyncOutcome(mapOf(DdlSource.LEXUE to lexue, DdlSource.ECLASS to eclass))
+            if (outcome.succeeded.isEmpty()) {
+                emit(DdlSyncStep.Failed(outcome.primaryError))
+            } else {
+                store(outcome)
+                // A manual refresh shows everything, so it also becomes the baseline for notifications.
+                val diff = detector.invoke(outcome)
+                prefs.setLastSeenUids(diff.fullUids)
+                prefs.setBaselinedSources(diff.baselined.map { it.name }.toSet())
+                prefs.setLastSyncAt(System.currentTimeMillis())
+                emit(
+                    DdlSyncStep.Done(
+                        total = outcome.events.size,
+                        newCount = 0,
+                        counts = outcome.bySource.mapNotNull { (s, r) -> (r as? BackgroundDdlResult.Ok)?.let { s to it.events.size } }.toMap(),
+                        failed = outcome.failures,
+                    ),
+                )
             }
         } finally {
             try { apiClient.close() } finally { apiClient.releaseSession() }
         }
+    }
+
+    /** Writes each platform that synced; a failed one keeps what it had. */
+    suspend fun store(outcome: DdlSyncOutcome) {
+        outcome.bySource.forEach { (source, r) -> if (r is BackgroundDdlResult.Ok) replacer.invoke(source, r.events) }
     }
 
     /** Auto 模式:先按 [req].networkMode 试,连接级失败(NetworkFail)自动换另一网络模式重试一次,
@@ -60,7 +82,18 @@ class SyncAssignmentsUseCase @Inject constructor(
         ) { mode -> sync(req.copy(networkMode = mode)) }
 
     /** 后台:假设 apiClient 已 open。 */
-    suspend fun syncForBackground(req: DdlSyncRequest): BackgroundDdlResult = fetchEvents(req)
+    suspend fun syncForBackground(req: DdlSyncRequest): DdlSyncOutcome = DdlSyncOutcome(
+        mapOf(DdlSource.LEXUE to fetchEvents(req), DdlSource.ECLASS to guarded { fetchEclass(req) }),
+    )
+
+    /** Anything unexpected from one platform stays that platform's (retryable) failure. */
+    private suspend fun guarded(block: suspend () -> BackgroundDdlResult): BackgroundDdlResult = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        BackgroundDdlResult.Transient
+    }
 
     private suspend fun fetchEvents(req: DdlSyncRequest): BackgroundDdlResult {
         var url = prefs.snapshot().icalUrl

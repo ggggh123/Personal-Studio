@@ -16,7 +16,7 @@ import org.junit.Test
 class ClearSchoolDataUseCaseTest {
     @Test fun `removes downloaded school data and its reminders, keeps manual items`() = runTest {
         val grades = mockk<GradesDao>(relaxed = true)
-        val sources = listOf("IMPORTED_PORTAL", "IMPORTED_LEXUE", "IMPORTED_EXAM")
+        val sources = listOf("IMPORTED_PORTAL", "IMPORTED_LEXUE", "IMPORTED_ECLASS", "IMPORTED_EXAM")
         val timeline = mockk<TimelineDao>(relaxed = true) {
             coEvery { idsBySources(sources) } returns listOf(4L, 9L)
         }
@@ -36,6 +36,8 @@ class ClearSchoolDataUseCaseTest {
         coVerify(exactly = 1) { timeline.deleteBySources(sources) }
         coVerify { gradesPrefs.setLastSeenSignature(emptySet()) }
         coVerify { ddlPrefs.setLastSeenUids(emptySet()) }
+        coVerify { ddlPrefs.setBaselinedSources(emptySet()) }
+        coVerify { ddlPrefs.setSubmittedUids(emptySet()) }
         coVerify { login.resetSyncHistory() }
     }
 }

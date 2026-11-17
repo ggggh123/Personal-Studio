@@ -78,7 +78,7 @@ object SyncText {
 
     fun running(src: SyncSource): String = when (src) {
         SyncSource.COURSES -> "登录教学中心，读取本学期课表"
-        SyncSource.DDL -> "读取乐学日历订阅"
+        SyncSource.DDL -> "读取乐学和新乐学作业"
         SyncSource.EXAMS -> "登录教学中心，读取考试安排"
         SyncSource.GRADES -> "登录教务系统，读取成绩表"
     }
@@ -86,14 +86,14 @@ object SyncText {
     /** What a source brings in, shown before the first sync. */
     fun what(src: SyncSource): String = when (src) {
         SyncSource.COURSES -> "本学期课表"
-        SyncSource.DDL -> "未完成的乐学作业"
+        SyncSource.DDL -> "乐学和新乐学的作业"
         SyncSource.EXAMS -> "考试安排"
         SyncSource.GRADES -> "全部学期的成绩"
     }
 
     fun ok(src: SyncSource): String = when (src) {
         SyncSource.COURSES -> "本学期课表 · 已更新到日程"
-        SyncSource.DDL -> "未完成的乐学作业 · 已写入日程"
+        SyncSource.DDL -> "乐学和新乐学的作业 · 已写入日程"
         SyncSource.EXAMS -> "考试安排 · 已写入日程"
         SyncSource.GRADES -> "成绩单已更新"
     }

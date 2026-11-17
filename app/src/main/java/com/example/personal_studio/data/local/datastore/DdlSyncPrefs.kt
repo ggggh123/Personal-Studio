@@ -21,6 +21,10 @@ data class DdlSyncState(
     val lastSeenUids: Set<String>,
     val icalUrl: String?,
     val lastResult: PollResult? = null,
+    /** 新乐学上次同步时已提交的作业;只在“刚提交”时自动打勾,用户取消后不会再被勾上。 */
+    val submittedUids: Set<String> = emptySet(),
+    /** 已建立新作业基线的平台(`DdlSource` 名);首次同步某平台不发“新作业”通知。 */
+    val baselinedSources: Set<String> = emptySet(),
 )
 
 @Singleton
@@ -37,6 +41,8 @@ class DdlSyncPrefs @Inject constructor(
     private val keyResultTotal = intPreferencesKey("ddl_poll_result_total")
     private val keyResultNew = intPreferencesKey("ddl_poll_result_new")
     private val keyResultMsg = stringPreferencesKey("ddl_poll_result_msg")
+    private val keySubmitted = stringPreferencesKey("ddl_eclass_submitted_uids")
+    private val keyBaselined = stringPreferencesKey("ddl_baselined_sources")
 
     val observe: Flow<DdlSyncState> = dataStore.data.map { p ->
         DdlSyncState(
@@ -54,6 +60,8 @@ class DdlSyncPrefs @Inject constructor(
                     message = p[keyResultMsg] ?: "",
                 )
             },
+            submittedUids = p[keySubmitted].toLineSet(),
+            baselinedSources = p[keyBaselined].toLineSet(),
         )
     }
 
@@ -65,8 +73,12 @@ class DdlSyncPrefs @Inject constructor(
     suspend fun setLastSeenUids(uids: Set<String>) = dataStore.edit {
         it[keyLastUids] = uids.joinToString("\n")
     }
+    suspend fun setSubmittedUids(uids: Set<String>) = dataStore.edit { it[keySubmitted] = uids.joinToString("\n") }
+    suspend fun setBaselinedSources(sources: Set<String>) = dataStore.edit { it[keyBaselined] = sources.joinToString("\n") }
     suspend fun setIcalUrl(url: String) = dataStore.edit { it[keyIcalUrl] = url }
     suspend fun clearIcalUrl() = dataStore.edit { it.remove(keyIcalUrl) }
+    private fun String?.toLineSet(): Set<String> = this?.split('\n')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+
     suspend fun setLastResult(r: PollResult) = dataStore.edit {
         it[keyResultAt] = r.at
         it[keyResultOk] = r.ok

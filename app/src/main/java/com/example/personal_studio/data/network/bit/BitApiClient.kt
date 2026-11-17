@@ -51,6 +51,7 @@ class BitApiClient internal constructor(
     private var jwappRetrofit: Retrofit? = null
     private var jwmsRetrofit: Retrofit? = null
     private var lexueRetrofit: Retrofit? = null
+    private var eclassRetrofit: Retrofit? = null
     private var openedMode: NetworkMode? = null
 
     /** Opens a session at the given [mode]. Idempotent if same mode re-requested. */
@@ -60,6 +61,7 @@ class BitApiClient internal constructor(
         jwappRetrofit = newRetrofit(hosts.jwapp)
         jwmsRetrofit = newRetrofit(hosts.jwms)
         lexueRetrofit = newRetrofit(hosts.lexue)
+        eclassRetrofit = newRetrofit(hosts.eclass)
         openedMode = mode
     }
 
@@ -69,6 +71,7 @@ class BitApiClient internal constructor(
         jwappRetrofit = null
         jwmsRetrofit = null
         lexueRetrofit = null
+        eclassRetrofit = null
         openedMode = null
         cookieJar.clear()
     }
@@ -83,6 +86,10 @@ class BitApiClient internal constructor(
     /** 乐学(Moodle)服务,独立 host lexue.bit.edu.cn。 */
     val lexue: com.example.personal_studio.data.network.bit.service.BitLexueService
         get() = lexueRetrofit?.create() ?: error("BitApiClient: session not open")
+
+    /** 新乐学(畅课)服务,host zy-eclass.bit.edu.cn,校内外同一地址。 */
+    val eclass: com.example.personal_studio.data.network.bit.service.BitEclassService
+        get() = eclassRetrofit?.create() ?: error("BitApiClient: session not open")
 
     private fun newRetrofit(baseUrl: String): Retrofit = Retrofit.Builder()
         .baseUrl(baseUrl)

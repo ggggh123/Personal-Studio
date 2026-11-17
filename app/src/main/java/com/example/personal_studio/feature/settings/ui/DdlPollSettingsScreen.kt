@@ -11,7 +11,7 @@ import com.example.personal_studio.feature.settings.vm.DdlPollSettingsViewModel
 fun DdlPollSettingsScreen(onBack: () -> Unit, vm: DdlPollSettingsViewModel = hiltViewModel()) {
     val st by vm.uiState.collectAsStateWithLifecycle()
     PollSettingsPage(
-        title = "作业自动同步", what = "同步一次乐学作业，有新作业时通知",
+        title = "作业自动同步", what = "同步一次乐学和新乐学的作业，有新作业时通知",
         credsSaved = st.credsSaved, enabled = st.enabled, intervalHours = st.intervalHours, lastResult = st.lastResult,
         onToggle = { vm.onEnableToggle(it) }, onInterval = { vm.onIntervalSelect(it) }, onBack = onBack,
     )

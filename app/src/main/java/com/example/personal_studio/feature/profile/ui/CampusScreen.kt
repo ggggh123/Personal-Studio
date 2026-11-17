@@ -421,7 +421,7 @@ private fun LogoutDialog(onConfirm: (clearData: Boolean) -> Unit, onDismiss: () 
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("同时删除本机的学校数据", style = MaterialTheme.typography.bodyMedium, color = c.text)
-                    Text("成绩、导入的课表、乐学作业和考试；手动添加的课程和待办保留",
+                    Text("成绩、导入的课表、乐学和新乐学作业、考试；手动添加的课程和待办保留",
                         style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
                 }
                 TgSwitch(checked = clear, onCheckedChange = { clear = it })

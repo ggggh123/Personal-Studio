@@ -111,7 +111,9 @@ class SyncAllUseCase @Inject constructor(
             DdlSyncRequest(creds.username, creds.password, mode, rememberPwd = true), onModeSucceeded = onMode,
         ).collect { step ->
             when (step) {
-                is DdlSyncStep.Done -> state = ok("${step.total} 条")
+                is DdlSyncStep.Done -> state = ok(
+                    "${step.total} 条" + step.failed.keys.joinToString("、") { it.label }.let { if (it.isEmpty()) "" else " · ${it}未同步" },
+                )
                 is DdlSyncStep.Failed -> state = fail(SyncFailures.of(step.error))
                 else -> {}
             }

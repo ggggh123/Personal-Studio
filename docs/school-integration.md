@@ -13,16 +13,17 @@
 | 教学中心 jwapp | 课表、考试、空教室 | `jxzxehallapp.bit.edu.cn`；认证预检走 `jxzxehall.bit.edu.cn` |
 | jwms／jsxsd | 成绩列表与单课详情 | CAS 注册 service 为 `http://jwms.bit.edu.cn/` |
 | 乐学 Moodle | 日历订阅与作业 DDL | `https://lexue.bit.edu.cn/` |
+| 新乐学（畅课 TronClass） | 作业 DDL 与提交状态 | `https://zy-eclass.bit.edu.cn/`；认证经 `zy-identity.bit.edu.cn`（Keycloak）转到 CAS |
 
-精确 URL、代理编码和可信跳转检查以 [BitAuthSession](../app/src/main/java/com/example/personal_studio/data/network/bit/BitAuthSession.kt)、[BitUrlsConfig](../app/src/main/java/com/example/personal_studio/data/network/bit/BitUrlsConfig.kt) 为准。WebVPN 将目标 host 编入路径；Retrofit 使用相对业务路径，不能用以 `/` 开头的路径冲掉代理前缀。乐学在当前两种模式下都使用公网直连。
+精确 URL、代理编码和可信跳转检查以 [BitAuthSession](../app/src/main/java/com/example/personal_studio/data/network/bit/BitAuthSession.kt)、[BitUrlsConfig](../app/src/main/java/com/example/personal_studio/data/network/bit/BitUrlsConfig.kt) 为准。WebVPN 将目标 host 编入路径；Retrofit 使用相对业务路径，不能用以 `/` 开头的路径冲掉代理前缀。乐学和新乐学在当前两种模式下都使用公网直连。延河课堂门户 `aita.yanhekt.cn` 顶栏的“教学管理（新乐学）”就指向 zy-eclass，门户本身不放作业。
 
 ## 登录与会话
 
 ### 原生认证链
 
-[`SsoLoginUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCase.kt) 为教学中心、成绩和乐学提供分别的登录入口：
+[`SsoLoginUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitimport/SsoLoginUseCase.kt) 为教学中心、成绩、乐学和新乐学提供分别的登录入口：
 
-1. 按账号准备共享 Cookie。教学中心先做不带 Cookie 的公开认证预检，获取带本次 nonce 的 service；成绩和乐学使用各自注册 service。
+1. 按账号准备共享 Cookie。教学中心先做不带 Cookie 的公开认证预检，获取带本次 nonce 的 service；成绩和乐学使用各自注册 service。新乐学从 `/user/courses` 顺着 zy-identity 的跳转走到 CAS，取其中带本次 `state` 的 broker service（地址写作 `/cas//login`，判断 CAS 时会合并重复斜杠）；若 zy-eclass 直接返回页面，说明会话仍有效，不再认证。
 2. 直连 CAS 请求该 service 的 ticket。已有 TGC 能签发 ticket 时直接复用；否则解析 `login-page-flowkey` 和 `login-croypto`，按 [CasAesCrypto](../app/src/main/java/com/example/personal_studio/core/util/CasAesCrypto.kt) 的协议加密并提交表单。密钥需先 Base64 解码，算法是学校要求的 AES-ECB，不是旧计划中的 CBC。
 3. 要求响应携带 ticket，且回调 origin／path 与目标 service 匹配。HTTP 200、空响应、没有错误提示，均不能单独证明登录成功。
 4. 教学中心／成绩使用 WebVPN 时，先另外申请网关 ticket 并建立网关会话，暂不兑换目标 ticket。成绩服务还需先访问根入口初始化其会话 Cookie。
@@ -90,6 +91,26 @@
 
 DDL 是日历元数据；“完成”仅在本地记录，没有查询 Moodle 的实际作业提交状态。
 
+### 新乐学作业
+
+新乐学是畅课（TronClass）系统，没有日历订阅地址，只能登录后读接口。[`FetchEclassAssignmentsUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitddl/FetchEclassAssignmentsUseCase.kt) 只读三类接口：
+
+1. `GET api/my-semesters`，取 `is_active` 的学期（都没有时取 `sort` 最大的）。
+2. `POST api/my-courses`，`conditions.semester_id` 限定本学期，分页。
+3. 每门课 `GET api/courses/{id}/homework-activities?page=&page_size=100`，并发、分页。课堂小测也在这里。
+
+时间是 UTC ISO-8601；取 `end_time`（缺省用 `deadline`），跳过未发布或无截止的条目。说明是教师填写的 HTML，转成纯文本。uid 为 `eclass-homework-<id>`。`api/todos` 只列未交且开放的作业，交完就为空，不能作为完整来源。
+
+先直接读：学校网页 Cookie 仍有效（或 CAS 能直接签票）时不必认证。拿到的不是 JSON（被带到登录页）或 401／403 才调 `loginEclass`，再读一次；仍不是 JSON 则报解析失败。
+
+两个平台在 [`SyncAssignmentsUseCase`](../app/src/main/java/com/example/personal_studio/domain/bitddl/SyncAssignmentsUseCase.kt) 的同一次会话里依次拉取，结果是按平台的 `DdlSyncOutcome`：
+
+- 落库按平台进行，一个平台失败时不改它已有的作业；手动刷新只要一个平台成功就算完成，并写明哪个平台没同步上。
+- 密码错误／账号锁定无论哪个平台发现都按账号问题处理；后台轮询在另一平台成功时不因单个平台的其他失败停轮，只记入结果说明。
+- 新作业通知按平台建基线：某平台第一次同步不通知；没同步上的平台保留上次的 UID，恢复后不会误报。
+
+新乐学返回本人是否已提交（`submitted`）。新作业已提交就直接记为完成；已有作业在“刚提交”（上次同步时未提交）时自动打勾并取消提醒。用户之后手动取消，不会再被勾上；系统从不自动取消完成。上次已提交的 uid 存在 DdlSyncPrefs。
+
 ### 空教室
 
 [`EmptyRoomRepository`](../app/src/main/java/com/example/personal_studio/domain/emptyroom/EmptyRoomRepository.kt) 登录教学中心并预热 `wdkbby`，读取校区、教学楼和 `kxjasbyController/cxkxjasqk.do` 的占用数据；多个教学楼在同一个已打开会话内并发获取。
@@ -123,6 +144,7 @@ DDL 是日历元数据；“完成”仅在本地记录，没有查询 Moodle �
 
 - 每个业务入口仍会重新走目标服务认证链；可复用 CAS Cookie，但没有独立的“服务会话仍有效就直接执行业务”入口。
 - 部分 CAS 5xx 等临时故障仍进入通用失败／解析失败，可能停止后台轮询。更细的临时错误分类及验证后恢复原任务尚未完成。
+- 新乐学的登录链只在浏览器里实际走通过（含 `/cas//login` 和 broker 回调）；App 内的原生认证链由本地模拟服务器测试覆盖，首次在真机上运行仍需验证。从未登录过新乐学的账号可能遇到 Keycloak 的首次登录页，目前会报“登录后仍未进入”。
 - 乐学 token、业务缓存与已下载数据没有完整账号隔离；有效空结果与解析丢失的保护在不同功能之间也不一致。
 - 学校是否需要短信、多久免验证由服务端决定。不能从一次成功登录或单元测试通过推导出长期免验证、全服务可用。
 

@@ -60,7 +60,7 @@ class AssignmentsViewModelTest {
 
     @Test fun `splits upcoming incomplete ascending vs done-or-overdue`() = runTest {
         val dao = mockk<TimelineDao>(relaxed = true) {
-            every { observeLexueDdls() } returns flowOf(listOf(
+            every { observeImportedDdls() } returns flowOf(listOf(
                 row(1, now + 2 * 3600_000L, done = false),
                 row(2, now + 1 * 3600_000L, done = false),
                 row(3, now + 5 * 3600_000L, done = true),
@@ -78,7 +78,7 @@ class AssignmentsViewModelTest {
     @Test fun `toggle done delegates to use case`() = runTest {
         val toggle = mockk<com.example.personal_studio.domain.timeline.ToggleDoneUseCase>(relaxed = true)
         val cancel = mockk<com.example.personal_studio.domain.timeline.CancelRemindersUseCase>(relaxed = true)
-        val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedDdls() } returns flowOf(emptyList()) }
         val vm = AssignmentsViewModel(
             dao = dao, toggleDone = toggle, cancelReminders = cancel,
             scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
@@ -96,7 +96,7 @@ class AssignmentsViewModelTest {
     }
 
     @Test fun `refresh auto-fallback persists the winning mode and clears syncing`() = runTest {
-        val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedDdls() } returns flowOf(emptyList()) }
         val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
@@ -120,7 +120,7 @@ class AssignmentsViewModelTest {
     }
 
     @Test fun `refresh accumulates progress steps for the UI`() = runTest {
-        val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedDdls() } returns flowOf(emptyList()) }
         val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
             every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
         }
@@ -134,12 +134,12 @@ class AssignmentsViewModelTest {
         )
         val job = launch { vm.uiState.collect {} }
         vm.onRefresh(); advanceUntilIdle()
-        assertEquals(listOf("登录并拉取乐学日历…", "完成 · 5 项作业"), vm.uiState.value.syncSteps)
+        assertEquals(listOf("拉取乐学作业…", "完成 · 5 项作业"), vm.uiState.value.syncSteps)
         job.cancel()
     }
 
     @Test fun `refresh without creds emits NeedLogin event`() = runTest {
-        val dao = mockk<TimelineDao>(relaxed = true) { every { observeLexueDdls() } returns flowOf(emptyList()) }
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedDdls() } returns flowOf(emptyList()) }
         val vm = AssignmentsViewModel(
             dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
             scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
@@ -152,5 +152,53 @@ class AssignmentsViewModelTest {
             advanceUntilIdle()
             assertEquals(AssignmentsEvent.NeedLogin, awaitItem())
         }
+    }
+
+    @Test fun `one platform failing still reports the other and names the missing one`() = runTest {
+        val dao = mockk<TimelineDao>(relaxed = true) { every { observeImportedDdls() } returns flowOf(emptyList()) }
+        val creds = mockk<ImportCredentialPrefs>(relaxed = true) {
+            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
+        }
+        val done = DdlSyncStep.Done(
+            3, 0,
+            counts = mapOf(com.example.personal_studio.domain.bitddl.model.DdlSource.LEXUE to 3),
+            failed = mapOf(
+                com.example.personal_studio.domain.bitddl.model.DdlSource.ECLASS to
+                    com.example.personal_studio.domain.bitddl.model.DdlSyncError.CaptchaRequired,
+            ),
+        )
+        val sync = mockk<SyncAssignmentsUseCase> {
+            every { syncAuto(any(), any()) } returns flowOf(DdlSyncStep.FetchingCalendar, DdlSyncStep.FetchingEclass, done)
+        }
+        val vm = AssignmentsViewModel(
+            dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
+            scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
+            sync = sync, credPrefs = creds, resolveNetworkMode = resolveEcho(), nowProvider = { now },
+        )
+        val job = launch { vm.uiState.collect {} }
+        vm.onRefresh(); advanceUntilIdle()
+        assertEquals(listOf("拉取乐学作业…", "拉取新乐学作业…", "完成 · 乐学 3 项"), vm.uiState.value.syncSteps)
+        assertEquals(false, vm.uiState.value.syncing)
+        assertEquals("新乐学未同步：请到校园页点“重新验证”，并完成应用内的学校网页验证", vm.uiState.value.error)
+        job.cancel()
+    }
+
+    @Test fun `rows say which platform each assignment is on`() = runTest {
+        val eclassRow = row(2L, due = now + 3_600_000L, done = false)
+            .copy(sourceType = TimelineSource.IMPORTED_ECLASS, courseName = "计算机视觉")
+        val dao = mockk<TimelineDao>(relaxed = true) {
+            every { observeImportedDdls() } returns flowOf(listOf(row(1L, due = now + 7_200_000L, done = false), eclassRow))
+        }
+        val vm = AssignmentsViewModel(
+            dao = dao, toggleDone = mockk(relaxed = true), cancelReminders = mockk(relaxed = true),
+            scheduleReminders = mockk(relaxed = true), repo = mockk(relaxed = true),
+            sync = mockk(relaxed = true), credPrefs = mockk(relaxed = true) { every { observeAll() } returns MutableStateFlow(null) },
+            resolveNetworkMode = resolveEcho(), nowProvider = { now },
+        )
+        val job = launch { vm.uiState.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf("新乐学", "乐学"), vm.uiState.value.upcoming.map { it.source })
+        assertEquals(listOf("乐学", "新乐学"), vm.uiState.value.sources)
+        job.cancel()
     }
 }

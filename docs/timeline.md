@@ -36,6 +36,7 @@
 | --- | --- | --- |
 | 课表 | 确认后删除锚点起 25 周范围内的 `IMPORTED_PORTAL`，再写入新展开行 | 保留手动行；重新导入会覆盖该范围内对导入课程的本地修改，并重新分配系列 |
 | 乐学 DDL | 按 UID 更新／插入，删除本次订阅结果中消失的 UID | 保留匹配条目的 `isDone/doneAt`；截止变更静默更新 |
+| 新乐学 DDL | 同上，只处理 `IMPORTED_ECLASS` 行；本次没同步上则不动 | 同上；平台显示“刚提交”时自动标为完成，用户取消后不再自动勾选 |
 | 考试 | 按“学期、课程、开始时间”构成的 UID 更新／插入，删除消失项 | UID 相同则保留完成状态；考试时间改变会成为新 UID |
 
 实现分别在 [ReplaceImportedCoursesUseCase](../app/src/main/java/com/example/personal_studio/domain/bitimport/ReplaceImportedCoursesUseCase.kt)、[ReplaceImportedDdlUseCase](../app/src/main/java/com/example/personal_studio/domain/bitddl/ReplaceImportedDdlUseCase.kt)、[ReplaceImportedExamUseCase](../app/src/main/java/com/example/personal_studio/domain/bitexam/ReplaceImportedExamUseCase.kt)。这些批量写入当前没有统一事务，不能宣称中途失败会完整回滚。
@@ -49,7 +50,7 @@
 | 类型 | 当前提醒档位 |
 | --- | --- |
 | 课程 | 开始前 10 分钟 |
-| 待办／乐学 DDL | 截止前 1 天、2 小时、30 分钟，以及截止时的逾期提醒 |
+| 待办／乐学、新乐学 DDL | 截止前 1 天、2 小时、30 分钟，以及截止时的逾期提醒 |
 | 自定义日程 | 开始前 30 分钟 |
 | 考试 | 开始前 1 天、2 小时、30 分钟，无逾期提醒 |
 
