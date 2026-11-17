@@ -2,29 +2,40 @@ package com.example.personal_studio.feature.emptyroom
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.personal_studio.core.util.DefaultTimetable
+import com.example.personal_studio.core.util.TimetablePeriod
+import com.example.personal_studio.data.local.datastore.EmptyRoomPrefs
+import com.example.personal_studio.data.local.datastore.EmptyRoomSelection
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
-import com.example.personal_studio.data.network.bit.NetworkMode
+import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.network.bit.withSessionAutoFallback
 import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
+import com.example.personal_studio.domain.emptyroom.EmptyRoomQuery
 import com.example.personal_studio.domain.emptyroom.EmptyRoomRepository
 import com.example.personal_studio.domain.emptyroom.EmptyRoomResult
+import com.example.personal_studio.domain.emptyroom.PeriodClock
+import com.example.personal_studio.domain.emptyroom.TimeFilter
 import com.example.personal_studio.domain.emptyroom.model.Building
 import com.example.personal_studio.domain.emptyroom.model.Campus
+import com.example.personal_studio.domain.emptyroom.model.EmptyRoomCatalog
 import com.example.personal_studio.domain.emptyroom.model.EmptyRoomError
 import com.example.personal_studio.domain.emptyroom.model.RoomFreeSlots
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -32,174 +43,253 @@ import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 
+/** What the result list shows after the time filter: rooms by building, and the counts above them. */
+data class EmptyRoomResults(
+    val groups: List<Pair<String, List<RoomFreeSlots>>>,
+    val matching: Int,
+    val total: Int,
+    /** Rooms free right now among [matching]; null when the date is not today. */
+    val freeNow: Int?,
+    /** The chosen time is already over today, so every room is listed. */
+    val passed: Boolean,
+)
+
 data class EmptyRoomUiState(
+    val loggedIn: Boolean = false,
+    val catalog: EmptyRoomCatalog? = null,
+    val catalogLoading: Boolean = false,
+    val campusCode: String? = null,
+    /** Empty = every building of the campus. */
+    val buildingCodes: Set<String> = emptySet(),
+    val recentBuildingCodes: List<String> = emptyList(),
+    val today: LocalDate = LocalDate.now(),
+    val date: LocalDate = today,
+    val timeFilter: TimeFilter = TimeFilter.NOW,
+    val custom: IntRange = 1..2,
+    val periods: List<TimetablePeriod> = DefaultTimetable.PERIODS,
+    val nowMinute: Int = 0,
     val loading: Boolean = false,
     val error: String? = null,
-    val campuses: List<Campus> = emptyList(),
-    val buildings: List<Building> = emptyList(),        // 所有选中校区合并的楼(去重)
-    val selectedCampusCodes: Set<String> = emptySet(),  // 多选校区,必须非空才能查
-    val selectedBuildingCodes: Set<String> = emptySet(), // 多选楼;空 = 选中校区的全部楼
-    val requiredFreePeriods: Set<Int> = emptySet(),      // 须全部空闲的节次(1..13);空 = 不限
-    val date: String = "",
-    val rooms: List<RoomFreeSlots> = emptyList(),
-    val queried: Boolean = false,                        // 是否执行过查询(区分「未查」与「查了无结果」)
-)
+    /** Rooms of the chosen buildings on [date] before the time filter; null until fetched. */
+    val fetched: List<RoomFreeSlots>? = null,
+    val results: EmptyRoomResults? = null,
+) {
+    val isToday: Boolean get() = date == today
+    val campus: Campus? get() = catalog?.campuses?.firstOrNull { it.code == campusCode }
+    val campusBuildings: List<Building> get() = catalog?.buildingsOf(campusCode).orEmpty()
+    val targets: List<Building> get() = campusBuildings.filter { buildingCodes.isEmpty() || it.code in buildingCodes }
+    /** 现在 has no meaning on another day; it reads as 不限 there. */
+    val effectiveFilter: TimeFilter get() = if (timeFilter == TimeFilter.NOW && !isToday) TimeFilter.ANY else timeFilter
+}
 
 sealed interface EmptyRoomEvent { object NeedLogin : EmptyRoomEvent }
 
+/**
+ * 空教室. Campuses and buildings come from a catalog kept on the phone (fetched once, refreshed
+ * after [CATALOG_TTL_MS]), so choosing a place needs no network. Only fetching a building's
+ * occupancy for a day needs the school, and that is cached per building and day: changing the
+ * time filter, or going back to a day already seen, never logs in again. The place and filter
+ * are remembered, and a remembered place is queried as soon as the page opens.
+ */
 @HiltViewModel
 class EmptyRoomViewModel @Inject constructor(
     private val repo: EmptyRoomRepository,
     private val credPrefs: ImportCredentialPrefs,
     private val resolveNetworkMode: ResolveNetworkModeUseCase,
-    private val nowProvider: () -> Long = System::currentTimeMillis,
+    private val prefs: EmptyRoomPrefs,
+    private val timetable: TimetablePreferences,
+    private val nowProvider: () -> Long,
 ) : ViewModel() {
 
-    private val _ui = MutableStateFlow(EmptyRoomUiState(date = today()))
+    private val _ui = MutableStateFlow(EmptyRoomUiState(today = todayDate(), nowMinute = nowMinute()))
     val uiState: StateFlow<EmptyRoomUiState> = _ui.asStateFlow()
 
     private val _events = MutableSharedFlow<EmptyRoomEvent>(extraBufferCapacity = 4)
     val events: SharedFlow<EmptyRoomEvent> = _events.asSharedFlow()
 
-    // 串行化所有「open→…→close」会话操作:共享 @Singleton BitApiClient,并发 close() 会清掉对方
-    // 的 cookie/retrofit。withLock 保证同一时刻只有一个操作占用会话。
+    // BitApiClient is a shared singleton; one open → close at a time (see docs/school-integration.md).
     private val sessionMutex = Mutex()
+    private var queryJob: Job? = null
 
     init {
-        // 有凭据(进屏或登录回来)即拉校区列表供手动选;无凭据则等用户操作时触发登录。
-        credPrefs.observeAll()
-            .onEach { creds -> if (creds != null && _ui.value.campuses.isEmpty()) loadCampuses() }
-            .launchIn(viewModelScope)
-    }
-
-    /** 拉校区列表(供用户手动选)。不预选校区。 */
-    fun loadCampuses() {
-        val creds = credPrefs.observeAll().value ?: return
         viewModelScope.launch {
-            sessionMutex.withLock {
-                runSession(creds, onNetworkError = { /* 进屏自动拉,失败静默,等用户操作再提示 */ }) {
-                    _ui.update { it.copy(campuses = repo.campuses()) }
-                }
+            val periods = timetable.periods.first().ifEmpty { DefaultTimetable.PERIODS }
+            val saved = prefs.selection()
+            val catalog = prefs.catalog()
+            _ui.update {
+                it.copy(
+                    loggedIn = credPrefs.observeAll().value != null,
+                    catalog = catalog,
+                    campusCode = saved.campusCode ?: catalog?.campuses?.singleOrNull()?.code,
+                    buildingCodes = saved.buildingCodes,
+                    recentBuildingCodes = saved.recentBuildingCodes,
+                    timeFilter = saved.timeFilter?.let { f -> TimeFilter.entries.firstOrNull { e -> e.name == f } } ?: TimeFilter.NOW,
+                    custom = saved.customFrom..maxOf(saved.customFrom, saved.customTo),
+                    periods = periods,
+                )
             }
+            load(needCatalog = catalog == null || nowProvider() - catalog.fetchedAt > CATALOG_TTL_MS)
+            // Coming back from the login page with an account: load what could not be loaded.
+            credPrefs.observeAll().drop(1).onEach { creds ->
+                _ui.update { it.copy(loggedIn = creds != null) }
+                if (creds != null) load(needCatalog = _ui.value.catalog == null)
+            }.launchIn(viewModelScope)
         }
     }
 
-    /** 勾/取消校区(多选);变化后重新合并各选中校区的楼,并清空上次查询。 */
-    fun onToggleCampus(c: Campus) {
-        _ui.update {
-            val codes = it.selectedCampusCodes.toMutableSet().apply { if (!add(c.code)) remove(c.code) }
-            it.copy(selectedCampusCodes = codes, rooms = emptyList(), queried = false, error = null)
+    /** Commit the building sheet: a campus and its buildings (empty = all), then query. */
+    fun onPickPlace(campusCode: String, buildingCodes: Set<String>) {
+        _ui.update { st ->
+            val recent = (buildingCodes.toList() + st.recentBuildingCodes).distinct().take(EmptyRoomPrefs.RECENT_MAX)
+            st.copy(campusCode = campusCode, buildingCodes = buildingCodes, recentBuildingCodes = recent, fetched = null, error = null)
+                .withResults()
         }
-        loadBuildings()
+        persist()
+        load(needCatalog = false)
     }
 
-    /** 勾/取消教学楼(多选)。 */
-    fun onToggleBuilding(b: Building) {
-        _ui.update {
-            val codes = it.selectedBuildingCodes.toMutableSet().apply { if (!add(b.code)) remove(b.code) }
-            it.copy(selectedBuildingCodes = codes, rooms = emptyList(), queried = false, error = null)
-        }
+    /** Another day (never before today); days already fetched come from memory. */
+    fun onDate(date: LocalDate) {
+        val d = if (date.isBefore(_ui.value.today)) _ui.value.today else date
+        if (d == _ui.value.date) return
+        _ui.update { it.copy(date = d, fetched = null, error = null).withResults() }
+        load(needCatalog = false)
     }
 
-    /** 选「全部教学楼」= 清空具体楼选择(查选中校区的所有楼)。 */
-    fun onSelectAllBuildings() {
-        _ui.update { it.copy(selectedBuildingCodes = emptySet(), rooms = emptyList(), queried = false, error = null) }
+    /** Time filter changes only re-filter what is already fetched. */
+    fun onTimeFilter(filter: TimeFilter) {
+        _ui.update { it.copy(timeFilter = filter).withResults() }
+        persist()
     }
 
-    /** 勾/取消「须空闲节次」(多选,1..13)。空 = 不限。 */
-    fun onTogglePeriod(p: Int) {
-        _ui.update {
-            val periods = it.requiredFreePeriods.toMutableSet().apply { if (!add(p)) remove(p) }
-            it.copy(requiredFreePeriods = periods, rooms = emptyList(), queried = false, error = null)
-        }
+    fun onCustomRange(range: IntRange) {
+        val r = range.first.coerceIn(1, 13)..range.last.coerceIn(range.first.coerceIn(1, 13), 13)
+        _ui.update { it.copy(custom = r, timeFilter = TimeFilter.CUSTOM).withResults() }
+        persist()
     }
 
-    /** 查询:基于选中校区合并出的楼(选了具体楼则只查这些,否则全部),列出教室。 */
-    fun onQuery() {
-        val creds = credentialsOrLogin() ?: return
-        if (_ui.value.selectedCampusCodes.isEmpty()) {
-            _ui.update { it.copy(error = "请先选择校区") }
+    /** Pull the chosen buildings again for this day, ignoring what is in memory. */
+    fun onRefresh() {
+        val st = _ui.value
+        repo.dropOccupancy(st.targets, st.date.toString())
+        load(needCatalog = st.catalog == null)
+    }
+
+    /** Fetch the campus and building list again (it rarely changes; also after 30 days on its own). */
+    fun onRefreshCatalog() = load(needCatalog = true, needRooms = false)
+
+    fun onLogin() { viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) } }
+
+    /** Back on the page later: move "now" on and re-derive the statuses from memory, no network. */
+    fun onResume() {
+        val st = _ui.value
+        val today = todayDate()
+        if (today != st.today) {
+            _ui.update { it.copy(today = today, date = if (it.date.isBefore(today)) today else it.date, nowMinute = nowMinute(), fetched = null).withResults() }
+            load(needCatalog = false)
             return
         }
+        val now = nowMinute()
         viewModelScope.launch {
+            val rooms = if (st.fetched != null) repo.cachedOccupancy(st.targets, st.date.toString(), now) else null
+            _ui.update { it.copy(nowMinute = now, fetched = rooms ?: it.fetched).withResults() }
+        }
+    }
+
+    /**
+     * Brings the page up to date with at most one school session: the catalog if [needCatalog],
+     * then the occupancy of the chosen buildings unless all of it is already in memory.
+     */
+    private fun load(needCatalog: Boolean, needRooms: Boolean = true) {
+        queryJob?.cancel()
+        queryJob = viewModelScope.launch {
+            val now = nowMinute()
+            val before = _ui.value
+            if (!needCatalog && needRooms) {
+                if (before.targets.isEmpty()) return@launch
+                repo.cachedOccupancy(before.targets, before.date.toString(), now)?.let { rooms ->
+                    _ui.update { it.copy(fetched = rooms, nowMinute = now, loading = false, error = null).withResults() }
+                    return@launch
+                }
+            }
+            if (!needCatalog && before.targets.isEmpty()) return@launch
+            val creds = credPrefs.observeAll().value
+            if (creds == null) {
+                _ui.update { it.copy(loggedIn = false, loading = false, catalogLoading = false) }
+                return@launch
+            }
+            _ui.update { it.copy(loading = needRooms && (it.targets.isNotEmpty() || needCatalog), catalogLoading = needCatalog, error = null) }
             sessionMutex.withLock {
-                _ui.update { it.copy(loading = true, error = null) }
-                runSession(creds, onNetworkError = { _ui.update { it.copy(loading = false, error = "网络错误,请重试") } }) { term ->
+                runSession(creds, onNetworkError = {
+                    _ui.update { it.copy(loading = false, catalogLoading = false, error = "连不上学校，请检查网络后重试") }
+                }) { term ->
+                    if (needCatalog) {
+                        val catalog = repo.fetchCatalog(nowProvider())
+                        prefs.saveCatalog(catalog)
+                        _ui.update { st ->
+                            val campus = st.campusCode?.takeIf { c -> catalog.campuses.any { it.code == c } }
+                                ?: catalog.campuses.singleOrNull()?.code
+                            st.copy(
+                                catalog = catalog,
+                                catalogLoading = false,
+                                campusCode = campus,
+                                buildingCodes = st.buildingCodes.filter { code -> catalog.buildings.any { it.code == code } }.toSet(),
+                            )
+                        }
+                    }
                     val st = _ui.value
-                    val targets = if (st.selectedBuildingCodes.isEmpty()) st.buildings
-                        else st.buildings.filter { it.code in st.selectedBuildingCodes }
-                    val raw = repo.occupancyForBuildings(targets, st.date, term, nowMinute())
-                    // 「须空闲节次」筛:选中的节次必须都不在该教室占用集中
-                    val req = st.requiredFreePeriods
-                    val filtered = if (req.isEmpty()) raw else raw.filter { room -> req.none { it in room.busyPeriods } }
-                    _ui.update { it.copy(loading = false, rooms = sortRooms(filtered), queried = true) }
-                }
-            }
-        }
-    }
-
-    private fun loadBuildings() {
-        val creds = credPrefs.observeAll().value ?: return
-        val selected = _ui.value.campuses.filter { it.code in _ui.value.selectedCampusCodes }
-        if (selected.isEmpty()) {
-            _ui.update { it.copy(buildings = emptyList(), selectedBuildingCodes = emptySet()) }
-            return
-        }
-        viewModelScope.launch {
-            sessionMutex.withLock {
-                runSession(creds, onNetworkError = { /* 切校区拉楼,失败静默 */ }) {
-                    val merged = selected.flatMap { repo.buildings(it.code) }.distinctBy { it.code }
-                    _ui.update { st ->
-                        st.copy(
-                            buildings = merged,
-                            // 仅保留仍属于某个选中校区的楼选择
-                            selectedBuildingCodes = st.selectedBuildingCodes.filter { code -> merged.any { it.code == code } }.toSet(),
-                        )
+                    if (needRooms && st.targets.isNotEmpty()) {
+                        val rooms = repo.occupancyForBuildings(st.targets, st.date.toString(), term, now)
+                        _ui.update { it.copy(fetched = rooms, nowMinute = now, loading = false).withResults() }
+                    } else {
+                        _ui.update { it.copy(loading = false) }
                     }
                 }
             }
         }
     }
 
-    /** 查询日期前/后移 days 天;下限为今天(查过去无意义)。换日期清空上次结果。 */
-    fun onShiftDate(days: Int) {
-        _ui.update {
-            val target = LocalDate.parse(it.date).plusDays(days.toLong())
-            val capped = if (target.isBefore(todayLocalDate())) todayLocalDate() else target
-            it.copy(date = capped.toString(), rooms = emptyList(), queried = false, error = null)
+    private fun persist() {
+        val st = _ui.value
+        viewModelScope.launch {
+            prefs.saveSelection(
+                EmptyRoomSelection(
+                    campusCode = st.campusCode,
+                    buildingCodes = st.buildingCodes,
+                    timeFilter = st.timeFilter.name,
+                    customFrom = st.custom.first,
+                    customTo = st.custom.last,
+                    recentBuildingCodes = st.recentBuildingCodes,
+                ),
+            )
         }
     }
 
-    /** 回到今天。 */
-    fun onResetToday() {
-        _ui.update { it.copy(date = todayLocalDate().toString(), rooms = emptyList(), queried = false, error = null) }
-    }
-
-    /** 无凭据时发 NeedLogin 并返回 null;否则返回凭据。 */
-    private fun credentialsOrLogin(): SavedCredentials? {
-        val creds = credPrefs.observeAll().value
-        if (creds == null) { viewModelScope.launch { _events.emit(EmptyRoomEvent.NeedLogin) } }
-        return creds
-    }
-
-    /** 现在空的排前,其次空闲节次多的排前,再按楼/房号。 */
-    private fun sortRooms(rooms: List<RoomFreeSlots>): List<RoomFreeSlots> =
-        rooms.sortedWith(
-            compareByDescending<RoomFreeSlots> { it.status.freeNow }
-                .thenBy { it.busyPeriods.size }
-                .thenBy { it.buildingName }
-                .thenBy { it.roomName },
+    private fun EmptyRoomUiState.withResults(): EmptyRoomUiState {
+        val rooms = fetched ?: return copy(results = null)
+        val required = EmptyRoomQuery.required(effectiveFilter, custom, isToday, nowMinute, PeriodClock(periods))
+        val matching = EmptyRoomQuery.filter(rooms, required.periods)
+        return copy(
+            results = EmptyRoomResults(
+                groups = EmptyRoomQuery.group(matching, campusBuildings.map { it.code }, isToday),
+                matching = matching.size,
+                total = rooms.size,
+                freeNow = if (isToday) matching.count { it.status.freeNow } else null,
+                passed = required.passed,
+            ),
         )
+    }
 
-    /** 在 withLock 调用方内跑一段会话:open→login→[block]。连接级失败(IOException)自动换 mode 重试
-     *  一次并回写生效 mode;登录类失败 → [handleLoginErr](不重试);两 mode 都连接级失败 → [onNetworkError]。
-     *  每次 attempt 自带 open/close(共享单例会话,故回退重试必须在同一 withLock 内,见调用点)。 */
+    /**
+     * One session: open → login → [block] → close, on the network mode that works (school
+     * network first, WebVPN when it is unreachable). Login errors go to [handleLoginErr];
+     * connection failures on both modes to [onNetworkError].
+     */
     private suspend fun runSession(
         creds: SavedCredentials,
         onNetworkError: () -> Unit,
         block: suspend (term: String) -> Unit,
     ) {
-        // 校内优先:lastMode=WEBVPN 时先探一次校内可达性,在校园网下自动脱离"粘校外"。
         val firstMode = resolveNetworkMode(creds.lastMode)
         var loginErr: EmptyRoomError? = null
         try {
@@ -220,8 +310,6 @@ class EmptyRoomViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
-            // 连接级失败两 mode 都失败,或非连接级异常(withSessionAutoFallback 对非 IOException 不重试,
-            // 直接抛出)——统一当"网络/未知错误"处理(与重构前 catch(Throwable) 行为一致)。
             onNetworkError()
             return
         }
@@ -232,24 +320,24 @@ class EmptyRoomViewModel @Inject constructor(
         if (error is EmptyRoomError.NeedLogin || error is EmptyRoomError.WrongCredentials) {
             _events.emit(EmptyRoomEvent.NeedLogin)
         }
-        _ui.update { it.copy(loading = false, error = errMsg(error)) }
+        _ui.update { it.copy(loading = false, catalogLoading = false, error = errMsg(error)) }
     }
 
     private fun errMsg(e: EmptyRoomError): String = when (e) {
-        EmptyRoomError.NeedLogin, EmptyRoomError.WrongCredentials -> "请登录"
-        is EmptyRoomError.Network -> "网络错误,请重试"
-        is EmptyRoomError.Parse -> "教务返回异常"
-        is EmptyRoomError.Unexpected -> "未知错误"
+        EmptyRoomError.NeedLogin, EmptyRoomError.WrongCredentials -> "需要重新登录学校账户"
+        is EmptyRoomError.Network -> "连不上学校，请检查网络后重试"
+        is EmptyRoomError.Parse -> e.message.takeIf { it.startsWith("请") } ?: "教务系统返回了意外的内容"
+        is EmptyRoomError.Unexpected -> "出现了未知错误"
     }
 
     private fun nowMinute(): Int {
-        val z = ZoneId.systemDefault()
-        val t = Instant.ofEpochMilli(nowProvider()).atZone(z).toLocalTime()
+        val t = Instant.ofEpochMilli(nowProvider()).atZone(ZoneId.systemDefault()).toLocalTime()
         return t.hour * 60 + t.minute
     }
 
-    private fun todayLocalDate(): LocalDate =
-        Instant.ofEpochMilli(nowProvider()).atZone(ZoneId.systemDefault()).toLocalDate()
+    private fun todayDate(): LocalDate = Instant.ofEpochMilli(nowProvider()).atZone(ZoneId.systemDefault()).toLocalDate()
 
-    private fun today(): String = todayLocalDate().toString()
+    companion object {
+        const val CATALOG_TTL_MS = 30L * 24 * 60 * 60 * 1000
+    }
 }

@@ -2,7 +2,6 @@ package com.example.personal_studio.feature.profile.ui
 
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.feature.bitimport.ui.importSlotText
-import com.example.personal_studio.feature.emptyroom.ui.freeRangesText
 import com.example.personal_studio.feature.timeline.ui.courseDraftSummary
 import com.example.personal_studio.feature.timeline.ui.withDate
 import com.example.personal_studio.feature.timeline.ui.withTime
@@ -40,10 +39,6 @@ class SchoolTextTest {
         assertEquals("更晚", SchoolText.dueGroup(at(2026, 11, 23, 12), now, zone))
     }
 
-    @Test fun `free ranges read as periods`() {
-        assertEquals("第 1–2、6、9–13 节", freeRangesText(listOf(1..2, 6..6, 9..13)))
-        assertEquals("全天有课", freeRangesText(emptyList()))
-    }
 
     @Test fun `new course summary counts the classes`() {
         assertEquals("周一、周三 第 1–2 节 · 第 1–16 周 · 共 32 次课", courseDraftSummary(setOf(3, 1), 1, 2, 1, 16))

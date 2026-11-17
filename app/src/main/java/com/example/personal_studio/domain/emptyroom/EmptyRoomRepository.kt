@@ -8,6 +8,7 @@ import com.example.personal_studio.data.network.bit.dto.RoomOccupancyDto
 import com.example.personal_studio.domain.bitimport.SsoLoginUseCase
 import com.example.personal_studio.domain.emptyroom.model.Building
 import com.example.personal_studio.domain.emptyroom.model.Campus
+import com.example.personal_studio.domain.emptyroom.model.EmptyRoomCatalog
 import com.example.personal_studio.domain.emptyroom.model.EmptyRoomError
 import com.example.personal_studio.domain.emptyroom.model.RoomFreeSlots
 import kotlinx.coroutines.async
@@ -31,8 +32,6 @@ class EmptyRoomRepository @Inject constructor(
 ) {
     // (楼code|日期) → 原始占用行缓存(时间无关;status 每次按 live nowMinute 重算)。
     private val occupancyCache = mutableMapOf<String, List<RoomOccupancyDto>>()
-    private var campusesCache: List<Campus>? = null
-    private val buildingsCache = mutableMapOf<String, List<Building>>() // campusCode("" =all) → buildings
 
     /** 打开会话并登录;成功返回当前学期串("2025-2026-2"),失败返回 Err。调用方负责在用完后 close()。 */
     suspend fun openAndLogin(username: String, password: String, mode: NetworkMode): EmptyRoomResult<String> {
@@ -52,18 +51,38 @@ class EmptyRoomRepository @Inject constructor(
         try { apiClient.close() } finally { apiClient.releaseSession() }
     }
 
-    suspend fun campuses(): List<Campus> {
-        campusesCache?.let { return it }
-        val rows = apiClient.jwapp.getCampuses().body()?.datas?.ggzdpx?.rows.orEmpty()
-        return rows.mapNotNull { d -> d.code?.let { Campus(it, d.name.orEmpty()) } }.also { campusesCache = it }
+    /**
+     * Campuses and every building, inside an open session. The building list without a campus
+     * filter carries each building's campus code, so one request covers all campuses; if a row
+     * lacks it, the buildings are fetched campus by campus in the same session instead.
+     */
+    suspend fun fetchCatalog(now: Long): EmptyRoomCatalog {
+        val campuses = apiClient.jwapp.getCampuses().body()?.datas?.ggzdpx?.rows.orEmpty()
+            .mapNotNull { d -> d.code?.let { Campus(it, d.name.orEmpty()) } }
+        val all = apiClient.jwapp.getBuildings(null).body()?.datas?.cxjxl?.rows.orEmpty()
+        val buildings = if (all.isNotEmpty() && all.all { !it.campusCode.isNullOrBlank() && it.code != null }) {
+            all.map { Building(it.code!!, it.name.orEmpty(), it.campusCode!!) }
+        } else {
+            campuses.flatMap { campus ->
+                apiClient.jwapp.getBuildings(campus.code).body()?.datas?.cxjxl?.rows.orEmpty()
+                    .mapNotNull { d -> d.code?.let { Building(it, d.name.orEmpty(), campus.code) } }
+            }
+        }
+        return EmptyRoomCatalog(campuses, buildings.distinctBy { it.code }, now)
     }
 
-    suspend fun buildings(campusCode: String?): List<Building> {
-        val key = campusCode.orEmpty()
-        buildingsCache[key]?.let { return it }
-        val rows = apiClient.jwapp.getBuildings(campusCode).body()?.datas?.cxjxl?.rows.orEmpty()
-        return rows.mapNotNull { d -> d.code?.let { Building(it, d.name.orEmpty(), d.campusCode.orEmpty()) } }
-            .also { buildingsCache[key] = it }
+    /** The rooms of [targets] on [date] from memory, or null when any building still has to be fetched. */
+    suspend fun cachedOccupancy(targets: List<Building>, date: String, nowMinute: Int): List<RoomFreeSlots>? {
+        if (targets.any { "${it.code}|$date" !in occupancyCache }) return null
+        val clock = PeriodClock(timetablePrefs.periods.first())
+        return targets.flatMap { b ->
+            occupancyCache.getValue("${b.code}|$date").map { compute.invoke(it, b.code, b.name, clock, nowMinute) }
+        }
+    }
+
+    /** Forget what was fetched for these buildings on [date] (pull to refresh). */
+    fun dropOccupancy(targets: List<Building>, date: String) {
+        targets.forEach { occupancyCache.remove("${it.code}|$date") }
     }
 
     /** 拉某楼某日占用并算空闲。nowMinute = 用于状态计算的当天分钟数(每次重算,不缓存进结果)。 */

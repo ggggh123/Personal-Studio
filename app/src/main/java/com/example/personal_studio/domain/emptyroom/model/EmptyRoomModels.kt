@@ -1,10 +1,27 @@
 package com.example.personal_studio.domain.emptyroom.model
 
+import kotlinx.serialization.Serializable
+
 /** 校区。 */
+@Serializable
 data class Campus(val code: String, val name: String)
 
 /** 教学楼。 */
+@Serializable
 data class Building(val code: String, val name: String, val campusCode: String)
+
+/**
+ * Campuses and their buildings, fetched in one session and kept on the phone: they change
+ * rarely, so opening 空教室 needs no login until the user queries. [fetchedAt] drives refresh.
+ */
+@Serializable
+data class EmptyRoomCatalog(
+    val campuses: List<Campus>,
+    val buildings: List<Building>,
+    val fetchedAt: Long,
+) {
+    fun buildingsOf(campusCode: String?): List<Building> = buildings.filter { it.campusCode == campusCode }
+}
 
 /** 单教室在某日的空闲情况。
  *  busyPeriods: 忙节次集(1..13);freeRanges: 合并后的连续空闲区间(闭区间)。 */

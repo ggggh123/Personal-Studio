@@ -1,13 +1,19 @@
 package com.example.personal_studio.feature.emptyroom
 
+import com.example.personal_studio.core.util.DefaultTimetable
+import com.example.personal_studio.data.local.datastore.EmptyRoomPrefs
+import com.example.personal_studio.data.local.datastore.EmptyRoomSelection
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.SavedCredentials
+import com.example.personal_studio.data.local.datastore.TimetablePreferences
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
 import com.example.personal_studio.domain.emptyroom.EmptyRoomRepository
 import com.example.personal_studio.domain.emptyroom.EmptyRoomResult
+import com.example.personal_studio.domain.emptyroom.TimeFilter
 import com.example.personal_studio.domain.emptyroom.model.Building
 import com.example.personal_studio.domain.emptyroom.model.Campus
+import com.example.personal_studio.domain.emptyroom.model.EmptyRoomCatalog
 import com.example.personal_studio.domain.emptyroom.model.EmptyRoomError
 import com.example.personal_studio.domain.emptyroom.model.RoomFreeSlots
 import com.example.personal_studio.domain.emptyroom.model.RoomStatus
@@ -15,9 +21,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -26,13 +32,15 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import java.util.TimeZone
 
 class EmptyRoomViewModelTest {
-    // nowProvider={0L} 意为午夜 0 分 → 测试用 UTC 固定时区,避免主机时区(如 UTC+8)把 epoch 0 算成 08:00。
+    // now = 0 means midnight UTC on 1970-01-01; the zone is pinned so the host's offset doesn't move it.
     private val originalTz = TimeZone.getDefault()
+    private val now = 10L * 24 * 3600 * 1000  // day 10, 00:00
 
     @Before fun setUp() {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
@@ -46,260 +54,137 @@ class EmptyRoomViewModelTest {
 
     private val liangxiang = Campus("01", "良乡")
     private val zhongguancun = Campus("02", "中关村")
-    private val b1 = Building("J1", "理教", "01")
-    private val b2 = Building("J2", "文教", "01")
+    private val lijiao = Building("J1", "理教", "01")
+    private val zongjiao = Building("J2", "综教", "01")
+    private val zgc = Building("Z1", "中教", "02")
+    private val freshCatalog = EmptyRoomCatalog(listOf(liangxiang, zhongguancun), listOf(lijiao, zongjiao, zgc), fetchedAt = now)
 
-    private fun room(name: String, freeNow: Boolean, busy: Set<Int> = emptySet()) = RoomFreeSlots(
-        roomName = name, buildingName = "理教", buildingCode = "J1", busyPeriods = busy, freeRanges = listOf(1..13),
-        status = RoomStatus(freeNow = freeNow, freeUntilMinuteOfDay = null, nextFreeMinuteOfDay = null),
+    private fun room(name: String, building: Building = lijiao, busy: Set<Int> = emptySet()) = RoomFreeSlots(
+        roomName = name, buildingName = building.name, buildingCode = building.code, busyPeriods = busy,
+        freeRanges = listOf(1..13), status = RoomStatus(freeNow = true, freeUntilMinuteOfDay = null, nextFreeMinuteOfDay = null),
     )
 
-    /** repo,默认登录成功 + 单校区良乡 + 空楼;各测试按需覆盖。 */
     private fun repo(block: EmptyRoomRepository.() -> Unit = {}) = mockk<EmptyRoomRepository>(relaxed = true) {
         coEvery { openAndLogin(any(), any(), any()) } returns EmptyRoomResult.Ok("2025-2026-2")
-        coEvery { campuses() } returns listOf(liangxiang)
-        coEvery { buildings(any()) } returns emptyList()
+        coEvery { fetchCatalog(any()) } returns freshCatalog
+        coEvery { cachedOccupancy(any(), any(), any()) } returns null
+        coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns emptyList()
         block()
     }
 
-    private fun resolveEcho(): ResolveNetworkModeUseCase {
-        val m = mockk<ResolveNetworkModeUseCase>()
-        coEvery { m.invoke(any()) } returns NetworkMode.LOCAL
-        return m
-    }
+    private fun prefs(catalog: EmptyRoomCatalog? = freshCatalog, selection: EmptyRoomSelection = EmptyRoomSelection()) =
+        mockk<EmptyRoomPrefs>(relaxed = true) {
+            coEvery { catalog() } returns catalog
+            coEvery { selection() } returns selection
+        }
 
     private fun vm(
         repo: EmptyRoomRepository,
+        prefs: EmptyRoomPrefs = prefs(),
         creds: SavedCredentials? = SavedCredentials("u", "p", NetworkMode.LOCAL),
     ): EmptyRoomViewModel {
-        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
-            every { observeAll() } returns MutableStateFlow(creds)
-        }
-        return EmptyRoomViewModel(repo, credPrefs, resolveEcho(), nowProvider = { 0L })
+        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) { every { observeAll() } returns MutableStateFlow(creds) }
+        val resolve = mockk<ResolveNetworkModeUseCase> { coEvery { this@mockk.invoke(any()) } returns NetworkMode.LOCAL }
+        val timetable = mockk<TimetablePreferences> { every { periods } returns flowOf(DefaultTimetable.PERIODS) }
+        return EmptyRoomViewModel(repo, credPrefs, resolve, prefs, timetable, nowProvider = { now })
     }
 
-    @Test fun `query without creds emits NeedLogin`() = runTest {
-        val vm = vm(mockk(relaxed = true), creds = null)
-        val events = mutableListOf<EmptyRoomEvent>()
-        val job = launch { vm.events.collect { events += it } }
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf(EmptyRoomEvent.NeedLogin), events)
-        job.cancel()
-    }
-
-    @Test fun `init loads campuses for manual selection`() = runTest {
-        val vm = vm(repo { coEvery { campuses() } returns listOf(liangxiang, zhongguancun) })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `without an account nothing signs in and the page asks to log in`() = runTest {
+        val r = repo()
+        val vm = vm(r, prefs(catalog = null), creds = null)
         advanceUntilIdle()
-        assertEquals(listOf("良乡", "中关村"), vm.uiState.value.campuses.map { it.name })
-        assertEquals(emptySet<String>(), vm.uiState.value.selectedCampusCodes)  // 不预选,等用户手动选
-        job.cancel()
+        assertFalse(vm.uiState.value.loggedIn)
+        coVerify(exactly = 0) { r.openAndLogin(any(), any(), any()) }
     }
 
-    @Test fun `query without selected campus prompts to pick one`() = runTest {
-        val vm = vm(repo())
-        val job = launch { vm.uiState.collect {} }
-        advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals("请先选择校区", vm.uiState.value.error)
-        job.cancel()
-    }
-
-    @Test fun `toggling a campus loads that campus buildings`() = runTest {
-        val vm = vm(repo { coEvery { buildings("01") } returns listOf(b1) })
-        val job = launch { vm.uiState.collect {} }
-        advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        assertEquals(setOf("01"), vm.uiState.value.selectedCampusCodes)
-        assertEquals(listOf("理教"), vm.uiState.value.buildings.map { it.name })
-        job.cancel()
-    }
-
-    @Test fun `selecting multiple campuses merges their buildings`() = runTest {
-        val vm = vm(repo {
-            coEvery { campuses() } returns listOf(liangxiang, zhongguancun)
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { buildings("02") } returns listOf(Building("J9", "中教", "02"))
-        })
-        val job = launch { vm.uiState.collect {} }
-        advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onToggleCampus(zhongguancun); advanceUntilIdle()
-        assertEquals(setOf("01", "02"), vm.uiState.value.selectedCampusCodes)
-        assertEquals(listOf("理教", "中教"), vm.uiState.value.buildings.map { it.name })
-        job.cancel()
-    }
-
-    @Test fun `query with all-buildings lists rooms, free-now first`() = runTest {
-        val vm = vm(repo {
-            coEvery { buildings("01") } returns listOf(b1, b2)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(
-                room("A", freeNow = true, busy = setOf(1, 2, 3, 4, 5)),  // 空但忙较多
-                room("B", freeNow = true, busy = setOf(1, 2)),           // 空且忙较少 → 最前
-                room("C", freeNow = false),                              // 此刻占用 → 最后
-            )
-        })
-        val job = launch { vm.uiState.collect {} }
-        advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("B", "A", "C"), vm.uiState.value.rooms.map { it.roomName })
-        assertEquals(true, vm.uiState.value.queried)
-        job.cancel()
-    }
-
-    @Test fun `query with selected buildings queries only those buildings`() = runTest {
-        val r = repo {
-            coEvery { buildings("01") } returns listOf(b1, b2)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("A", true))
-        }
+    @Test fun `a stored catalog opens the page without signing in`() = runTest {
+        val r = repo()
         val vm = vm(r)
-        val job = launch { vm.uiState.collect {} }
         advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onToggleBuilding(b1); advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
-        coVerify { r.occupancyForBuildings(listOf(b1), any(), any(), any()) }
-        job.cancel()
+        assertEquals(listOf("良乡", "中关村"), vm.uiState.value.catalog?.campuses?.map { it.name })
+        assertEquals(null, vm.uiState.value.campusCode)   // two campuses, nothing remembered: the user picks
+        coVerify(exactly = 0) { r.openAndLogin(any(), any(), any()) }
     }
 
-    @Test fun `query keeps only rooms free at all required periods`() = runTest {
-        val vm = vm(repo {
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(
-                room("A", freeNow = true, busy = setOf(3)),  // 第3节占用 → 被筛掉
-                room("B", freeNow = true),                   // 全空 → 保留
-            )
-        })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `no catalog yet fetches it, and a remembered place is queried in the same session`() = runTest {
+        val r = repo { coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("101")) }
+        val vm = vm(r, prefs(catalog = null, selection = EmptyRoomSelection(campusCode = "01")))
         advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onTogglePeriod(3); vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("B"), vm.uiState.value.rooms.map { it.roomName })
-        job.cancel()
+        coVerify(exactly = 1) { r.openAndLogin(any(), any(), any()) }
+        coVerify(exactly = 1) { r.fetchCatalog(any()) }
+        coVerify { r.occupancyForBuildings(listOf(lijiao, zongjiao), "1970-01-11", "2025-2026-2", any()) }
+        assertEquals(1, vm.uiState.value.results?.matching)
     }
 
-    @Test fun `required periods filter uses AND semantics across multiple periods`() = runTest {
-        val vm = vm(repo {
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(
-                room("A", freeNow = true, busy = setOf(5)),  // 第5节占用 → 选了{3,5}时被筛掉
-                room("B", freeNow = true, busy = setOf(7)),  // 第3、5节都空 → 保留
-            )
-        })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `a stale catalog is fetched again`() = runTest {
+        val r = repo()
+        vm(r, prefs(catalog = freshCatalog.copy(fetchedAt = now - EmptyRoomViewModel.CATALOG_TTL_MS - 1)))
         advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onTogglePeriod(3); vm.onTogglePeriod(5); vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("B"), vm.uiState.value.rooms.map { it.roomName })
-        job.cancel()
+        coVerify(exactly = 1) { r.fetchCatalog(any()) }
     }
 
-    @Test fun `deselecting a campus drops its building selection`() = runTest {
-        val bCampus2 = Building("J9", "中教", "02")
-        val vm = vm(repo {
-            coEvery { campuses() } returns listOf(liangxiang, zhongguancun)
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { buildings("02") } returns listOf(bCampus2)
-        })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `rooms already in memory need no sign-in`() = runTest {
+        val r = repo { coEvery { cachedOccupancy(any(), any(), any()) } returns listOf(room("101"), room("102")) }
+        val vm = vm(r, prefs(selection = EmptyRoomSelection(campusCode = "01")))
         advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onToggleCampus(zhongguancun); advanceUntilIdle()
-        vm.onToggleBuilding(bCampus2); advanceUntilIdle()           // 选中中关村的楼
-        assertEquals(setOf("J9"), vm.uiState.value.selectedBuildingCodes)
-        vm.onToggleCampus(zhongguancun); advanceUntilIdle()         // 撤掉中关村
-        assertEquals(listOf("理教"), vm.uiState.value.buildings.map { it.name })
-        assertEquals(emptySet<String>(), vm.uiState.value.selectedBuildingCodes)  // 其楼选择被清掉
-        job.cancel()
+        assertEquals(2, vm.uiState.value.results?.total)
+        coVerify(exactly = 0) { r.openAndLogin(any(), any(), any()) }
     }
 
-    @Test fun `query failure surfaces error and stops loading`() = runTest {
-        val vm = vm(repo {
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } throws RuntimeException("boom")
-        })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `picking a place queries only its buildings with one sign-in and remembers it`() = runTest {
+        val p = prefs()
+        val r = repo { coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("101")) }
+        val vm = vm(r, p)
         advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals("网络错误,请重试", vm.uiState.value.error)
-        assertEquals(false, vm.uiState.value.loading)
-        job.cancel()
+        vm.onPickPlace("01", setOf("J1")); advanceUntilIdle()
+        coVerify(exactly = 1) { r.openAndLogin(any(), any(), any()) }
+        coVerify { r.occupancyForBuildings(listOf(lijiao), any(), any(), any()) }
+        coVerify { p.saveSelection(match { it.campusCode == "01" && it.buildingCodes == setOf("J1") && it.recentBuildingCodes == listOf("J1") }) }
+        assertEquals(listOf("理教" to 1), vm.uiState.value.results?.groups?.map { it.first to it.second.size })
     }
 
-    @Test fun `toggling a campus clears previous query result`() = runTest {
-        val vm = vm(repo {
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("A", true))
-        })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `changing the time filter re-filters without signing in again`() = runTest {
+        val rooms = listOf(room("101", busy = setOf(1)), room("102", busy = setOf(7)), room("103"))
+        val r = repo { coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns rooms }
+        val vm = vm(r, prefs(selection = EmptyRoomSelection(campusCode = "01", timeFilter = "ANY")))
         advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
-        vm.onToggleCampus(zhongguancun); advanceUntilIdle()
-        assertEquals(emptyList<String>(), vm.uiState.value.rooms.map { it.roomName })
-        assertEquals(false, vm.uiState.value.queried)
-        job.cancel()
+        assertEquals(3, vm.uiState.value.results?.matching)
+        vm.onTimeFilter(TimeFilter.MORNING); advanceUntilIdle()
+        assertEquals(listOf("102", "103"), vm.uiState.value.results?.groups?.flatMap { g -> g.second.map { it.roomName } }?.sorted())
+        vm.onCustomRange(7..8); advanceUntilIdle()
+        assertEquals(TimeFilter.CUSTOM, vm.uiState.value.timeFilter)
+        assertEquals(listOf("101", "103"), vm.uiState.value.results?.groups?.flatMap { g -> g.second.map { it.roomName } }?.sorted())
+        coVerify(exactly = 1) { r.openAndLogin(any(), any(), any()) }
     }
 
-    @Test fun `shifting date forward changes date and clears result`() = runTest {
-        val vm = vm(repo {
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("A", true))
-        })
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `another day fetches that day, never before today`() = runTest {
+        val r = repo()
+        val vm = vm(r, prefs(selection = EmptyRoomSelection(campusCode = "01")))
         advanceUntilIdle()
-        assertEquals("1970-01-01", vm.uiState.value.date)  // nowProvider=0L @ UTC
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
-        vm.onShiftDate(1); advanceUntilIdle()
-        assertEquals("1970-01-02", vm.uiState.value.date)
-        assertEquals(false, vm.uiState.value.queried)
-        assertEquals(emptyList<String>(), vm.uiState.value.rooms.map { it.roomName })
-        job.cancel()
+        vm.onDate(vm.uiState.value.today.plusDays(1)); advanceUntilIdle()
+        coVerify { r.occupancyForBuildings(any(), "1970-01-12", any(), any()) }
+        vm.onDate(vm.uiState.value.today.minusDays(3)); advanceUntilIdle()
+        assertEquals(vm.uiState.value.today, vm.uiState.value.date)
     }
 
-    @Test fun `shifting date below today is capped to today`() = runTest {
-        val vm = vm(repo())
-        val job = launch { vm.uiState.collect {} }
+    @Test fun `refresh drops the cached rooms and fetches again`() = runTest {
+        val r = repo()
+        val vm = vm(r, prefs(selection = EmptyRoomSelection(campusCode = "01")))
         advanceUntilIdle()
-        vm.onShiftDate(-5); advanceUntilIdle()
-        assertEquals("1970-01-01", vm.uiState.value.date)  // 下限=今天
-        job.cancel()
+        vm.onRefresh(); advanceUntilIdle()
+        coVerify { r.dropOccupancy(listOf(lijiao, zongjiao), "1970-01-11") }
+        coVerify(exactly = 2) { r.openAndLogin(any(), any(), any()) }
     }
 
-    @Test fun `query auto-falls-back to WEBVPN on IOException and persists the winning mode`() = runTest {
-        val credPrefs = mockk<ImportCredentialPrefs>(relaxed = true) {
-            every { observeAll() } returns MutableStateFlow(SavedCredentials("u", "p", NetworkMode.LOCAL))
-        }
-        val repo = mockk<EmptyRoomRepository>(relaxed = true) {
-            // 校内不可达(IOException),校外成功 → 应自动回退。
-            coEvery { openAndLogin("u", "p", NetworkMode.LOCAL) } throws java.io.IOException("unreachable")
-            coEvery { openAndLogin("u", "p", NetworkMode.WEBVPN) } returns EmptyRoomResult.Ok("2025-2026-2")
-            coEvery { campuses() } returns listOf(liangxiang)
-            coEvery { buildings("01") } returns listOf(b1)
-            coEvery { occupancyForBuildings(any(), any(), any(), any()) } returns listOf(room("A", true))
-        }
-        val vm = EmptyRoomViewModel(repo, credPrefs, resolveEcho(), nowProvider = { 0L })
-        val job = launch { vm.uiState.collect {} }
-        advanceUntilIdle()
-        vm.onToggleCampus(liangxiang); advanceUntilIdle()
-        vm.onQuery(); advanceUntilIdle()
-        assertEquals(listOf("A"), vm.uiState.value.rooms.map { it.roomName })
-        verify { credPrefs.save("u", "p", NetworkMode.WEBVPN) }
-        job.cancel()
-    }
-
-    @Test fun `login failure during init loadCampuses emits NeedLogin`() = runTest {
-        val vm = vm(repo { coEvery { openAndLogin(any(), any(), any()) } returns EmptyRoomResult.Err(EmptyRoomError.WrongCredentials) })
+    @Test fun `a rejected password asks to log in again`() = runTest {
+        val r = repo { coEvery { openAndLogin(any(), any(), any()) } returns EmptyRoomResult.Err(EmptyRoomError.WrongCredentials) }
+        val vm = vm(r, prefs(selection = EmptyRoomSelection(campusCode = "01")))
         val events = mutableListOf<EmptyRoomEvent>()
         val job = launch { vm.events.collect { events += it } }
         advanceUntilIdle()
         assertEquals(listOf(EmptyRoomEvent.NeedLogin), events)
+        assertEquals("需要重新登录学校账户", vm.uiState.value.error)
+        assertFalse(vm.uiState.value.loading)
         job.cancel()
     }
 }

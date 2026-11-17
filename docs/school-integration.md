@@ -94,6 +94,11 @@ DDL 是日历元数据；“完成”仅在本地记录，没有查询 Moodle �
 
 [`EmptyRoomRepository`](../app/src/main/java/com/example/personal_studio/domain/emptyroom/EmptyRoomRepository.kt) 登录教学中心并预热 `wdkbby`，读取校区、教学楼和 `kxjasbyController/cxkxjasqk.do` 的占用数据；多个教学楼在同一个已打开会话内并发获取。
 
+每次会话结束都会清空 Cookie，所以每打开一次会话就是一次完整的密码登录。为此空教室把登录次数压到最少（[`EmptyRoomViewModel`](../app/src/main/java/com/example/personal_studio/feature/emptyroom/EmptyRoomViewModel.kt)）：
+- 校区和教学楼作为“目录”存在本机（[`EmptyRoomPrefs`](../app/src/main/java/com/example/personal_studio/data/local/datastore/EmptyRoomPrefs.kt)），30 天后或在选择面板里手动重新获取。获取时校区一次请求，教学楼用不带 `XXXQDM` 的 `cxjxl.do` 一次拿全（每行带所属校区）；若有行缺校区代码，就在同一会话内逐个校区再取。打开页面、切换校区和教学楼都不联网。
+- 占用数据按“楼 + 日期”缓存在内存，查询前先查缓存，全部命中就不登录；时间段筛选只在已取到的结果上过滤。目录需要更新且有记住的地点时，目录和占用在同一次会话里一起取。
+- 记住上次的校区、教学楼、时间段和最近用过的楼，有记住的地点时打开页面即查询。
+
 [`ComputeFreeSlotsUseCase`](../app/src/main/java/com/example/personal_studio/domain/emptyroom/ComputeFreeSlotsUseCase.kt) 把 `ZYJC` 忙节次转换为 1–13 节的空闲区间，结合用户作息表计算“现在空／空到何时”等状态。结果不是教室实时门禁或实际占座信息。
 
 缓存只存原始占用行，查询时重新计算相对时间；当前键为“楼代码 + 日期”，没有旧设计承诺的到节次边界自动失效，也没有 TTL 或学期／账号隔离。部分缺失响应仍以空列表处理，不能把空教室结果当作所有学校接口已完成严格响应校验的例子。
