@@ -1,6 +1,7 @@
 package com.example.personal_studio.data.network.bit
 
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
+import okhttp3.HttpUrl
 
 /** Shared response checks. Never put response bodies or query strings into diagnostics. */
 object BitAuthPages {
@@ -36,6 +37,34 @@ object BitAuthPages {
         }
     }
 
+    /**
+     * The page CAS shows when the password was right but it also wants an SMS code: it names the
+     * account (`user-object-id`) and carries the flow key for the final form. The ordinary login
+     * page has the same fields, empty, so an empty account means "not this page".
+     */
+    fun secondFactorPage(html: String, url: HttpUrl): CasSecondFactorPage? {
+        if (listOf("secondSmsLoginForm", "second-auth-tip", "cas-gateway").none { it in html }) return null
+        val execution = idText(html, "login-page-flowkey") ?: return null
+        val account = idText(html, "user-object-id") ?: return null
+        val action = Regex("""<form\b[^>]*\baction\s*=\s*["']([^"']*)["']""", RegexOption.IGNORE_CASE)
+            .find(html)?.groupValues?.get(1)?.replace("&amp;", "&")?.takeIf { it.isNotBlank() }
+        return CasSecondFactorPage(
+            execution = execution,
+            formAction = url.resolve(action ?: "login") ?: url,
+            userObjectId = account,
+            phone = idText(html, "phone-number").orEmpty(),
+        )
+    }
+
+    /** An element's `value`, or else its text, by id; null when missing or blank. */
+    fun idText(html: String, id: String): String? {
+        val tag = Regex("""<[a-zA-Z][^>]*\bid\s*=\s*["']${Regex.escape(id)}["'][^>]*>""", RegexOption.IGNORE_CASE)
+            .find(html) ?: return null
+        Regex("""\bvalue\s*=\s*["']([^"']+)["']""").find(tag.value)?.groupValues?.get(1)?.trim()
+            ?.takeIf { it.isNotEmpty() }?.let { return it }
+        return html.substring(tag.range.last + 1).substringBefore('<').trim().takeIf { it.isNotEmpty() }
+    }
+
     fun hasGradeTable(html: String): Boolean = Regex(
         """<table\b[^>]*\bid\s*=\s*["']dataList["']""", RegexOption.IGNORE_CASE,
     ).containsMatchIn(html)
@@ -56,3 +85,6 @@ object BitAuthPages {
             .firstOrNull()?.replace("&amp;", "&")
     }
 }
+
+/** CAS's SMS second step: the flow key and form for the final post, the account, and the phone id when the page has it. */
+data class CasSecondFactorPage(val execution: String, val formAction: HttpUrl, val userObjectId: String, val phone: String)

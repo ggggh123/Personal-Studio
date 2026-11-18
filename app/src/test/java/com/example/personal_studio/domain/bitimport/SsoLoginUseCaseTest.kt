@@ -8,6 +8,7 @@ import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
 import com.example.personal_studio.data.network.bit.origin
+import com.example.personal_studio.core.util.CasAesCrypto
 import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
 import okhttp3.Dns
@@ -308,5 +309,160 @@ class SsoLoginUseCaseTest {
         assertFalse(urls.isCas(casUrl("/cas/logout")))
         assertTrue(urls.trusted(eclassUrl("/api/my-semesters")))
         assertTrue(urls.trusted(idpUrl("/auth/realms/bit/broker/cas-client/endpoint")))
+    }
+
+    // ---- SMS second step and picture captcha, answered in the app ----
+
+    private fun json(body: String) = MockResponse().setHeader("Content-Type", "application/json").setBody(body)
+
+    /** The page CAS shows after a right password when it also wants an SMS code. */
+    private fun secondStepPage(service: HttpUrl) = MockResponse().setBody(
+        """<html><div id="login-page-flowkey">flow2</div><div id="user-object-id">obj-9</div>
+           <div id="second-auth-tip">短信验证</div>
+           <form id="secondSmsLoginForm" method="post" action="login?service=${service}"></form></html>""",
+    )
+
+    /** Answers like a person: types [codes] in turn, or leaves for the school's page. */
+    private class FakePrompter(
+        private val codes: List<String> = emptyList(),
+        private val trust: Boolean = true,
+        private val useWebPage: Boolean = false,
+    ) : CasPrompter {
+        var phoneTail: String? = null
+        val rejections = mutableListOf<String>()
+        var captchaImage: ByteArray? = null
+
+        override suspend fun sms(challenge: SmsChallenge): SmsDecision {
+            phoneTail = challenge.phoneTail
+            if (useWebPage) return SmsDecision.UseWebPage
+            assertEquals(SmsSendResult.Sent(60), challenge.send())
+            for (code in codes) {
+                when (val r = challenge.check(code, trust)) {
+                    SmsCheckResult.Accepted -> return SmsDecision.Verified(code, trust)
+                    is SmsCheckResult.Rejected -> rejections += r.message
+                }
+            }
+            return SmsDecision.UseWebPage
+        }
+
+        override suspend fun captcha(image: ByteArray): CaptchaDecision {
+            captchaImage = image
+            return if (useWebPage) CaptchaDecision.UseWebPage else CaptchaDecision.Answer("ab12")
+        }
+    }
+
+    private fun teachingPortal(): HttpUrl {
+        api.open(NetworkMode.LOCAL)
+        val service = portalUrl("/auth/callback?sessionToken=n1")
+        portal.enqueue(redirect(casUrl("/cas/login").newBuilder().addQueryParameter("service", service.toString()).build()))
+        cas.enqueue(MockResponse().setBody(fixture()))
+        return service
+    }
+
+    private fun formOf(request: okhttp3.mockwebserver.RecordedRequest): Map<String, String> =
+        request.body.readUtf8().split('&').associate {
+            val (k, v) = it.split('=', limit = 2)
+            java.net.URLDecoder.decode(k, "UTF-8") to java.net.URLDecoder.decode(v, "UTF-8")
+        }
+
+    @Test fun `SMS second step is answered in the app and then issues the ticket`() = runBlocking {
+        val service = teachingPortal()
+        cas.enqueue(json("""{"code":200,"data":{"captchaInvisible":false}}"""))
+        cas.enqueue(secondStepPage(service))
+        cas.enqueue(json("""{"code":200,"data":{"URL_CRYPTO_DATA":{"SID":["/api/protected/sms/getPhoneNumberByUserId"]}}}"""))
+        cas.enqueue(json("""{"code":200,"data":{"tel":"opaque-7","maskTel":"138****1234"}}"""))
+        cas.enqueue(json("""{"code":200,"message":"OK"}"""))
+        cas.enqueue(json("""{"code":400,"message":"验证码错误"}"""))
+        cas.enqueue(json("""{"code":200}"""))
+        cas.enqueue(redirect(service.newBuilder().addQueryParameter("ticket", "ST-target").build()))
+        portal.enqueue(success())
+        portal.enqueue(success())
+        val prompter = FakePrompter(codes = listOf("000000", "123456"))
+
+        assertEquals(CasLoginDto.Success, sso.invoke(api, "student", "password", prompter))
+
+        assertEquals("1234", prompter.phoneTail)
+        assertEquals(listOf("验证码错误"), prompter.rejections)
+        val requests = (1..9).map { cas.takeRequest(2, TimeUnit.SECONDS)!! }
+        assertEquals("/cas/login", requests[0].requestUrl!!.encodedPath)
+        assertEquals("/cas/api/protected/user/findCaptchaCount/student", requests[1].requestUrl!!.encodedPath)
+        assertTrue(requests[1].getHeader("Csrf-Key").orEmpty().length == 32)
+        assertEquals("UsernamePassword", formOf(requests[2])["type"])
+        // The config call and the phone lookup are encrypted like the school's page does it.
+        assertEquals("/gate/sso-extend/protected/api/dictconfig/get", requests[3].requestUrl!!.encodedPath)
+        assertEquals("/cas/api/protected/sms/getPhoneNumberByUserId", requests[4].requestUrl!!.encodedPath)
+        assertEquals("true", requests[4].getHeader("hasCrypto"))
+        assertTrue(requests[4].getHeader("privateKey").orEmpty().isNotEmpty())
+        assertFalse(requests[4].body.readUtf8().contains("obj-9"))
+        assertEquals("""{"phone":"opaque-7","businessNo":"0008"}""", requests[5].body.readUtf8())
+        assertNull(requests[5].getHeader("hasCrypto"))
+        assertTrue(requests[6].body.readUtf8().contains("\"token\":\"000000\""))
+        assertEquals("""{"phone":"opaque-7","token":"123456","delete":false,"trustDevice":true}""", requests[7].body.readUtf8())
+        val final = formOf(requests[8])
+        assertEquals("smsLogin", final["type"])
+        assertEquals("123456", final["password"])
+        assertEquals("flow2", final["execution"])
+        assertEquals("true", final["trustDevice"])
+        assertEquals(service.toString(), requests[8].requestUrl!!.queryParameter("service"))
+        assertEquals(0, vpn.requestCount)
+        assertEquals(3, portal.requestCount)
+    }
+
+    @Test fun `background sign-in stops at the SMS step without sending anything`() = runBlocking {
+        cas.enqueue(MockResponse().setBody(fixture()))
+        cas.enqueue(secondStepPage(portalUrl("/")))
+        assertEquals(CasLoginDto.CaptchaRequired, sso.loginGrades(api, "student", "password"))
+        assertEquals(2, cas.requestCount)
+    }
+
+    @Test fun `choosing the school's page leaves the SMS step unfinished`() = runBlocking {
+        val service = teachingPortal()
+        cas.enqueue(json("""{"code":200,"data":{"captchaInvisible":false}}"""))
+        cas.enqueue(secondStepPage(service))
+        cas.enqueue(json("""{"code":200,"data":{"URL_CRYPTO_DATA":{"SID":[]}}}"""))
+        cas.enqueue(json("""{"code":200,"data":{"tel":"opaque-7","maskTel":"138****1234"}}"""))
+        assertEquals(CasLoginDto.CaptchaRequired, sso.invoke(api, "student", "password", FakePrompter(useWebPage = true)))
+        assertEquals(5, cas.requestCount) // no code sent, no final form
+    }
+
+    @Test fun `no bound phone sends the person to the school's page`() = runBlocking {
+        val service = teachingPortal()
+        cas.enqueue(json("""{"code":200,"data":{"captchaInvisible":false}}"""))
+        cas.enqueue(secondStepPage(service))
+        cas.enqueue(json("""{"code":500,"message":"busy"}"""))
+        cas.enqueue(json("""{"code":500,"message":"busy"}"""))
+        val prompter = FakePrompter(codes = listOf("123456"))
+        assertEquals(CasLoginDto.CaptchaRequired, sso.invoke(api, "student", "password", prompter))
+        assertNull(prompter.phoneTail) // never asked
+    }
+
+    @Test fun `picture captcha is typed in the app and sent with the password`() = runBlocking {
+        val service = teachingPortal()
+        cas.enqueue(json("""{"code":200,"data":{"captchaInvisible":true,"captchaUrl":"data:image/png;base64,AQID","captchaPayload":{"id":"c1"}}}"""))
+        cas.enqueue(redirect(service.newBuilder().addQueryParameter("ticket", "ST-target").build()))
+        portal.enqueue(success())
+        portal.enqueue(success())
+        val prompter = FakePrompter()
+
+        assertEquals(CasLoginDto.Success, sso.invoke(api, "student", "password", prompter))
+
+        assertArrayEquals(byteArrayOf(1, 2, 3), prompter.captchaImage)
+        repeat(2) { cas.takeRequest(2, TimeUnit.SECONDS)!! }
+        val form = formOf(cas.takeRequest(2, TimeUnit.SECONDS)!!)
+        assertEquals("ab12", form["captcha_code"])
+        assertEquals(CasAesCrypto.encryptPassword("""{"id":"c1"}""", "MDEyMzQ1Njc4OWFiY2RlZg=="), form["captcha_payload"])
+    }
+
+    @Test fun `a captcha check the CAS cannot answer does not block the password`() = runBlocking {
+        val service = teachingPortal()
+        cas.enqueue(MockResponse().setResponseCode(404).setBody("<html>not found</html>"))
+        cas.enqueue(redirect(service.newBuilder().addQueryParameter("ticket", "ST-target").build()))
+        portal.enqueue(success())
+        portal.enqueue(success())
+        val prompter = FakePrompter()
+        assertEquals(CasLoginDto.Success, sso.invoke(api, "student", "password", prompter))
+        assertNull(prompter.captchaImage)
+        repeat(2) { cas.takeRequest(2, TimeUnit.SECONDS)!! }
+        assertEquals("", formOf(cas.takeRequest(2, TimeUnit.SECONDS)!!)["captcha_code"])
     }
 }

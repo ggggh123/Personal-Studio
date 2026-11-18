@@ -75,6 +75,8 @@ internal fun loginStageText(stage: BitLoginStage?): String = when (stage) {
     BitLoginStage.OpeningBrowser -> "正在打开学校验证"
     BitLoginStage.BrowserVerification -> "等待完成学校验证"
     BitLoginStage.VerifyingBrowser -> "正在确认验证结果"
+    BitLoginStage.SmsVerification -> "等待短信验证"
+    BitLoginStage.CaptchaVerification -> "等待输入验证码"
     null -> "登录"
 }
 
@@ -90,8 +92,8 @@ internal fun loginErrorText(err: LoginOutcome): String? = when (err) {
 
 /**
  * 登录学校账户: the first screen on a fresh install (with 暂不登录) and the guard in front
- * of school features (without it). Native sign-in first; the school's own page handles SMS
- * and risk checks when it asks for them.
+ * of school features (without it). Native sign-in first; an SMS second step or picture captcha
+ * is answered in a sheet here, and the school's own page handles anything else it asks for.
  */
 @Composable
 fun BitLoginScreen(
@@ -103,17 +105,26 @@ fun BitLoginScreen(
     val st by vm.uiState.collectAsStateWithLifecycle()
     val c = Tg.colors
     KeyboardHandledByInsets()
-    BackHandler(enabled = st.loading && st.webLoginUrl == null) { vm.onCancelLogin() }
+    BackHandler(enabled = st.loading && !st.waitingForPerson) { vm.onCancelLogin() }
     var slowResponse by remember { mutableStateOf(false) }
     LaunchedEffect(st.stage) {
         slowResponse = false
-        if (st.loading && st.webLoginUrl == null) {
+        if (st.loading && !st.waitingForPerson) {
             delay(10_000)
             slowResponse = true
         }
     }
     st.webLoginUrl?.let { url ->
         BitWebVerificationDialog(url = url, username = st.username, onFinished = vm::onWebLoginFinished)
+    }
+    st.sms?.let { prompt ->
+        SmsVerifySheet(
+            prompt, onSubmit = vm::onSmsSubmit, onResend = vm::onSmsResend,
+            onUseWebPage = vm::onPromptUseWebPage, onCancel = vm::onCancelLogin,
+        )
+    }
+    st.captcha?.let { prompt ->
+        CaptchaSheet(prompt, onSubmit = vm::onCaptchaSubmit, onUseWebPage = vm::onPromptUseWebPage, onCancel = vm::onCancelLogin)
     }
     LaunchedEffect(Unit) {
         vm.events.collectLatest { ev ->
@@ -192,7 +203,7 @@ fun BitLoginScreen(
                 modifier = Modifier.weight(1f),
             )
         }
-        AnimatedVisibility(st.loading && st.webLoginUrl == null, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
+        AnimatedVisibility(st.loading && !st.waitingForPerson, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (slowResponse) {
                     Text("学校响应有点慢，可以继续等，也可以取消后重试。", style = MaterialTheme.typography.bodySmall,
@@ -214,7 +225,7 @@ fun BitLoginScreen(
         }
 
         TextAction(
-            "需要短信或网页验证？",
+            "改用学校网页登录",
             enabled = canSubmit,
             onClick = vm::onOpenWebLogin,
             modifier = Modifier.padding(top = 12.dp).enterUp(true, 240),

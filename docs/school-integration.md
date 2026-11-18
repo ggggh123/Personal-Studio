@@ -33,11 +33,17 @@
 
 ### 交互验证
 
-[`BitLoginViewModel`](../app/src/main/java/com/example/personal_studio/feature/auth/BitLoginViewModel.kt) 在原生登录判定需要交互验证时，自动打开一次[学校官方网页弹窗](../app/src/main/java/com/example/personal_studio/feature/auth/ui/BitWebVerificationDialog.kt)。密码、短信及风控交互由学校页面处理，本应用没有原生短信验证码接口。
+交互登录（登录页、校园页“重新验证”）时，[`BitLoginViewModel`](../app/src/main/java/com/example/personal_studio/feature/auth/BitLoginViewModel.kt) 把一个 [`CasPrompter`](../app/src/main/java/com/example/personal_studio/domain/bitimport/CasPrompter.kt) 交给登录链，学校要的额外步骤在 App 内的底部面板里完成（[CasVerifySheets](../app/src/main/java/com/example/personal_studio/feature/auth/ui/CasVerifySheets.kt)）：
+
+- **短信二次验证**：密码提交后，CAS 返回带 `user-object-id` 和 `secondSmsLoginForm`／`second-auth-tip` 的页面（[`BitAuthPages.secondFactorPage`](../app/src/main/java/com/example/personal_studio/data/network/bit/BitAuthPages.kt)）。[`CasSmsChallenge`](../app/src/main/java/com/example/personal_studio/domain/bitimport/CasSmsChallenge.kt) 按学校页面的做法：`POST /cas/api/protected/sms/getPhoneNumberByUserId`（加密，取不透明的 `tel` 和脱敏 `maskTel`）→ `…/sms/publicNoToken/sendSmsCode` `{phone, businessNo: "0008"}` → 用户输入 → `…/sms/checkToken` `{phone, token, delete: false, trustDevice}`；通过后提交 `type=smsLogin` 表单（`password` 为验证码，带 `execution`、`trustDevice`），拿到 ticket 后照常兑换。412／8000068 表示上一条验证码仍有效，按返回的剩余秒数倒计时。
+- **图形验证码**：交互登录在提交密码前先 `GET /cas/api/protected/user/findCaptchaCount/{学号}`；`captchaInvisible` 为真时显示 `captchaUrl`（data URL）里的图片，答案作为 `captcha_code`，`captchaPayload` 按 `croypto` 加密后作为 `captcha_payload`。这个检查失败或返回异常时照旧直接提交密码。
+- **协议细节**（[`CasApi`](../app/src/main/java/com/example/personal_studio/data/network/bit/CasApi.kt)、[`CasCrypto`](../app/src/main/java/com/example/personal_studio/data/network/bit/CasCrypto.kt)，2026-11 对照学校 `cas-gateway` 前端脚本核实）：`protected` 路径带 `Csrf-Key`／`Csrf-Value`；需要加密的路径以服务端 `/gate/sso-extend/protected/api/dictconfig/get` 的 `URL_CRYPTO_DATA.SID` 列表为准（读不到时只加密查手机号这一项）。加密方式为随机 AES 密钥（Base64 文本）以 ECB 加密 JSON，密钥文本用学校脚本里的 RSA 公钥（PKCS#1）加密放进 `privateKey` 头，并带 `hasCrypto: true`；回复用同一密钥解密，可能嵌套两层。这些接口只在 CAS 源站调用，验证码不记日志、不保存。
+
+原生流程处理不了的情况交给[学校官方网页弹窗](../app/src/main/java/com/example/personal_studio/feature/auth/ui/BitWebVerificationDialog.kt)：滑块等第三方验证码、首次修改密码、邮箱二次验证、查不到绑定手机、表单地址异常，以及用户在面板里点“改用学校网页验证”。这些都以 `CaptchaRequired` 结束原生登录，再自动打开一次网页。BIT-Login 只作接口参考（未声明开源许可，未复制代码）。
 
 网页无主文档错误地到达干净的 HTTPS WebVPN 根入口后，触发原生再验证；其他落地页可使用“验证完成，继续”。**网页跳转或点击按钮本身不等于登录成功**，只有后续原生验证通过才保存凭据并回到目标功能。再次要求验证时停止自动弹窗，避免循环。
 
-登录过程显示阶段、阻止重复提交并支持取消；同一次操作固定使用开始时的账号信息，只去掉学号首尾空白，保留密码字符。业务同步或后台任务遇到交互要求时返回提示，需要回到登录入口完成验证，不会在后台弹出网页。
+登录过程显示阶段、阻止重复提交并支持取消；同一次操作固定使用开始时的账号信息，只去掉学号首尾空白，保留密码字符。业务同步或后台任务没有 `CasPrompter`，遇到短信或验证码时返回“需要验证”，不会发送短信、不弹出界面，需要回到登录入口完成验证。
 
 ### Cookie 与互斥
 
@@ -146,6 +152,7 @@ DDL 是日历元数据；“完成”仅在本地记录，没有查询 Moodle �
 - 部分 CAS 5xx 等临时故障仍进入通用失败／解析失败，可能停止后台轮询。更细的临时错误分类及验证后恢复原任务尚未完成。
 - 新乐学的登录链只在浏览器里实际走通过（含 `/cas//login` 和 broker 回调）；App 内的原生认证链由本地模拟服务器测试覆盖，首次在真机上运行仍需验证。从未登录过新乐学的账号可能遇到 Keycloak 的首次登录页，目前会报“登录后仍未进入”。
 - 乐学 token、业务缓存与已下载数据没有完整账号隔离；有效空结果与解析丢失的保护在不同功能之间也不一致。
+- 原生短信验证的接口来自学校前端脚本，学校改版就可能失效；失效时退回网页弹窗。“信任这台手机”是否生效、生效多久由学校决定。
 - 学校是否需要短信、多久免验证由服务端决定。不能从一次成功登录或单元测试通过推导出长期免验证、全服务可用。
 
 ## 排障顺序

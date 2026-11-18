@@ -5,6 +5,8 @@ import com.example.personal_studio.data.network.bit.BitApiClient
 import com.example.personal_studio.data.network.bit.BitAuthPages
 import com.example.personal_studio.data.network.bit.BitAuthResponse
 import com.example.personal_studio.data.network.bit.BitAuthSession
+import com.example.personal_studio.data.network.bit.CasApi
+import com.example.personal_studio.data.network.bit.CasSecondFactorPage
 import com.example.personal_studio.data.network.bit.NetworkMode
 import com.example.personal_studio.data.network.bit.dto.CasInitDto
 import com.example.personal_studio.data.network.bit.dto.CasLoginDto
@@ -12,6 +14,7 @@ import com.example.personal_studio.data.network.bit.origin
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.io.IOException
 import javax.inject.Inject
 
 /** CAS and WebVPN need separate service tickets. Keep the target ticket unconsumed
@@ -20,8 +23,13 @@ class SsoLoginUseCase @Inject constructor() {
     private enum class Target { JWAPP, JWMS, LEXUE, ECLASS }
     private class Rejected(val result: CasLoginDto) : Exception()
 
-    suspend operator fun invoke(api: BitApiClient, username: String, password: String): CasLoginDto =
-        login(api, username, password, Target.JWAPP)
+    /**
+     * The interactive sign-in (教学中心). With a [prompter], an SMS second step or picture captcha
+     * is asked for in the app; without one they end as [CasLoginDto.CaptchaRequired].
+     */
+    suspend operator fun invoke(
+        api: BitApiClient, username: String, password: String, prompter: CasPrompter? = null,
+    ): CasLoginDto = login(api, username, password, Target.JWAPP, prompter)
 
     suspend fun loginGrades(api: BitApiClient, username: String, password: String): CasLoginDto =
         login(api, username, password, Target.JWMS)
@@ -34,7 +42,9 @@ class SsoLoginUseCase @Inject constructor() {
     suspend fun loginEclass(api: BitApiClient, username: String, password: String): CasLoginDto =
         login(api, username, password, Target.ECLASS)
 
-    private suspend fun login(api: BitApiClient, username: String, password: String, target: Target): CasLoginDto {
+    private suspend fun login(
+        api: BitApiClient, username: String, password: String, target: Target, prompter: CasPrompter? = null,
+    ): CasLoginDto {
         api.prepareAccount(username)
         val session = api.auth
         val urls = session.urls
@@ -55,7 +65,7 @@ class SsoLoginUseCase @Inject constructor() {
                 Target.LEXUE -> urls.lexue.toHttpUrl()
                 Target.ECLASS -> eclassService(session) ?: return CasLoginDto.Success
             }
-            val callback = requestTicket(session, service, username, password)
+            val callback = requestTicket(session, service, username, password, prompter)
             // 乐学 and 新乐学 are public: they never go through WebVPN.
             val mode = if (target == Target.LEXUE || target == Target.ECLASS) NetworkMode.LOCAL else api.networkMode
             if (mode == NetworkMode.WEBVPN) {
@@ -103,7 +113,7 @@ class SsoLoginUseCase @Inject constructor() {
     }
 
     private suspend fun requestTicket(
-        session: BitAuthSession, service: HttpUrl, username: String, password: String,
+        session: BitAuthSession, service: HttpUrl, username: String, password: String, prompter: CasPrompter? = null,
     ): HttpUrl {
         val loginUrl = session.urls.casLogin.toHttpUrl().newBuilder()
             .addQueryParameter("service", service.toString()).build()
@@ -114,21 +124,67 @@ class SsoLoginUseCase @Inject constructor() {
         val init = try { parseLoginPage(initResponse.body) } catch (_: IllegalStateException) {
             throw Rejected(BitAuthPages.loginFailure(initResponse.body) ?: CasLoginDto.CaptchaRequired)
         }
+        val cas = CasApi(session).apply { referer = loginUrl }
+        // Only an interactive sign-in asks: a captcha the person cannot see would only fail.
+        val captcha = if (prompter != null) captchaAnswer(cas, username, prompter) else null
         val response = session.request(loginUrl, fields = linkedMapOf(
             "username" to username,
             "password" to CasAesCrypto.encryptPassword(password, init.salt),
             "execution" to init.execution,
             "croypto" to init.salt,
-            "captcha_payload" to CasAesCrypto.encryptPassword("{}", init.salt),
-            "captcha_code" to "",
+            "captcha_payload" to CasAesCrypto.encryptPassword(captcha?.second ?: "{}", init.salt),
+            "captcha_code" to captcha?.first.orEmpty(),
             "type" to "UsernamePassword",
             "geolocation" to "",
             "_eventId" to "submit",
         ), referer = loginUrl)
         ticket(response, service)?.let { return it }
+        BitAuthPages.secondFactorPage(response.body, response.url)?.let { page ->
+            return smsSecondStep(session, cas, page, response.url, service, username, prompter)
+        }
         BitAuthPages.loginFailure(response.body)?.let { throw Rejected(it) }
         // A blank body, HTTP error, or 200 without a ticket never means success.
         reject(response, "统一身份认证未签发服务凭证")
+    }
+
+    /** The code and payload for the picture captcha the CAS wants, asked of the person; null when there is none. */
+    private suspend fun captchaAnswer(cas: CasApi, username: String, prompter: CasPrompter): Pair<String, String>? {
+        val captcha = try { cas.captchaFor(username) } catch (_: IOException) { null } ?: return null
+        val image = captcha.image ?: throw Rejected(CasLoginDto.CaptchaRequired)
+        return when (val answer = prompter.captcha(image)) {
+            is CaptchaDecision.Answer -> answer.code.trim() to captcha.payload.toString()
+            CaptchaDecision.UseWebPage -> throw Rejected(CasLoginDto.CaptchaRequired)
+        }
+    }
+
+    /**
+     * The password was right and CAS wants an SMS code too. The person gets the code in the app
+     * and it is checked there; the final `smsLogin` form then issues the ticket. Anything this
+     * cannot do (no prompter, no bound phone, an unusual form) ends as "verification needed",
+     * which sends an interactive sign-in to the school's own page.
+     */
+    private suspend fun smsSecondStep(
+        session: BitAuthSession, cas: CasApi, page: CasSecondFactorPage, pageUrl: HttpUrl,
+        service: HttpUrl, username: String, prompter: CasPrompter?,
+    ): HttpUrl {
+        if (prompter == null || !session.urls.isCas(page.formAction)) throw Rejected(CasLoginDto.CaptchaRequired)
+        cas.referer = pageUrl
+        val challenge = CasSmsChallenge(cas, page)
+        if (!challenge.prepare()) throw Rejected(CasLoginDto.CaptchaRequired)
+        val verified = prompter.sms(challenge) as? SmsDecision.Verified ?: throw Rejected(CasLoginDto.CaptchaRequired)
+        val response = session.request(page.formAction, fields = linkedMapOf(
+            "username" to username,
+            "password" to verified.code,
+            "type" to "smsLogin",
+            "_eventId" to "submit",
+            "geolocation" to "",
+            "execution" to page.execution,
+            "captcha_code" to "",
+            "trustDevice" to verified.trustDevice.toString(),
+        ), referer = pageUrl)
+        ticket(response, service)?.let { return it }
+        BitAuthPages.loginFailure(response.body)?.let { throw Rejected(it) }
+        reject(response, "短信验证后未签发服务凭证")
     }
 
     private fun ticket(response: BitAuthResponse, service: HttpUrl): HttpUrl? {
@@ -169,14 +225,7 @@ class SsoLoginUseCase @Inject constructor() {
         throw Rejected(CasLoginDto.UnknownFailure(response.diagnostic(stage)))
 
     fun parseLoginPage(html: String): CasInitDto = CasInitDto(
-        execution = extractById(html, "login-page-flowkey") ?: error("统一身份认证页面缺少 flowkey"),
-        salt = extractById(html, "login-croypto") ?: error("统一身份认证页面缺少加密参数"),
+        execution = BitAuthPages.idText(html, "login-page-flowkey") ?: error("统一身份认证页面缺少 flowkey"),
+        salt = BitAuthPages.idText(html, "login-croypto") ?: error("统一身份认证页面缺少加密参数"),
     )
-
-    private fun extractById(html: String, id: String): String? {
-        val tag = Regex("""<[a-zA-Z][^>]*\bid\s*=\s*["']${Regex.escape(id)}["'][^>]*>""",
-            RegexOption.IGNORE_CASE).find(html) ?: return null
-        Regex("""\bvalue\s*=\s*["']([^"']+)["']""").find(tag.value)?.groupValues?.get(1)?.let { return it }
-        return html.substring(tag.range.last + 1).substringBefore('<').trim().takeIf { it.isNotEmpty() }
-    }
 }

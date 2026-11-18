@@ -4,7 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.personal_studio.data.local.datastore.ImportCredentialPrefs
 import com.example.personal_studio.data.local.datastore.LoginPrefs
+import com.example.personal_studio.domain.bitimport.CaptchaDecision
+import com.example.personal_studio.domain.bitimport.CasPrompter
 import com.example.personal_studio.domain.bitimport.ResolveNetworkModeUseCase
+import com.example.personal_studio.domain.bitimport.SmsChallenge
+import com.example.personal_studio.domain.bitimport.SmsCheckResult
+import com.example.personal_studio.domain.bitimport.SmsDecision
+import com.example.personal_studio.domain.bitimport.SmsSendResult
 import com.example.personal_studio.domain.bitimport.ValidateCredentialsUseCase
 import com.example.personal_studio.domain.bitimport.model.LoginOutcome
 import com.example.personal_studio.domain.bitimport.model.LoginRequest
@@ -20,11 +26,30 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import javax.inject.Inject
 
 enum class BitLoginStage {
     CheckingNetwork, Authenticating, OpeningBrowser, BrowserVerification, VerifyingBrowser,
+    SmsVerification, CaptchaVerification,
 }
+
+/**
+ * The SMS step on screen. [sentCount] goes up with each code the school sends (the sheet restarts
+ * its [cooldownSeconds] countdown from it); [stillValid] means the last code still works.
+ */
+data class SmsPromptUi(
+    val phoneTail: String?,
+    val sending: Boolean = true,
+    val sentCount: Int = 0,
+    val cooldownSeconds: Int = 0,
+    val stillValid: Boolean = false,
+    val checking: Boolean = false,
+    val error: String? = null,
+)
+
+/** The picture captcha on screen. */
+class CaptchaPromptUi(val image: ByteArray)
 
 data class BitLoginUiState(
     val username: String = "",
@@ -33,8 +58,12 @@ data class BitLoginUiState(
     val stage: BitLoginStage? = null,
     val error: LoginOutcome? = null,
     val webLoginUrl: String? = null,
+    val sms: SmsPromptUi? = null,
+    val captcha: CaptchaPromptUi? = null,
 ) {
     val loading: Boolean get() = stage != null
+    /** Waiting on the person (a sheet or the school's page), not on the school. */
+    val waitingForPerson: Boolean get() = webLoginUrl != null || sms != null || captcha != null
 }
 
 sealed interface BitLoginEvent {
@@ -58,6 +87,75 @@ class BitLoginViewModel @Inject constructor(
     val events: SharedFlow<BitLoginEvent> = _events.asSharedFlow()
     private var webResult: CompletableDeferred<Boolean>? = null
     private var loginJob: Job? = null
+    /** The person's answers to the sheet on screen; null when none is open. */
+    private var promptActions: Channel<PromptAction>? = null
+
+    private sealed interface PromptAction {
+        object Resend : PromptAction
+        data class SubmitSms(val code: String, val trustDevice: Boolean) : PromptAction
+        data class SubmitCaptcha(val code: String) : PromptAction
+        object UseWebPage : PromptAction
+    }
+
+    /** Asks in the app for what the school wants during this sign-in; the login waits meanwhile. */
+    private val prompter = object : CasPrompter {
+        override suspend fun sms(challenge: SmsChallenge): SmsDecision {
+            val actions = Channel<PromptAction>(Channel.UNLIMITED).also { promptActions = it }
+            _uiState.update { it.copy(stage = BitLoginStage.SmsVerification, sms = SmsPromptUi(challenge.phoneTail)) }
+            try {
+                sendCode(challenge)
+                for (action in actions) {
+                    when (action) {
+                        PromptAction.Resend -> sendCode(challenge)
+                        is PromptAction.SubmitSms -> {
+                            updateSms { it.copy(checking = true, error = null) }
+                            when (val r = challenge.check(action.code, action.trustDevice)) {
+                                SmsCheckResult.Accepted -> return SmsDecision.Verified(action.code, action.trustDevice)
+                                is SmsCheckResult.Rejected -> updateSms { it.copy(checking = false, error = r.message) }
+                            }
+                        }
+                        PromptAction.UseWebPage -> return SmsDecision.UseWebPage
+                        is PromptAction.SubmitCaptcha -> Unit
+                    }
+                }
+                return SmsDecision.UseWebPage
+            } finally {
+                promptActions = null
+                _uiState.update { it.copy(sms = null, stage = BitLoginStage.Authenticating) }
+            }
+        }
+
+        override suspend fun captcha(image: ByteArray): CaptchaDecision {
+            val actions = Channel<PromptAction>(Channel.UNLIMITED).also { promptActions = it }
+            _uiState.update { it.copy(stage = BitLoginStage.CaptchaVerification, captcha = CaptchaPromptUi(image)) }
+            try {
+                for (action in actions) {
+                    when (action) {
+                        is PromptAction.SubmitCaptcha -> return CaptchaDecision.Answer(action.code)
+                        PromptAction.UseWebPage -> return CaptchaDecision.UseWebPage
+                        else -> Unit
+                    }
+                }
+                return CaptchaDecision.UseWebPage
+            } finally {
+                promptActions = null
+                _uiState.update { it.copy(captcha = null, stage = BitLoginStage.Authenticating) }
+            }
+        }
+
+        private suspend fun sendCode(challenge: SmsChallenge) {
+            updateSms { it.copy(sending = true, error = null) }
+            when (val r = challenge.send()) {
+                is SmsSendResult.Sent -> updateSms {
+                    it.copy(sending = false, sentCount = it.sentCount + 1, cooldownSeconds = r.cooldownSeconds, stillValid = r.stillValid)
+                }
+                is SmsSendResult.Failed -> updateSms { it.copy(sending = false, error = r.message) }
+            }
+        }
+
+        private fun updateSms(change: (SmsPromptUi) -> SmsPromptUi) =
+            _uiState.update { st -> st.copy(sms = st.sms?.let(change)) }
+    }
 
     init {
         credPrefs.observeAll().value?.let { saved ->
@@ -79,6 +177,22 @@ class BitLoginViewModel @Inject constructor(
     fun onCancelLogin() { loginJob?.cancel() }
 
     fun onWebLoginFinished(verified: Boolean) { webResult?.complete(verified) }
+
+    fun onSmsResend() { promptActions?.trySend(PromptAction.Resend) }
+
+    fun onSmsSubmit(code: String, trustDevice: Boolean) {
+        val digits = code.trim()
+        val sms = _uiState.value.sms ?: return
+        if (digits.isEmpty() || sms.checking) return
+        promptActions?.trySend(PromptAction.SubmitSms(digits, trustDevice))
+    }
+
+    fun onCaptchaSubmit(code: String) {
+        if (code.isNotBlank()) promptActions?.trySend(PromptAction.SubmitCaptcha(code.trim()))
+    }
+
+    /** Leave the sheet for the school's own page; the sign-in continues there. */
+    fun onPromptUseWebPage() { promptActions?.trySend(PromptAction.UseWebPage) }
 
     private fun startLogin(openBrowser: Boolean) {
         val st = _uiState.value
@@ -134,7 +248,7 @@ class BitLoginViewModel @Inject constructor(
         _uiState.update { it.copy(stage = BitLoginStage.CheckingNetwork, error = null) }
         val first = resolveNetworkMode(credPrefs.observeAll().value?.lastMode)
         _uiState.update { it.copy(stage = if (afterBrowser) BitLoginStage.VerifyingBrowser else BitLoginStage.Authenticating) }
-        validate.validateAuto(LoginRequest(username, password, first))
+        validate.validateAuto(LoginRequest(username, password, first), prompter)
     }
 
     fun onSkip() {

@@ -7,8 +7,10 @@ import okhttp3.CookieJar
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
 import kotlin.coroutines.resume
@@ -82,6 +84,10 @@ internal data class BitAuthResponse(val code: Int, val url: HttpUrl, val locatio
 
 /** No implicit redirects: a CAS ticket must not be consumed on an unreachable campus host. */
 internal class BitAuthSession(client: OkHttpClient, val urls: BitAuthUrls) {
+    private companion object {
+        val JSON = "application/json".toMediaType()
+    }
+
     private val client = client.newBuilder().followRedirects(false).followSslRedirects(false).build()
     private val publicClient = this.client.newBuilder().cookieJar(CookieJar.NO_COOKIES).build()
 
@@ -98,8 +104,37 @@ internal class BitAuthSession(client: OkHttpClient, val urls: BitAuthUrls) {
             builder.header("Origin", url.origin())
             builder.post(FormBody.Builder().apply { fields.forEach { (k, v) -> add(k, v) } }.build())
         }
+        return execute(builder.build(), publicPreflight)
+    }
+
+    /**
+     * A call to the CAS's own JSON API (SMS and captcha), only on the CAS origin and never
+     * followed. [body] is sent as-is with `Content-Type: application/json`; it is Base64 text,
+     * not JSON, when the call is encrypted (see [CasCrypto]).
+     */
+    suspend fun requestApi(
+        url: HttpUrl,
+        body: String? = null,
+        headers: Map<String, String> = emptyMap(),
+        referer: HttpUrl? = null,
+    ): BitAuthResponse {
+        require(url.origin() == urls.casLogin.toHttpUrl().origin()) { "认证接口只能访问学校统一身份认证站点" }
+        val builder = Request.Builder().url(url)
+            .header("User-Agent", BitBrowserHeaders.USER_AGENT)
+            .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.7")
+            .header("Accept", "application/json, text/plain, */*")
+        referer?.let { builder.header("Referer", it.toString()) }
+        headers.forEach { (k, v) -> builder.header(k, v) }
+        if (body != null) {
+            builder.header("Origin", url.origin())
+            builder.post(body.toByteArray(Charsets.UTF_8).toRequestBody(JSON))
+        }
+        return execute(builder.build(), publicPreflight = false)
+    }
+
+    private suspend fun execute(request: Request, publicPreflight: Boolean): BitAuthResponse {
         return suspendCancellableCoroutine { continuation ->
-            val call = (if (publicPreflight) publicClient else client).newCall(builder.build())
+            val call = (if (publicPreflight) publicClient else client).newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {

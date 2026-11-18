@@ -15,11 +15,11 @@ class ValidateCredentialsUseCase @Inject constructor(
     private val apiClient: BitApiClient,
     private val ssoLogin: SsoLoginUseCase,
 ) {
-    suspend fun invoke(req: LoginRequest): LoginOutcome {
+    suspend fun invoke(req: LoginRequest, prompter: CasPrompter? = null): LoginOutcome {
         apiClient.acquireSession()
         return try {
             apiClient.open(req.networkMode)
-            when (val dto = ssoLogin.invoke(apiClient, req.username, req.password)) {
+            when (val dto = ssoLogin.invoke(apiClient, req.username, req.password, prompter)) {
                 CasLoginDto.Success -> LoginOutcome.Success
                 CasLoginDto.WrongCredentials -> LoginOutcome.WrongCredentials
                 CasLoginDto.AccountLocked -> LoginOutcome.AccountLocked
@@ -45,13 +45,13 @@ class ValidateCredentialsUseCase @Inject constructor(
     /**
      * Auto 验证:先按 [req].networkMode(通常取 lastMode)试,仅连接级失败([LoginOutcome.NetworkFail])
      * 自动换另一网络模式重试一次。返回最终 outcome + 产生它的模式(Success 时即生效 mode,供持久化
-     * lastMode)。非连接级结果(成功/密码错/锁定/验证码/Unexpected)立即返回,不换网。
+     * lastMode)。[prompter] 让短信二次验证、图形验证码在 App 内完成。非连接级结果(成功/密码错/锁定/验证码/Unexpected)立即返回,不换网。
      */
-    suspend fun validateAuto(req: LoginRequest): AutoLoginResult {
+    suspend fun validateAuto(req: LoginRequest, prompter: CasPrompter? = null): AutoLoginResult {
         val modes = listOf(req.networkMode, otherMode(req.networkMode))
         var last = AutoLoginResult(LoginOutcome.NetworkFail("unreachable"), req.networkMode)
         for (mode in modes) {
-            val outcome = invoke(req.copy(networkMode = mode))
+            val outcome = invoke(req.copy(networkMode = mode), prompter)
             if (outcome !is LoginOutcome.NetworkFail) return AutoLoginResult(outcome, mode)
             last = AutoLoginResult(outcome, mode)
         }
