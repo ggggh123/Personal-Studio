@@ -19,3 +19,7 @@ d302dc29d7be7b4e2d2408688d354d23.jpg
 
 # 含明文 API key 的参考名单,勿提交
 AI-models
+
+# 发布签名密钥与密码（务必另行备份，绝不提交）
+/keystore/
+/keystore.properties

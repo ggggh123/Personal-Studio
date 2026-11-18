@@ -29,6 +29,15 @@ val defaultLlmModel: String = localProps.getProperty(
     "deepseek-flash",
 )
 
+// Release signing from keystore.properties at the repo root (gitignored, with keystore/):
+//   storeFile=keystore/kejian-release.jks, storePassword, keyAlias, keyPassword.
+// Without it the release build is left unsigned. Losing the key means future releases can no
+// longer update installed copies, so it must be backed up outside this machine.
+val releaseSigning = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) load(f.inputStream())
+}
+
 android {
     namespace = "com.example.personal_studio"
     compileSdk = 35  // stay within the Compose BOM's tested SDK range
@@ -61,8 +70,20 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        if (releaseSigning.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseSigning.getProperty("storeFile"))
+                storePassword = releaseSigning.getProperty("storePassword")
+                keyAlias = releaseSigning.getProperty("keyAlias")
+                keyPassword = releaseSigning.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
