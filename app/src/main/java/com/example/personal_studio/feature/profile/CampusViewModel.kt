@@ -10,7 +10,6 @@ import com.example.personal_studio.domain.bitgrades.GradeBookSource
 import com.example.personal_studio.data.local.db.dao.TimelineDao
 import com.example.personal_studio.data.local.db.entity.TimelineItemEntity
 import com.example.personal_studio.data.network.bit.NetworkMode
-import com.example.personal_studio.domain.auth.LogoutUseCase
 import com.example.personal_studio.domain.bitimport.SyncCenter
 import com.example.personal_studio.feature.bitddl.DdlPollScheduler
 import com.example.personal_studio.feature.bitgrades.GradesPollScheduler
@@ -70,7 +69,7 @@ fun maskAccount(username: String): String {
 
 /**
  * 校园: school account, 一键同步 with counts, entries to grades / exams / assignments / empty
- * rooms, the two background checks, and logout (optionally clearing downloaded school data).
+ * rooms and the two background checks. Signing out lives in 设置 → 学校账户.
  */
 @HiltViewModel
 class CampusViewModel @Inject constructor(
@@ -82,7 +81,6 @@ class CampusViewModel @Inject constructor(
     private val ddlSyncPrefs: DdlSyncPrefs,
     private val gradesScheduler: GradesPollScheduler,
     private val ddlScheduler: DdlPollScheduler,
-    private val logout: LogoutUseCase,
     private val syncCenter: SyncCenter,
     private val clock: TodayClock,
 ) : ViewModel() {
@@ -144,5 +142,4 @@ class CampusViewModel @Inject constructor(
         if (ddlSyncPrefs.snapshot().enabled) ddlScheduler.enqueue(hours)
     }
 
-    fun logout(clearSchoolData: Boolean) = viewModelScope.launch { logout.invoke(clearSchoolData) }
 }

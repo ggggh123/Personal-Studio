@@ -36,9 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +47,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.personal_studio.data.network.bit.NetworkMode
@@ -58,8 +55,6 @@ import com.example.personal_studio.feature.profile.CampusViewModel
 import com.example.personal_studio.feature.profile.PollUi
 import com.example.personal_studio.feature.profile.Upcoming
 import com.example.personal_studio.feature.profile.maskAccount
-import com.example.personal_studio.feature.timeline.today.DetailAction
-import com.example.personal_studio.feature.timeline.today.PillButton
 import com.example.personal_studio.feature.timeline.today.TodayText
 import com.example.personal_studio.feature.timeline.today.enterUp
 import com.example.personal_studio.feature.timeline.today.pressScale
@@ -87,7 +82,6 @@ fun CampusScreen(
     val sync by vm.syncProgress.collectAsStateWithLifecycle()
     val syncing = sync?.let { !it.done } == true
     val c = Tg.colors
-    var confirmLogout by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -154,31 +148,11 @@ fun CampusScreen(
 
         if (st.loggedIn) {
             Text(
-                "退出登录",
-                style = MaterialTheme.typography.bodyMedium,
-                color = c.textSecondary,
-                modifier = Modifier
-                    .padding(top = 20.dp)
-                    .heightIn(min = 44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button) { confirmLogout = true }
-                    .padding(horizontal = 4.dp, vertical = 12.dp),
-            )
-            Text(
-                "会清除保存的账户和学校网页登录状态；可以选择同时删除本机的学校数据。",
-                style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(horizontal = 4.dp),
+                "退出登录在 设置 → 学校账户。",
+                style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp),
             )
         }
-    }
-
-    if (confirmLogout) {
-        LogoutDialog(
-            onConfirm = { clear ->
-                confirmLogout = false
-                vm.logout(clear)
-            },
-            onDismiss = { confirmLogout = false },
-        )
     }
 }
 
@@ -392,48 +366,6 @@ private fun IntervalChip(label: String, selected: Boolean, onClick: () -> Unit) 
 }
 
 /** Logout asks whether this phone should also forget the school data (e.g. handing it over). */
-@Composable
-private fun LogoutDialog(onConfirm: (clearData: Boolean) -> Unit, onDismiss: () -> Unit) {
-    val c = Tg.colors
-    var clear by remember { mutableStateOf(false) }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(c.surfaceRaised)
-                .padding(start = 22.dp, end = 22.dp, top = 22.dp, bottom = 18.dp),
-        ) {
-            Text("退出学校账户？", style = MaterialTheme.typography.headlineMedium, color = c.text)
-            Text(
-                "会清除保存的账户密码和学校网页登录状态，后台检查也会关闭。",
-                style = MaterialTheme.typography.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = 8.dp),
-            )
-            Row(
-                Modifier
-                    .padding(top = 16.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(c.bg)
-                    .clickable(role = Role.Switch) { clear = !clear }
-                    .padding(start = 14.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("同时删除本机的学校数据", style = MaterialTheme.typography.bodyMedium, color = c.text)
-                    Text("成绩、导入的课表、乐学和新乐学作业、考试；手动添加的课程和待办保留",
-                        style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
-                }
-                TgSwitch(checked = clear, onCheckedChange = { clear = it })
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PillButton(DetailAction("取消", primary = false, onClick = onDismiss), Modifier.weight(1f))
-                PillButton(DetailAction(if (clear) "退出并删除" else "退出登录", primary = true) { onConfirm(clear) }, Modifier.weight(1f))
-            }
-        }
-    }
-}
-
 private fun describe(u: Upcoming, now: Long): String = describeTime(u.at, now) + " · " + u.title
 
 /** "今天 22:00", "明天 08:00", "后天 19:00", "周五 19:00", "12 月 3 日". */

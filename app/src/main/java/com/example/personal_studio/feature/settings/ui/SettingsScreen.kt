@@ -27,7 +27,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Info
@@ -66,15 +68,16 @@ import com.example.personal_studio.ui.components.TgGroupLabel
 import com.example.personal_studio.ui.components.TgRowValue
 import com.example.personal_studio.ui.components.TgSettingRow
 import com.example.personal_studio.ui.navigation.NavRoutes
+import com.example.personal_studio.ui.shell.LocalShellToast
 import com.example.personal_studio.ui.theme.Tg
 import com.example.personal_studio.ui.theme.daylight.ThemeMode
 import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * 设置 (from the avatar): appearance first, then semester and timetable, reminders, the AI
- * model and the version. Each row shows its current value; the semester start opens a date
- * picker in place instead of a page of its own.
+ * 设置 (from the gear): appearance first, then semester and timetable, reminders, the AI model,
+ * the school account (sign in, or sign out) and the version. Each row shows its current value;
+ * the semester start opens a date picker in place instead of a page of its own.
  */
 @Composable
 fun SettingsScreen(
@@ -83,7 +86,10 @@ fun SettingsScreen(
     vm: SettingsHomeViewModel = hiltViewModel(),
 ) {
     val st by vm.state.collectAsStateWithLifecycle()
+    val account by vm.account.collectAsStateWithLifecycle()
+    val toast = LocalShellToast.current
     var pickStart by remember { mutableStateOf(false) }
+    var confirmLogout by remember { mutableStateOf(false) }
     val today = remember { LocalDate.now(ZoneId.of("Asia/Shanghai")) }
 
     Column(Modifier.fillMaxSize()) {
@@ -140,14 +146,50 @@ fun SettingsScreen(
                 )
             }
 
-            TgGroupLabel("关于", Modifier.enterUp(true, 180))
-            TgCard(Modifier.enterUp(true, 180)) {
+            TgGroupLabel("学校账户", Modifier.enterUp(true, 160))
+            TgCard(Modifier.enterUp(true, 160)) {
+                val signedIn = account
+                if (signedIn != null) {
+                    TgSettingRow(
+                        "统一身份认证", icon = Icons.Outlined.AccountCircle, first = true,
+                        summary = "学号 $signedIn · 已登录，课表、作业、考试和成绩用它同步",
+                        onClick = { onNavigate(NavRoutes.login(null)) },
+                        trailing = { TgRowValue("重新验证") },
+                    )
+                    TgSettingRow(
+                        "退出登录", icon = Icons.AutoMirrored.Outlined.Logout,
+                        summary = "清除保存的账户和学校网页登录状态，可选择同时删除本机的学校数据",
+                        onClick = { confirmLogout = true },
+                    )
+                } else {
+                    TgSettingRow(
+                        "登录学校账户", icon = Icons.Outlined.AccountCircle, first = true,
+                        summary = "成绩、课表、作业和考试免再输密码",
+                        onClick = { onNavigate(NavRoutes.login(null)) },
+                        trailing = { TgRowValue("未登录") },
+                    )
+                }
+            }
+
+            TgGroupLabel("关于", Modifier.enterUp(true, 200))
+            TgCard(Modifier.enterUp(true, 200)) {
                 TgSettingRow(
                     "Personal Studio", icon = Icons.Outlined.Info, first = true,
                     summary = "版本 ${BuildConfig.VERSION_NAME}" + if (BuildConfig.DEBUG) " · 调试版" else "",
                 )
             }
         }
+    }
+
+    if (confirmLogout) {
+        LogoutDialog(
+            onConfirm = { clear ->
+                confirmLogout = false
+                vm.logout(clear)
+                toast?.show(if (clear) "已退出，并删除了本机的学校数据" else "已退出学校账户")
+            },
+            onDismiss = { confirmLogout = false },
+        )
     }
 
     if (pickStart) {

@@ -36,7 +36,7 @@
 
 Room schema 快照在 [`app/schemas`](../app/schemas)，表关系以 Entity／DAO 为准，不在文档复制完整字段清单。当前[数据库配置](../app/src/main/java/com/example/personal_studio/core/di/DatabaseModule.kt)仍使用 `fallbackToDestructiveMigration()`，没有显式升级迁移。**增加 schema 版本而缺少迁移路径会重建数据库**；不能据早期“开发库可丢弃”的决定承诺现有用户的数据安全。
 
-学校退出登录会清凭据、乐学日历订阅地址、Cookie 并关闭两个轮询开关。退出时可选择同时删除本机的学校数据（[ClearSchoolDataUseCase](../app/src/main/java/com/example/personal_studio/domain/auth/ClearSchoolDataUseCase.kt)：成绩与排名、AI 学情报告缓存、导入的课表、乐学作业、考试及其提醒，以及同步记录），手动添加的课程、待办和日程保留。不勾选时已下载的内容仍在本机；业务缓存没有完整的账号隔离。具体实现见 [LogoutUseCase](../app/src/main/java/com/example/personal_studio/domain/auth/LogoutUseCase.kt)。
+学校退出登录在“设置 → 学校账户”，会清凭据、乐学日历订阅地址、Cookie 并关闭两个轮询开关。退出时可选择同时删除本机的学校数据（[ClearSchoolDataUseCase](../app/src/main/java/com/example/personal_studio/domain/auth/ClearSchoolDataUseCase.kt)：成绩与排名、AI 学情报告缓存、导入的课表、乐学作业、考试及其提醒，以及同步记录），手动添加的课程、待办和日程保留。不勾选时已下载的内容仍在本机；业务缓存没有完整的账号隔离。具体实现见 [LogoutUseCase](../app/src/main/java/com/example/personal_studio/domain/auth/LogoutUseCase.kt)。
 
 ## 界面约定
 
