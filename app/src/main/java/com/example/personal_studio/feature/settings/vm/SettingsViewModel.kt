@@ -2,6 +2,13 @@ package com.example.personal_studio.feature.settings.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.personal_studio.core.llm.ApiFormat
+import com.example.personal_studio.core.llm.BuiltInLlm
+import com.example.personal_studio.core.llm.BundledLlm
+import com.example.personal_studio.core.llm.GenerationSettings
+import com.example.personal_studio.core.llm.LlmEndpoint
+import com.example.personal_studio.core.llm.ReasoningLevel
+import com.example.personal_studio.core.llm.activeEndpoint
 import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
 import com.example.personal_studio.data.remote.llm.LLMProvider
 import com.example.personal_studio.data.remote.llm.LlmChunk
@@ -16,14 +23,21 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val apiKeyDraft: String = "",
+    /** Where requests go right now (built-in or custom). */
+    val endpoint: LlmEndpoint? = null,
+    /** The custom endpoint's saved values; the key itself is never shown, only whether one is saved. */
+    val savedFormat: ApiFormat = ApiFormat.OPENAI,
     val savedApiKey: String? = null,
-    val baseUrlDraft: String = "",
     val savedBaseUrl: String? = null,
-    val modelDraft: String = "",
     val savedModel: String? = null,
+    val apiKeyDraft: String = "",
+    val baseUrlDraft: String = "",
+    val modelDraft: String = "",
+    val generation: GenerationSettings = GenerationSettings(),
     val testConnection: TestConnectionState = TestConnectionState.Idle,
-)
+) {
+    val custom: Boolean get() = endpoint?.custom == true
+}
 
 sealed interface TestConnectionState {
     data object Idle : TestConnectionState
@@ -33,36 +47,48 @@ sealed interface TestConnectionState {
 }
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(
+class SettingsViewModel internal constructor(
     private val prefs: UserPreferencesRepository,
     private val llm: LLMProvider,
+    private val bundled: BundledLlm,
 ) : ViewModel() {
+
+    @Inject constructor(prefs: UserPreferencesRepository, llm: LLMProvider) : this(prefs, llm, BuiltInLlm.bundled)
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        prefs.apiKey
-            .onEach { saved -> _uiState.update { it.copy(savedApiKey = saved) } }
-            .launchIn(viewModelScope)
-
-        prefs.apiBaseUrl
-            .onEach { saved -> _uiState.update { it.copy(savedBaseUrl = saved) } }
-            .launchIn(viewModelScope)
-
-        prefs.modelName
-            .onEach { saved -> _uiState.update { it.copy(savedModel = saved) } }
-            .launchIn(viewModelScope)
+        prefs.activeEndpoint(bundled).onEach { e -> _uiState.update { it.copy(endpoint = e) } }.launchIn(viewModelScope)
+        prefs.apiFormat.onEach { f -> _uiState.update { it.copy(savedFormat = ApiFormat.of(f)) } }.launchIn(viewModelScope)
+        prefs.apiKey.onEach { k -> _uiState.update { it.copy(savedApiKey = k) } }.launchIn(viewModelScope)
+        prefs.apiBaseUrl.onEach { u -> _uiState.update { it.copy(savedBaseUrl = u) } }.launchIn(viewModelScope)
+        prefs.modelName.onEach { m -> _uiState.update { it.copy(savedModel = m) } }.launchIn(viewModelScope)
+        prefs.generation.onEach { g -> _uiState.update { it.copy(generation = g) } }.launchIn(viewModelScope)
     }
 
-    // API key ----------------------------------------------------------------
+    // Built-in models --------------------------------------------------------
 
-    fun onApiKeyDraftChanged(value: String) {
-        _uiState.update { it.copy(apiKeyDraft = value) }
+    /** Picks a built-in model and drops the custom endpoint (address, key, format). */
+    fun selectCuratedModel(code: String) {
+        viewModelScope.launch {
+            prefs.setModelName(code)
+            prefs.setApiBaseUrl(null)
+            prefs.setApiKey(null)
+            prefs.setApiFormat(null)
+        }
     }
+
+    // Custom endpoint --------------------------------------------------------
+
+    fun onFormatSelected(format: ApiFormat) {
+        viewModelScope.launch { prefs.setApiFormat(if (format == ApiFormat.OPENAI) null else format.id) }
+    }
+
+    fun onApiKeyDraftChanged(value: String) = _uiState.update { it.copy(apiKeyDraft = value) }
 
     fun onSaveApiKey() {
-        val key = _uiState.value.apiKeyDraft
+        val key = _uiState.value.apiKeyDraft.trim()
         viewModelScope.launch {
             prefs.setApiKey(key)
             _uiState.update { it.copy(apiKeyDraft = "") }
@@ -76,14 +102,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // Base URL ---------------------------------------------------------------
-
-    fun onBaseUrlDraftChanged(value: String) {
-        _uiState.update { it.copy(baseUrlDraft = value) }
-    }
+    fun onBaseUrlDraftChanged(value: String) = _uiState.update { it.copy(baseUrlDraft = value) }
 
     fun onSaveBaseUrl() {
-        val url = _uiState.value.baseUrlDraft.trim()
+        val url = _uiState.value.baseUrlDraft.trim().trimEnd('/')
         viewModelScope.launch {
             prefs.setApiBaseUrl(url)
             _uiState.update { it.copy(baseUrlDraft = "") }
@@ -97,11 +119,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // Model ------------------------------------------------------------------
-
-    fun onModelDraftChanged(value: String) {
-        _uiState.update { it.copy(modelDraft = value) }
-    }
+    fun onModelDraftChanged(value: String) = _uiState.update { it.copy(modelDraft = value) }
 
     fun onSaveModel() {
         val name = _uiState.value.modelDraft.trim()
@@ -118,13 +136,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** 选内置精选模型:切代号 + 清掉任何自定义 url/key → 回退到内置端点+密钥(BuildConfig 默认)。 */
-    fun selectCuratedModel(code: String) {
-        viewModelScope.launch {
-            prefs.setModelName(code)
-            prefs.setApiBaseUrl(null)
-            prefs.setApiKey(null)
-        }
+    // Generation settings ----------------------------------------------------
+
+    fun onReasoningChanged(level: ReasoningLevel) = updateGeneration { it.copy(reasoning = level) }
+
+    /** Null = automatic (each feature's own temperature). */
+    fun onTemperatureChanged(value: Float?) = updateGeneration {
+        it.copy(temperature = value?.let { v -> (Math.round(v.coerceIn(0f, GenerationSettings.TEMPERATURE_MAX) * 10) / 10f) })
+    }
+
+    fun onMaxTokensChanged(value: Int?) = updateGeneration { it.copy(maxTokens = value) }
+
+    /** Null = not sent. */
+    fun onTopPChanged(value: Float?) = updateGeneration {
+        it.copy(topP = value?.let { v -> Math.round(v.coerceIn(0.05f, 1f) * 20) / 20f })
+    }
+
+    fun onResetGeneration() = updateGeneration { GenerationSettings() }
+
+    private fun updateGeneration(change: (GenerationSettings) -> GenerationSettings) {
+        val next = change(_uiState.value.generation)
+        _uiState.update { it.copy(generation = next) }
+        viewModelScope.launch { prefs.setGeneration(next) }
     }
 
     // Test connection --------------------------------------------------------
@@ -138,11 +171,7 @@ class SettingsViewModel @Inject constructor(
                     when (chunk) {
                         is LlmChunk.Text -> accumulator.append(chunk.delta)
                         is LlmChunk.Done -> _uiState.update {
-                            it.copy(
-                                testConnection = TestConnectionState.Success(
-                                    replyPreview = accumulator.toString().take(200),
-                                )
-                            )
+                            it.copy(testConnection = TestConnectionState.Success(replyPreview = accumulator.toString().take(200)))
                         }
                         is LlmChunk.Error -> _uiState.update {
                             it.copy(testConnection = TestConnectionState.Failure(chunk.message))

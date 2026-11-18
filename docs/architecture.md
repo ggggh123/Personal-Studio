@@ -14,7 +14,7 @@
 | `domain/` | 登录、同步、课程映射、成绩计算、知识整理等用例与模型 |
 | `data/local/` | Room Entity／DAO、DataStore 和学校加密凭据 |
 | `data/repository/` | 对话、扫描、知识库和日程的持久化访问 |
-| `data/remote/llm/` | 模型接口与 OpenAI 兼容实现 |
+| `data/remote/llm/` | 模型接口；按配置走 OpenAI 兼容、Anthropic 或 Gemini 格式 |
 | `data/network/bit/` | 学校服务、认证跳转、Cookie 和网络方式选择 |
 | `data/scanner/` | ONNX／OpenCV 处理和 PDF 导出 |
 | `core/`、`ui/` | 依赖注入、工具函数、通知／Worker、导航和共享界面 |

@@ -9,11 +9,12 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-// Read optional default API credentials + endpoint + model from local.properties
-// (never commit these). Supported keys:
-//   API_KEY=sk-...                           (any OpenAI-compatible provider)
-//   API_BASE_URL=https://openrouter.ai/api/v1  (OpenRouter by default; change for OpenAI/Ollama/etc.)
-//   DEFAULT_LLM_MODEL=google/gemini-2.0-flash-exp:free
+// The built-in AI endpoint (DeepSeek, OpenAI format) comes from local.properties, which is
+// gitignored: the key must never be committed. Supported keys:
+//   API_KEY=sk-...                         (the built-in DeepSeek key)
+//   API_BASE_URL=https://api.deepseek.com
+//   DEFAULT_LLM_MODEL=deepseek-flash       (deepseek-flash or deepseek-v4-pro)
+// Without a key the app still builds; AI features then ask for a custom endpoint.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) load(f.inputStream())
@@ -21,11 +22,11 @@ val localProps = Properties().apply {
 val defaultApiKey: String = localProps.getProperty("API_KEY", "")
 val defaultApiBaseUrl: String = localProps.getProperty(
     "API_BASE_URL",
-    "https://openrouter.ai/api/v1",
+    "https://api.deepseek.com",
 )
 val defaultLlmModel: String = localProps.getProperty(
     "DEFAULT_LLM_MODEL",
-    "google/gemini-2.0-flash-exp:free",
+    "deepseek-flash",
 )
 
 android {

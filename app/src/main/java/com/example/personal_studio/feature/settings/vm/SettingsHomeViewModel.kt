@@ -2,8 +2,8 @@ package com.example.personal_studio.feature.settings.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.personal_studio.BuildConfig
 import com.example.personal_studio.core.llm.CuratedModels
+import com.example.personal_studio.core.llm.activeEndpoint
 import com.example.personal_studio.core.util.SemesterTimeMapper
 import com.example.personal_studio.data.local.datastore.SemesterPreferences
 import com.example.personal_studio.data.local.datastore.TimetablePreferences
@@ -39,17 +39,15 @@ class SettingsHomeViewModel @Inject constructor(
         semester.startDate,
         timetable.periods,
         timeline.observeCourseSeriesList(),
-        userPrefs.modelName,
-        combine(userPrefs.apiBaseUrl, userPrefs.apiKey) { url, key -> url != null || key != null },
-    ) { start, periods, series, model, ownEndpoint ->
-        val code = model ?: BuildConfig.DEFAULT_LLM_MODEL
-        val curated = CuratedModels.displayFor(code)
+        userPrefs.activeEndpoint(),
+    ) { start, periods, series, endpoint ->
         SettingsHomeState(
             semesterStart = start,
             periodCount = periods.size,
             courseCount = series.size,
-            modelName = curated ?: code,
-            customModel = curated == null || ownEndpoint,
+            modelName = (if (endpoint.custom) null else CuratedModels.displayFor(endpoint.model))
+                ?: endpoint.model.ifBlank { "未填写模型" },
+            customModel = endpoint.custom,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsHomeState())
 

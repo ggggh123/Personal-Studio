@@ -33,7 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.personal_studio.BuildConfig
+import com.example.personal_studio.core.llm.BuiltInLlm
 import com.example.personal_studio.core.llm.CuratedModels
 import com.example.personal_studio.feature.settings.vm.SettingsUiState
 import com.example.personal_studio.feature.settings.vm.SettingsViewModel
@@ -49,13 +49,12 @@ import com.example.personal_studio.ui.components.TgPillButton
 import com.example.personal_studio.ui.components.TgSettingRow
 import com.example.personal_studio.ui.theme.Tg
 
-/** True when the user's own endpoint, key or a model outside the built-in list is in use. */
-internal fun SettingsUiState.usingCustomEndpoint(): Boolean =
-    savedBaseUrl != null || savedApiKey != null || CuratedModels.displayFor(savedModel ?: BuildConfig.DEFAULT_LLM_MODEL) == null
+/** True when the person's own endpoint is in use (an address or key is saved). */
+internal fun SettingsUiState.usingCustomEndpoint(): Boolean = custom
 
 /**
- * AI 模型: pick one of the built-in models (endpoint and key included), test the current
- * one, or go to the custom endpoint settings behind a warning.
+ * AI 模型: the two built-in DeepSeek models (endpoint and key included), the generation settings
+ * that apply to every request, a connection test, and the custom endpoint behind a warning.
  */
 @Composable
 fun AiModelScreen(
@@ -65,8 +64,9 @@ fun AiModelScreen(
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
     val c = Tg.colors
-    val active = state.savedModel ?: BuildConfig.DEFAULT_LLM_MODEL
-    val custom = state.usingCustomEndpoint()
+    val endpoint = state.endpoint
+    val custom = state.custom
+    val noBuiltInKey = BuiltInLlm.bundled.apiKey.isBlank()
     var showWarning by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
@@ -79,11 +79,15 @@ fun AiModelScreen(
                 .padding(start = 20.dp, end = 20.dp, bottom = 32.dp)
                 .navigationBarsPadding(),
         ) {
-            if (custom) {
+            val notice = when {
+                custom && endpoint != null -> "正在使用自定义接口（${endpoint.format.label} · ${endpoint.model.ifBlank { "未填写模型" }}）。" +
+                    "选择下面的内置模型会切回内置 DeepSeek，并清除自定义的地址和密钥。"
+                noBuiltInKey -> "这个版本没有内置密钥，内置模型暂时不能用。请在下方“自定义接口”里填写自己的服务。"
+                else -> null
+            }
+            notice?.let {
                 Text(
-                    "正在使用自定义接口（模型 $active）。选择下面的内置模型会切回内置接口，并清除自定义的地址和密钥。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = c.text,
+                    it, style = MaterialTheme.typography.bodyMedium, color = c.text,
                     modifier = Modifier
                         .padding(top = 16.dp)
                         .fillMaxWidth()
@@ -92,12 +96,12 @@ fun AiModelScreen(
                         .enterUp(true, 0),
                 )
             }
-            TgGroupLabel("内置模型", Modifier.enterUp(true, 40))
+            TgGroupLabel("内置模型 · DeepSeek", Modifier.enterUp(true, 40))
             TgCard(Modifier.enterUp(true, 40)) {
                 CuratedModels.ALL.forEachIndexed { i, m ->
-                    val selected = !custom && m.code == active
+                    val selected = !custom && endpoint?.model == m.code
                     TgSettingRow(
-                        m.display, summary = m.code, first = i == 0,
+                        m.display, summary = m.tagline, first = i == 0,
                         onClick = { vm.selectCuratedModel(m.code) },
                         trailing = {
                             if (selected) Icon(Icons.Rounded.Check, contentDescription = "当前模型", tint = c.accent, modifier = Modifier.size(20.dp))
@@ -106,15 +110,26 @@ fun AiModelScreen(
                 }
             }
 
-            TgGroupLabel("连接", Modifier.enterUp(true, 80))
-            ConnectionTestCard(state.testConnection, onTest = vm::onTestConnection, modifier = Modifier.enterUp(true, 80))
+            TgGroupLabel("生成参数", Modifier.enterUp(true, 80))
+            GenerationSettingsCard(
+                state.generation,
+                onReasoning = vm::onReasoningChanged,
+                onTemperature = vm::onTemperatureChanged,
+                onMaxTokens = vm::onMaxTokensChanged,
+                onTopP = vm::onTopPChanged,
+                onReset = vm::onResetGeneration,
+                modifier = Modifier.enterUp(true, 80),
+            )
 
-            TgGroupLabel("高级", Modifier.enterUp(true, 120))
-            TgCard(Modifier.enterUp(true, 120)) {
+            TgGroupLabel("连接", Modifier.enterUp(true, 120))
+            ConnectionTestCard(state.testConnection, onTest = vm::onTestConnection, modifier = Modifier.enterUp(true, 120))
+
+            TgGroupLabel("高级", Modifier.enterUp(true, 160))
+            TgCard(Modifier.enterUp(true, 160)) {
                 TgSettingRow(
                     "自定义接口", icon = Icons.Outlined.Tune, first = true,
-                    summary = "使用自己的 API 地址、密钥和模型（OpenAI 兼容格式）",
-                    onClick = { showWarning = true },
+                    summary = if (custom) "正在使用 · ${endpoint?.format?.label}" else "OpenAI 兼容、Anthropic、Google Gemini 格式，用自己的地址、密钥和模型",
+                    onClick = { if (custom) onOpenAdvanced() else showWarning = true },
                 )
             }
         }
@@ -123,7 +138,7 @@ fun AiModelScreen(
     if (showWarning) {
         TgConfirmDialog(
             title = "自定义接口",
-            message = "适合已经熟悉通过 API 调用大模型的用户。填错地址或密钥会让问答和整理知识无法使用，随时可以回到这里选回内置模型。",
+            message = "适合已经有自己的大模型服务（或 API 密钥）的用户。填错地址或密钥会让问答和整理知识无法使用，随时可以回到这里选回内置模型。",
             confirmLabel = "继续",
             onConfirm = { showWarning = false; onOpenAdvanced() },
             onDismiss = { showWarning = false },

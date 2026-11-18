@@ -2,7 +2,8 @@ package com.example.personal_studio.feature.chat.vm
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.personal_studio.BuildConfig
+import com.example.personal_studio.core.llm.CuratedModels
+import com.example.personal_studio.core.llm.activeEndpoint
 import com.example.personal_studio.data.local.datastore.UserPreferencesRepository
 import com.example.personal_studio.data.repository.ChatRepository
 import com.example.personal_studio.domain.chat.GenerateTitleUseCase
@@ -34,7 +35,7 @@ data class ChatDetailUiState(
     val errorBanner: String? = null,
     val isSending: Boolean = false,
     /** Active model id from preferences (or the bundled default). Surfaced in the top bar. */
-    val activeModel: String = BuildConfig.DEFAULT_LLM_MODEL,
+    val activeModel: String = CuratedModels.DEFAULT.code,
     /** Incremented each time a send round-trip (including title generation) fully completes. */
     val sendGeneration: Int = 0,
 )
@@ -71,12 +72,8 @@ class ChatDetailViewModel @AssistedInject constructor(
             }
             .launchIn(viewModelScope)
 
-        prefs.modelName
-            .onEach { name ->
-                _uiState.update {
-                    it.copy(activeModel = name?.takeIf { v -> v.isNotBlank() } ?: BuildConfig.DEFAULT_LLM_MODEL)
-                }
-            }
+        prefs.activeEndpoint()
+            .onEach { endpoint -> _uiState.update { it.copy(activeModel = endpoint.model) } }
             .launchIn(viewModelScope)
 
         viewModelScope.launch {

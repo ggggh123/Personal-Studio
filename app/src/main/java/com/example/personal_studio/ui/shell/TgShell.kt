@@ -36,7 +36,7 @@ import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.DocumentScanner
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.WbSunny
@@ -91,15 +91,15 @@ fun TgTopBar(title: String, onOpenSettings: () -> Unit, modifier: Modifier = Mod
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .clickable(role = Role.Button, onClickLabel = "账户与设置", onClick = onOpenSettings)
-                .semantics { contentDescription = "账户与设置" },
+                .clickable(role = Role.Button, onClickLabel = "设置", onClick = onOpenSettings)
+                .semantics { contentDescription = "设置" },
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 Modifier.size(36.dp).background(c.accentSoft, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Person, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.Settings, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
             }
         }
     }

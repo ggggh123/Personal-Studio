@@ -4,11 +4,11 @@
 
 ## 对话与模型接口
 
-主链路为 [`ChatDetailViewModel`](../app/src/main/java/com/example/personal_studio/feature/chat/vm/ChatDetailViewModel.kt) → [`SendMessageUseCase`](../app/src/main/java/com/example/personal_studio/domain/chat/SendMessageUseCase.kt) → [`OpenAiCompatibleProvider`](../app/src/main/java/com/example/personal_studio/data/remote/llm/OpenAiCompatibleProvider.kt)。
+主链路为 [`ChatDetailViewModel`](../app/src/main/java/com/example/personal_studio/feature/chat/vm/ChatDetailViewModel.kt) → [`SendMessageUseCase`](../app/src/main/java/com/example/personal_studio/domain/chat/SendMessageUseCase.kt) → [`ConfigurableLlmProvider`](../app/src/main/java/com/example/personal_studio/data/remote/llm/ConfigurableLlmProvider.kt)。
 
 1. 先保存用户消息，再加载会话历史及仍存在的附件文件，构造模型上下文。
-2. 配置按“用户设置 → BuildConfig 默认值”解析，向 `Base URL/chat/completions` 发请求。图片以 JPEG data URL 放入 `image_url` 内容块。
-3. SSE 读取 `choices[0].delta.content`，收到 `[DONE]` 后保存完整助手消息。当前不展示服务商的 `reasoning_content`；等待文案是本地轮换提示，不是模型真实思考过程。
+2. 每次请求读取当前配置（[`LlmEndpoints.resolve`](../app/src/main/java/com/example/personal_studio/core/llm/LlmConfig.kt)）：没有自定义地址和密钥时走内置 DeepSeek；否则按所选格式由 [`LlmWireFormats`](../app/src/main/java/com/example/personal_studio/data/remote/llm/LlmWireFormats.kt) 组装请求——OpenAI 兼容（`/chat/completions`，Bearer）、Anthropic（`/v1/messages`，`x-api-key`，`max_tokens` 必填）、Gemini（`/v1beta/models/{model}:streamGenerateContent?alt=sse`，`x-goog-api-key`）。图片按实际类型（JPEG／PNG／WebP）放入各格式的图片块。
+3. 三种格式都用 SSE 流式读取，只取回答正文：OpenAI 的 `delta.content`、Anthropic 的 `text_delta`、Gemini 非 `thought` 的 part。不展示模型的思考内容；等待文案是本地轮换提示，不是模型真实思考过程。
 4. 点击停止会取消生成任务，并在已有文本后追加“（已停止）”保存；没有文本则不创建空回答。界面中的 token 数是估算值。
 
 新会话默认名为“新对话”（旧数据中的 `session #NNN` 同样视为占位名，显示为“新对话”），第一轮回答保存后由 [`GenerateTitleUseCase`](../app/src/main/java/com/example/personal_studio/domain/chat/GenerateTitleUseCase.kt) 生成标题，判断规则在 [`ChatTitles`](../app/src/main/java/com/example/personal_studio/domain/chat/ChatTitles.kt)；生成标题会多一次模型调用。从未发出消息的会话在离开对话页时删除（`ChatDetailViewModel.onCleared`，旋转或换主题不触发），打开问答列表时也会清理残留的空会话。列表摘要把公式显示为“[公式]”并去掉 Markdown 标记。
@@ -25,7 +25,21 @@
 
 对话页打开期间窗口不随键盘平移或缩放，由页面按键盘高度抬起输入框（[`KeyboardHandledByInsets`](../app/src/main/java/com/example/personal_studio/ui/components/KeyboardInsets.kt)），各厂商系统表现一致。消息列表自下而上布局（`reverseLayout`，索引 0 是底部留白，其后是流式回答和倒序的消息），底边固定：重新打开长对话时停在最新回答，上方回答渲染完公式变高不会把它挤走；流式回答原地向上生长；键盘从下方压缩列表时最新内容仍在视野里。只有发送新消息时，若用户正在翻看历史，才跳回底部。内容不满一屏时仍从顶部排起（`Arrangement.Top`）。
 
-[`CuratedModels`](../app/src/main/java/com/example/personal_studio/core/llm/CuratedModels.kt) 是静态名单；[`SettingsViewModel.selectCuratedModel`](../app/src/main/java/com/example/personal_studio/feature/settings/vm/SettingsViewModel.kt) 不仅改模型代号，还会清除自定义 API Key 和 Base URL，回退到构建默认值。因此自建端点配置后再选内置模型，会改变实际请求的服务。高级配置和连接测试是自定义模型的入口，项目当前没有 Gemini 专用 SDK 实现。
+[`CuratedModels`](../app/src/main/java/com/example/personal_studio/core/llm/CuratedModels.kt) 只有 DeepSeek 的两个模型（2026-11 按其 `/models` 列表核对）：Flash 能读图片，Pro 只读文字，所以内置 Pro 遇到带图片的提问会改用 Flash（`LlmEndpoints.modelFor`，回答记录实际使用的模型）。旧版本保存的、已不在名单里的内置模型代号会回退到 Flash。[`SettingsViewModel.selectCuratedModel`](../app/src/main/java/com/example/personal_studio/feature/settings/vm/SettingsViewModel.kt) 会同时清除自定义地址、密钥和格式。
+
+**内置密钥只发往内置主机。** 自定义地址与内置地址主机相同（例如 DeepSeek 的 `/anthropic`）时，留空的密钥和模型才用内置值；其他主机必须填自己的密钥，否则不发请求并提示。留空地址表示该格式的官方地址。
+
+**生成参数**（[`GenerationSettings`](../app/src/main/java/com/example/personal_studio/core/llm/LlmConfig.kt)，内置和自定义通用，“自动”表示不发送）：
+
+| 设置 | OpenAI 兼容 | Anthropic | Gemini |
+| --- | --- | --- | --- |
+| 推理：关闭 | `thinking: {type: disabled}` | `thinking: {type: disabled}` | `thinkingConfig.thinkingBudget: 0` |
+| 推理：低／中／高／最高 | `reasoning_effort` | `output_config.effort` | `thinkingConfig.thinkingLevel`（最高按高） |
+| 温度（默认问答 0.7、结构化 0.3） | `temperature` | `temperature`（≤1；设了 Top P 时不发） | `temperature` |
+| 最大输出长度 | `max_tokens` | `max_tokens`（自动为 32K） | `maxOutputTokens` |
+| Top P | `top_p` | `top_p` | `topP` |
+
+DeepSeek 默认开启思考（高档），没有“中”档（按高处理），思考模式下温度不生效。不同服务支持的等级不同，选了不支持的值可能报错，界面用“测试连接”检查。结构化输出在 OpenAI 格式用 `response_format: json_object`、Gemini 用 `responseMimeType`，Anthropic 只靠系统提示；返回的 JSON 若被包在 Markdown 代码块里会先去掉。
 
 ### 公式渲染
 

@@ -3,12 +3,15 @@ package com.example.personal_studio.data.local.datastore
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import com.example.personal_studio.core.llm.GenerationSettings
+import com.example.personal_studio.core.llm.ReasoningLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 interface UserPreferencesRepository {
-    /** OpenAI-compatible API key. Null means "use bundled default from BuildConfig". */
+    /** API key of the custom endpoint. Null means "use bundled default from BuildConfig". */
     val apiKey: Flow<String?>
     suspend fun setApiKey(key: String?)
 
@@ -19,6 +22,14 @@ interface UserPreferencesRepository {
     /** LLM model identifier (e.g. `google/gemini-2.0-flash-exp:free`). Null means default. */
     val modelName: Flow<String?>
     suspend fun setModelName(name: String?)
+
+    /** `ApiFormat.id` of the custom endpoint; null means OpenAI-compatible. */
+    val apiFormat: Flow<String?> get() = flowOf(null)
+    suspend fun setApiFormat(format: String?) {}
+
+    /** Reasoning level, temperature, output length and top-p for every request. */
+    val generation: Flow<GenerationSettings> get() = flowOf(GenerationSettings())
+    suspend fun setGeneration(settings: GenerationSettings) {}
 
     /**
      * One-shot migration: if the user had a key stored under the old OpenRouter key name
@@ -59,6 +70,35 @@ class UserPreferencesRepositoryImpl(
         dataStore.edit { prefs ->
             if (name.isNullOrBlank()) prefs.remove(UserPreferencesKeys.LLM_MODEL)
             else prefs[UserPreferencesKeys.LLM_MODEL] = name
+        }
+    }
+
+    override val apiFormat: Flow<String?> =
+        dataStore.data.map { it[UserPreferencesKeys.API_FORMAT]?.takeIf { v -> v.isNotBlank() } }
+
+    override suspend fun setApiFormat(format: String?) {
+        dataStore.edit { prefs ->
+            if (format.isNullOrBlank()) prefs.remove(UserPreferencesKeys.API_FORMAT)
+            else prefs[UserPreferencesKeys.API_FORMAT] = format
+        }
+    }
+
+    override val generation: Flow<GenerationSettings> = dataStore.data.map { p ->
+        GenerationSettings(
+            reasoning = ReasoningLevel.of(p[UserPreferencesKeys.REASONING]),
+            temperature = p[UserPreferencesKeys.TEMPERATURE],
+            maxTokens = p[UserPreferencesKeys.MAX_TOKENS],
+            topP = p[UserPreferencesKeys.TOP_P],
+        )
+    }
+
+    override suspend fun setGeneration(settings: GenerationSettings) {
+        dataStore.edit { prefs ->
+            if (settings.reasoning == ReasoningLevel.AUTO) prefs.remove(UserPreferencesKeys.REASONING)
+            else prefs[UserPreferencesKeys.REASONING] = settings.reasoning.id
+            settings.temperature?.let { prefs[UserPreferencesKeys.TEMPERATURE] = it } ?: prefs.remove(UserPreferencesKeys.TEMPERATURE)
+            settings.maxTokens?.let { prefs[UserPreferencesKeys.MAX_TOKENS] = it } ?: prefs.remove(UserPreferencesKeys.MAX_TOKENS)
+            settings.topP?.let { prefs[UserPreferencesKeys.TOP_P] = it } ?: prefs.remove(UserPreferencesKeys.TOP_P)
         }
     }
 

@@ -1,24 +1,29 @@
 package com.example.personal_studio.core.llm
 
-/** 一个内置可选模型:展示名 + 调用 API 时的实际模型代号。 */
-data class CuratedModel(val display: String, val code: String)
+/**
+ * A built-in model: shown name, the id sent to the API, a one-line description, and whether it
+ * reads images. All of them use the built-in DeepSeek endpoint and key.
+ */
+data class CuratedModel(val display: String, val code: String, val tagline: String, val readsImages: Boolean)
 
-/** 内置精选模型名单(共用 App 内置端点+密钥;来源见仓库外 AI-models 文件)。 */
+/** The built-in models (DeepSeek's two, from its `/models` list, 2026-11). */
 object CuratedModels {
-    val ALL: List<CuratedModel> = listOf(
-        CuratedModel("Claude Opus 4.8", "claude-opus-4-8"),
-        CuratedModel("Claude Sonnet 4.6", "claude-sonnet-4-6"),
-        CuratedModel("GPT 5.5", "gpt-5.5"),
-        CuratedModel("Gemini 3.5 Flash", "gemini-3.5-flash"),
-        CuratedModel("Gemini 3.1 Pro", "gemini-3.1-pro-preview"),
-        CuratedModel("Deepseek V4 Flash", "deepseek-v4-flash"),
-        CuratedModel("Deepseek V4 Pro", "deepseek-v4-pro"),
-        CuratedModel("GLM 5.2", "glm-5.2"),
-        CuratedModel("Kimi 2.6", "kimi-k2.6"),
-        CuratedModel("Minimax M3", "MiniMax-M3"),
-        CuratedModel("豆包", "doubao-seed-2-0-lite-260428"),
+    val FLASH = CuratedModel(
+        "DeepSeek Flash", "deepseek-flash",
+        "V4.1 · 回答快，能看图片，适合日常问答和拍题", readsImages = true,
     )
+    val PRO = CuratedModel(
+        "DeepSeek Pro", "deepseek-v4-pro",
+        "V4 · 推理更强、稍慢；只读文字，带图片的提问交给 Flash", readsImages = false,
+    )
+    val ALL: List<CuratedModel> = listOf(FLASH, PRO)
+    val DEFAULT: CuratedModel = FLASH
 
-    /** 代号→展示名;非名单内(自定义)或 null 返回 null。 */
-    fun displayFor(code: String?): String? = ALL.firstOrNull { it.code == code }?.display
+    /** DeepSeek still accepts the retired Flash names and serves them with the current Flash. */
+    private val ALIASES = mapOf("deepseek-v4-flash" to FLASH, "deepseek-v4-flash-vision-exp" to FLASH)
+
+    fun of(code: String?): CuratedModel? = ALL.firstOrNull { it.code == code } ?: ALIASES[code]
+
+    /** Code → shown name; null for a custom model or null. */
+    fun displayFor(code: String?): String? = of(code)?.display
 }

@@ -30,7 +30,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -128,12 +128,12 @@ fun TodayHeader(
                 Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .clickable(role = Role.Button, onClickLabel = "账户与设置", onClick = onOpenSettings)
-                    .semantics { contentDescription = "账户与设置" },
+                    .clickable(role = Role.Button, onClickLabel = "设置", onClick = onOpenSettings)
+                    .semantics { contentDescription = "设置" },
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Box(Modifier.size(36.dp).background(c.accentSoft, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Outlined.Person, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Outlined.Settings, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
                 }
             }
             Spacer(Modifier.weight(1f))

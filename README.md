@@ -8,7 +8,7 @@
 
 | 功能 | 已实现的主要能力 |
 | --- | --- |
-| AI 对话 | OpenAI 兼容接口、流式回答、停止生成、每条最多 6 张图片、拍照或扫描页提问、Markdown 与公式显示 |
+| AI 对话 | 内置 DeepSeek（Flash / Pro），自定义接口支持 OpenAI 兼容、Anthropic、Google Gemini 格式；推理等级、温度等生成参数；流式回答、停止生成、每条最多 6 张图片、拍照或扫描页提问、Markdown 与公式显示 |
 | 扫描 | 实时四角检测、手动校正、透视矫正、彩色／增强灰度／黑白滤镜、多页编辑、PDF 导出与分享 |
 | 知识库 | 从单轮对话、整个会话或扫描页生成可编辑草稿；分类、错题原图、关联条目、中文全文搜索 |
 | 日程 | 日时间线、周课表、手动课程与待办、课程系列管理、作息表设置、本地提醒 |
@@ -43,15 +43,15 @@ Debug 版可调试、不预编译，每个页面第一次打开都会明显更�
 .\gradlew.bat :app:installProfile
 ```
 
-AI 的 API Key、Base URL、模型名可在应用设置中配置；Base URL 填服务基础地址，客户端会追加 `/chat/completions`。编译不要求提供 API Key。如需给自己的构建设置默认值，可在已被 Git 忽略的 `local.properties` 中填写：
+内置模型是 DeepSeek 的 `deepseek-flash` 和 `deepseek-v4-pro`（OpenAI 格式，`https://api.deepseek.com`）。内置密钥放在已被 Git 忽略的 `local.properties` 中，**不要提交**；编译不要求提供密钥，没有密钥时 AI 功能会提示改用自定义接口：
 
 ```properties
-API_KEY=YOUR_API_KEY
-API_BASE_URL=https://YOUR_PROVIDER/v1
-DEFAULT_LLM_MODEL=YOUR_MODEL_ID
+API_KEY=YOUR_DEEPSEEK_KEY
+API_BASE_URL=https://api.deepseek.com
+DEFAULT_LLM_MODEL=deepseek-flash
 ```
 
-这些默认值会进入 APK 的 `BuildConfig`，不能作为保密分发机制。内置模型名单是静态配置，不保证列出的模型仍由服务商提供；选择内置模型会清除自定义端点和密钥设置，详见[学习工具实现](docs/learning-tools.md)。
+这些值会编译进 APK 的 `BuildConfig`，拿到安装包的人可以提取出来，不能作为保密分发机制；分发安装包前应换成单独的、限额的密钥。应用内“设置 → AI 模型 → 自定义接口”可以改用自己的服务（OpenAI 兼容、Anthropic、Google Gemini），选回内置模型会清除自定义地址、密钥和格式，详见[学习工具实现](docs/learning-tools.md)。
 
 ## 开发文档
 
