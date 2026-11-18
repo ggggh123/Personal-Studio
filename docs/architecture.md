@@ -21,7 +21,9 @@
 
 这是一套代码组织方式，没有强制的模块依赖隔离；部分用例仍直接接触 DAO 或 Android 图像类型。新增功能优先沿用现有入口，不能把早期“严格纯领域层”的设想当作现状。
 
-[`PersonalStudioApp`](../app/src/main/java/com/example/personal_studio/PersonalStudioApp.kt) 初始化 OpenCV、崩溃记录及后台轮询，并提供 `HiltWorkerFactory`。[`MainActivity`](../app/src/main/java/com/example/personal_studio/MainActivity.kt) 启动 Compose 界面并请求重排近期提醒。界面主要通过 Flow 观察本地数据，同步用例负责网络取数和写入。
+[`KejianApp`](../app/src/main/java/com/example/personal_studio/KejianApp.kt) 初始化 OpenCV、崩溃记录及后台轮询，并提供 `HiltWorkerFactory`。[`MainActivity`](../app/src/main/java/com/example/personal_studio/MainActivity.kt) 启动 Compose 界面并请求重排近期提醒。界面主要通过 Flow 观察本地数据，同步用例负责网络取数和写入。
+
+应用名为“课间”（原名 Personal Studio）。以下标识沿用旧名、**不要改**：应用 ID 与 Kotlin 包名 `com.example.personal_studio`（改了手机会当成另一个应用，本机数据接不上）、数据库文件 `personal-studio.db` 与各 DataStore 名（改了等于清空数据）、深链 `personalstudio://`（已排程的提醒闹钟按这个地址识别和取消）、提醒广播 `com.example.personal_studio.action.REMINDER`，以及指向 GitHub 仓库 `ggggh123/Personal-Studio` 的链接。
 
 ## 数据与配置
 

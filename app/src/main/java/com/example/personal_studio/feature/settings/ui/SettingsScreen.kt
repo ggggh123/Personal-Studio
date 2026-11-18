@@ -174,7 +174,7 @@ fun SettingsScreen(
             TgGroupLabel("关于", Modifier.enterUp(true, 200))
             TgCard(Modifier.enterUp(true, 200)) {
                 TgSettingRow(
-                    "Personal Studio", icon = Icons.Outlined.Info, first = true,
+                    "课间", icon = Icons.Outlined.Info, first = true,
                     summary = "版本 ${BuildConfig.VERSION_NAME}" + if (BuildConfig.DEBUG) " · 调试版" else "",
                 )
             }

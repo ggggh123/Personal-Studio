@@ -105,8 +105,8 @@ class MainActivity : ComponentActivity() {
     private fun rememberSplashFamily(family: ThemeFamily) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         splashScreen.setSplashScreenTheme(
-            if (family == ThemeFamily.DARK) R.style.Theme_PersonalStudio_Night
-            else R.style.Theme_PersonalStudio_Day,
+            if (family == ThemeFamily.DARK) R.style.Theme_Kejian_Night
+            else R.style.Theme_Kejian_Day,
         )
     }
 

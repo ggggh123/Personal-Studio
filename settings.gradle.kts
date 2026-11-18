@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Personal-Studio"
+rootProject.name = "Kejian"
 include(":app")
  

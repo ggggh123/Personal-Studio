@@ -191,7 +191,7 @@ private fun ShareCard(book: GradeBook, includeCourses: Boolean) {
         }
 
         Box(Modifier.padding(top = 20.dp).fillMaxWidth().height(1.dp).background(c.line))
-        Text("Personal Studio", style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 10.dp))
+        Text("课间", style = MaterialTheme.typography.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = 10.dp))
     }
 }
 

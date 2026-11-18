@@ -1,4 +1,4 @@
 <resources>
     <!-- First launch, before the app has recorded a 天光 family: follow the system. -->
-    <style name="Theme.PersonalStudio" parent="Theme.PersonalStudio.Night" />
+    <style name="Theme.Kejian" parent="Theme.Kejian.Night" />
 </resources>

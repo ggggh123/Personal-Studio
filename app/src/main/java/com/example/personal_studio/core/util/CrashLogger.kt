@@ -10,7 +10,7 @@ import java.util.Date
 import java.util.Locale
 
 object CrashLogger {
-    private const val TAG = "PersonalStudio"
+    private const val TAG = "Kejian"
     private const val DIR_NAME = "crash-logs"
 
     fun install(context: Context) {

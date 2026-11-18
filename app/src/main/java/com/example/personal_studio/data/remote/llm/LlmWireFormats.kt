@@ -90,7 +90,7 @@ internal object OpenAiChatFormat : LlmWireFormat {
         "Accept" to if (stream) "text/event-stream" else "application/json",
         // OpenRouter shows these on its dashboard; other servers ignore them.
         "HTTP-Referer" to "https://github.com/ggggh123/Personal-Studio",
-        "X-Title" to "Personal-Studio",
+        "X-Title" to "Kejian",
     )
 
     override fun body(

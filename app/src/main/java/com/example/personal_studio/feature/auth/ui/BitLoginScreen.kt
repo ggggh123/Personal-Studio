@@ -146,7 +146,7 @@ fun BitLoginScreen(
     ) {
         Spacer(Modifier.height(48.dp))
         HorizonMark(Modifier.enterUp(true, 0))
-        Text("Personal Studio", style = MaterialTheme.typography.displayMedium, color = c.text, modifier = Modifier.padding(top = 20.dp).enterUp(true, 60))
+        Text("课间", style = MaterialTheme.typography.displayMedium, color = c.text, modifier = Modifier.padding(top = 20.dp).enterUp(true, 60))
         Text(
             "登录北京理工大学统一身份认证，课表、作业、考试和成绩会自动同步到这里。",
             style = MaterialTheme.typography.bodyMedium, color = c.textSecondary,

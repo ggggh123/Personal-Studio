@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
-class PersonalStudioApp : Application(), Configuration.Provider {
+class KejianApp : Application(), Configuration.Provider {
 
     @Inject lateinit var prefs: UserPreferencesRepository
     @Inject lateinit var workerFactory: HiltWorkerFactory

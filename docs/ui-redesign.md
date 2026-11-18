@@ -2,7 +2,7 @@
 
 [返回项目入口](../README.md)
 
-本文记录 2026-11 起的界面改版：已经定下的设计决定、在 Compose 中的落地方式和分阶段实施计划。设计稿与可点击原型在私有设计画布 [Personal Studio 天光 · 第一批](https://claude.ai/artifact/15LRUqcJedzS42ynuakpzu)（需项目所有者账号或分享权限）。三批改版已于 2026-11-16 全部完成，日常开发的界面约定见 [架构文档](architecture.md#界面约定)。
+本文记录 2026-11 起的界面改版：已经定下的设计决定、在 Compose 中的落地方式和分阶段实施计划。设计稿与可点击原型在私有设计画布 [天光 · 第一批（应用旧名 Personal Studio）](https://claude.ai/artifact/15LRUqcJedzS42ynuakpzu)（需项目所有者账号或分享权限）。三批改版已于 2026-11-16 全部完成，日常开发的界面约定见 [架构文档](architecture.md#界面约定)。
 
 ## 已定的设计决定
 

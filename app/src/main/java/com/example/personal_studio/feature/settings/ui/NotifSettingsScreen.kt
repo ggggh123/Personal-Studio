@@ -196,13 +196,13 @@ private fun ManufacturerGuidance(onOpenAppDetails: () -> Unit, modifier: Modifie
         ) {
             Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "上面三项都已允许后仍然延迟，通常是手机系统在清理后台。按下面的路径放行 Personal Studio，并在最近任务里锁定它。",
+                    "上面三项都已允许后仍然延迟，通常是手机系统在清理后台。按下面的路径放行“课间”，并在最近任务里锁定它。",
                     style = MaterialTheme.typography.bodySmall, color = c.textSecondary,
                 )
-                Brand("小米 / 红米", "设置 → 应用管理 → Personal Studio → 自启动开启，省电策略选“无限制”")
-                Brand("华为 / 荣耀", "手机管家 → 应用启动管理 → Personal Studio → 手动管理，全部开启")
-                Brand("OPPO / 一加", "设置 → 电池 → 应用电池管理 → Personal Studio → 允许后台运行")
-                Brand("vivo / iQOO", "i 管家 → 应用管理 → 自启动管理 → Personal Studio → 开启")
+                Brand("小米 / 红米", "设置 → 应用管理 → 课间 → 自启动开启，省电策略选“无限制”")
+                Brand("华为 / 荣耀", "手机管家 → 应用启动管理 → 课间 → 手动管理，全部开启")
+                Brand("OPPO / 一加", "设置 → 电池 → 应用电池管理 → 课间 → 允许后台运行")
+                Brand("vivo / iQOO", "i 管家 → 应用管理 → 自启动管理 → 课间 → 开启")
                 TgPillButton("打开应用详情", onClick = onOpenAppDetails, style = PillStyle.SECONDARY, modifier = Modifier.padding(top = 4.dp))
             }
         }
